@@ -122,6 +122,15 @@ dependencies {
     implementation("com.onesignal:OneSignal:5.7.3")
 
     // ============================================
+    // GOOGLE SIGN IN (OAuth)
+    // ============================================
+    // Para login con Google + Credential Manager
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("androidx.credentials:credentials:1.5.0-rc01")
+    implementation("androidx.credentials:credentials-play-services-auth:1.5.0-rc01")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
+    // ============================================
     // COROUTINES
     // ============================================
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")

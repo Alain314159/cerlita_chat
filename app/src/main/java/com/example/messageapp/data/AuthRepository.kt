@@ -1,10 +1,18 @@
 package com.example.messageapp.data
 
+import android.content.Context
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.example.messageapp.model.User
 import com.example.messageapp.supabase.SupabaseConfig
 import com.example.messageapp.crypto.E2ECipher
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.providers.builtin.IDToken
+import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +28,7 @@ import kotlinx.coroutines.withContext
  * Funcionalidades:
  * - Registro con email/password
  * - Login con email/password
+ * - Login con Google (OAuth)
  * - Gestión de sesión
  * - Logout
  * 
@@ -313,6 +322,72 @@ class AuthRepository {
             Result.success(Unit)
         } catch (e: Exception) {
             android.util.Log.w("AuthRepository", "Password reset error", e)
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Login con Google usando Credential Manager
+     * 
+     * @param context Contexto de Android
+     * @param webClientId Client ID de Web de Google Cloud Console
+     * @return Result con el UID del usuario o error
+     */
+    suspend fun signInWithGoogle(context: Context, webClientId: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val credentialManager = CredentialManager.create(context)
+            
+            // Configurar opción de Google ID
+            val googleIdOption = GetGoogleIdOption.Builder()
+                .setServerClientId(webClientId)
+                .setFilterByAuthorizedAccounts(false) // Mostrar todas las cuentas
+                .setAutoSelectEnabled(true) // Auto-seleccionar si hay una cuenta
+                .setNonce(java.util.UUID.randomUUID().toString()) // Prevenir replay attacks
+                .build()
+            
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(googleIdOption)
+                .build()
+            
+            // Obtener credencial
+            val result = credentialManager.getCredential(context, request)
+            val credential = result.credential
+            
+            // Verificar que es Google ID Token
+            if (credential is androidx.credentials.CustomCredential && 
+                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                
+                val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                val idToken = googleIdTokenCredential.idToken
+                
+                // Login con Supabase usando ID Token de Google
+                auth.signInWith(IDToken) {
+                    this.idToken = idToken
+                    provider = Google
+                }
+                
+                val uid = auth.currentSessionOrNull()?.user?.id
+                    ?: throw IllegalStateException("User ID not found after Google login")
+                
+                // Crear/actualizar perfil
+                upsertUserProfile(uid)
+                
+                // Generar clave maestra para cifrado
+                E2ECipher // Inicializar cifrado
+                
+                android.util.Log.d("AuthRepository", "Google login exitoso: $uid")
+                Result.success(uid)
+                
+            } else {
+                android.util.Log.w("AuthRepository", "Credencial de Google no válida")
+                Result.failure(Exception("Credencial de Google no válida"))
+            }
+            
+        } catch (e: GetCredentialException) {
+            android.util.Log.w("AuthRepository", "Error de Credential Manager: ${e.message}", e)
+            Result.failure(Exception("Error de Google Sign In: ${e.message}"))
+        } catch (e: Exception) {
+            android.util.Log.w("AuthRepository", "Error de Google Sign In", e)
             Result.failure(e)
         }
     }
