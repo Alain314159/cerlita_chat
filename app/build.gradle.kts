@@ -94,13 +94,14 @@ dependencies {
     // Documentación: https://github.com/supabase-community/supabase-kt
     // Versión: 3.4.1 (Marzo 2026 - ÚLTIMA)
     // Nota: Antes de 3.0.0 se llamaba "gotrue-kt", ahora es "auth-kt"
+    // Incluye: Auth, Database, Realtime, Storage (para multimedia)
     
     implementation(platform("io.github.jan.supabase:bom:3.4.1"))
     implementation("io.github.jan.supabase:supabase-kt")
-    implementation("io.github.jan.supabase:auth-kt")        // Autenticación (antes gotrue-kt)
+    implementation("io.github.jan.supabase:auth-kt")        // Autenticación
     implementation("io.github.jan.supabase:postgrest-kt")   // Base de datos
     implementation("io.github.jan.supabase:realtime-kt")    // WebSockets
-    implementation("io.github.jan.supabase:storage-kt")     // Storage (opcional)
+    implementation("io.github.jan.supabase:storage-kt")     // Multimedia (fotos/videos/audios)
     
     // Ktor client (requerido por Supabase 3.x - requiere Ktor 3.x)
     implementation("io.ktor:ktor-client-android:3.3.0")
