@@ -16,7 +16,6 @@ env:
     --stacktrace
     --info
     -Dkotlin.incremental=false
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_ACCESS_KEY }}
 
 jobs:
   # ============================================
@@ -45,7 +44,6 @@ jobs:
       with:
         gradle-version: wrapper
         cache-read-only: false
-        cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
 
     - name: Cache Gradle dependencies
       uses: actions/cache@v4  # Actualizado a v4 (2026)
