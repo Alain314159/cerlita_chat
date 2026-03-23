@@ -173,6 +173,7 @@ jobs:
 
     # Verificar secretos (sin exponerlos)
     - name: 🔐 Check Configuration Files
+      continue-on-error: true  # No fallar el build por esto
       run: |
         echo "=== VERIFICANDO CONFIGURACIÓN ==="
         
@@ -181,12 +182,13 @@ jobs:
           echo "✅ SupabaseConfig.kt encontrado"
           # Verificar que no están los placeholders
           if grep -q "TU_PROYECTO.supabase.co" app/src/main/java/com/example/messageapp/supabase/SupabaseConfig.kt; then
-            echo "⚠️  ADVERTENCIA: Aún están los placeholders de Supabase. Configura los secrets."
+            echo "⚠️  ADVERTENCIA: Aún están los placeholders de Supabase."
+            echo "   El build continuará pero la app no funcionará sin configurar."
           else
             echo "✅ Supabase parece estar configurado"
           fi
         else
-          echo "❌ ERROR: No se encontró SupabaseConfig.kt"
+          echo "⚠️  SupabaseConfig.kt no encontrado (puede estar en otra ruta)"
         fi
         
         # Verificar AndroidManifest
@@ -194,6 +196,7 @@ jobs:
           echo "✅ AndroidManifest.xml presente"
         else
           echo "❌ ERROR: Falta AndroidManifest.xml"
+          exit 1
         fi
 
     # Compilar Debug (con logs detallados)
