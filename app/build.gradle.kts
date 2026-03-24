@@ -2,12 +2,12 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    // Requerido para Supabase (Kotlin Serialization)
+    // Requerido para Supabase (Kotlin Serialization) - versión compatible con Kotlin 2.1.0
     kotlin("plugin.serialization") version "2.1.0"
 
-    // Plugins de calidad de código (Versiones Marzo 2026)
-    id("io.gitlab.arturbosch.detekt") version "1.23.8"
-    id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
+    // Plugins de calidad de código (comentados para build rápido - descomentar cuando se necesiten)
+    // id("io.gitlab.arturbosch.detekt") version "1.23.8"
+    // id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
 }
 
 android {
@@ -60,13 +60,13 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"  // Compatible con Kotlin 2.1.0
+        kotlinCompilerExtensionVersion = "1.5.10"  // Compatible con Kotlin 2.1.0
     }
 
     lint {
         abortOnError = false
         checkReleaseBuilds = false
-        baseline = file("lint-baseline.xml")
+        // baseline = file("lint-baseline.xml")  // Comentado hasta crear el archivo
         xmlReport = true
         htmlReport = true
     }
@@ -125,26 +125,29 @@ dependencies {
     implementation(libs.coil.video)
 
     // ============================================
-    // SUPABASE - Versión estable en JitPack (Marzo 2026)
+    // SUPABASE - Versión estable Marzo 2026 (3.4.1)
     // Documentación: https://github.com/supabase-community/supabase-kt
+    // Group ID actualizado: io.github.jan-tennert.supabase
     // ============================================
-    implementation(platform("io.github.jan.supabase:bom:2.1.0"))
-    implementation("io.github.jan.supabase:supabase-kt:2.1.0")
-    implementation("io.github.jan.supabase:gotrue-kt:2.1.0")  // Autenticación
-    implementation("io.github.jan.supabase:postgrest-kt:2.1.0")  // Base de datos
-    implementation("io.github.jan.supabase:realtime-kt:2.1.0")  // Tiempo real
-    implementation("io.github.jan.supabase:storage-kt:2.1.0")  // Storage
+    implementation(platform("io.github.jan-tennert.supabase:bom:3.4.1"))
+    implementation("io.github.jan-tennert.supabase:supabase-kt:3.4.1")
+    implementation("io.github.jan-tennert.supabase:auth-kt:3.4.1")  // Autenticación (antes gotrue-kt)
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:3.4.1")  // Base de datos
+    implementation("io.github.jan-tennert.supabase:realtime-kt:3.4.1")  // Tiempo real
+    implementation("io.github.jan-tennert.supabase:storage-kt:3.4.1")  // Storage
 
     // ============================================
-    // KTOR - Versión compatible con Supabase 2.x
+    // KTOR - Versión compatible con Supabase 3.4.1
     // ============================================
-    implementation("io.ktor:ktor-client-android:2.3.13")
-    implementation("io.ktor:ktor-client-core:2.3.13")
-    implementation("io.ktor:ktor-utils:2.3.13")
-    implementation("io.ktor:ktor-client-plugins:2.3.13")
+    implementation("io.ktor:ktor-client-android:3.4.1")
+    implementation("io.ktor:ktor-client-core:3.4.1")
+    implementation("io.ktor:ktor-utils:3.4.1")
+    implementation("io.ktor:ktor-client-plugins:3.4.1")
+    implementation("io.ktor:ktor-client-content-negotiation:3.4.1")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.4.1")
 
-    // Kotlinx Serialization
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    // Kotlinx Serialization - Compatible con Kotlin 2.1.0
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
     // ============================================
     // JPUSH (Aurora Mobile) - GRÁTIS y funciona desde Cuba

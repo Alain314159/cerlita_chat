@@ -3,12 +3,9 @@ package com.example.messageapp.data
 import com.example.messageapp.model.Chat
 import com.example.messageapp.model.Message
 import com.example.messageapp.supabase.SupabaseConfig
-import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.realtime.Realtime
-import io.github.jan.supabase.realtime.Channel
-import io.github.jan.supabase.realtime.PostgresChangeFilter
-import io.github.jan.supabase.realtime.PostgresAction
-import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan-tennert.supabase.postgrest.Postgrest
+import io.github.jan-tennert.supabase.realtime.Realtime
+import io.github.jan-tennert.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -89,35 +86,48 @@ class ChatRepository {
     
     /**
      * Observa la lista de chats del usuario en tiempo real
+     * ✅ Actualizado para supabase-kt 3.x
      */
     fun observeChats(uid: String): Flow<List<Chat>> = callbackFlow {
-        val channel = realtime.from("chats")
-        
-        // Suscribirse a cambios
-        val subscription = channel.subscribe { channel ->
-            // Cargar chats iniciales
-            loadChatsForUser(uid)
-            
-            // Escuchar cambios
-            channel.onPostgresChanges(
-                event = PostgresAction.ALL,
-                schema = "public",
-                table = "chats"
-            ) { change ->
+        val channel = realtime.channel("chats:public:chats")
+
+        // Flujo de cambios de PostgREST
+        val changeFlow = channel.postgrestChangeFlow(schema = "public") {
+            table = "chats"
+        }
+
+        // Suscribirse al canal
+        channel.subscribe()
+
+        // Cargar chats iniciales en background
+        kotlinx.coroutines.launch {
+            try {
+                val initialChats = loadChatsForUser(uid)
+                trySend(initialChats)
+            } catch (e: Exception) {
+                android.util.Log.w("ChatRepository", "Error loading initial chats", e)
+                trySend(emptyList())
+            }
+        }
+
+        // Escuchar cambios
+        val job = kotlinx.coroutines.launch {
+            changeFlow.collect { change ->
                 loadChatsForUser(uid)
             }
         }
-        
+
         awaitClose {
-            realtime.removeChannel(subscription)
+            job.cancel()
+            realtime.removeChannel(channel)
         }
     }
     
     /**
      * Carga los chats del usuario desde la base de datos
      */
-    private suspend fun loadChatsForUser(uid: String) {
-        try {
+    private suspend fun loadChatsForUser(uid: String): List<Chat> {
+        return try {
             val chats = db.from("chats")
                 .select(columns = Columns.list("*")) {
                     filter {
@@ -126,11 +136,13 @@ class ChatRepository {
                     order("updated_at" to false) // DESC
                 }
                 .decodeList<Chat>()
-            
-            // Enviar por el flow (si está activo)
+
+            // Enviar por el flow (si está activo en callbackFlow)
             // Esto se maneja automáticamente por callbackFlow
+            chats
         } catch (e: Exception) {
             android.util.Log.w("ChatRepository", "Load chats error", e)
+            emptyList()
         }
     }
     
@@ -155,44 +167,49 @@ class ChatRepository {
     
     /**
      * Observa los mensajes de un chat en tiempo real
+     * ✅ Actualizado para supabase-kt 3.x
      */
     fun observeMessages(chatId: String, myUid: String): Flow<List<Message>> = callbackFlow {
         // Cargar mensajes iniciales
         loadMessages(chatId)
-        
+
         // Suscribirse a cambios en mensajes
-        val channel = realtime.from("messages")
-        
-        val subscription = channel.subscribe { channel ->
-            channel.onPostgresChanges(
-                event = PostgresAction.INSERT,
-                schema = "public",
-                table = "messages",
-                filter = PostgresChangeFilter.eq("chat_id", chatId)
-            ) { change ->
-                // Nuevo mensaje recibido
-                loadMessages(chatId)
-                
-                // Marcar como entregado automáticamente
-                val newMessage = change.decodeRecord<Message>()
-                if (newMessage.senderId != myUid) {
-                    markDelivered(chatId, newMessage.id, myUid)
+        val channel = realtime.channel("messages:public:messages")
+
+        // Flujo de cambios para INSERT/UPDATE/DELETE
+        val changeFlow = channel.postgrestChangeFlow(schema = "public") {
+            table = "messages"
+        }
+
+        // Suscribirse al canal
+        channel.subscribe()
+
+        // Escuchar cambios
+        val job = kotlinx.coroutines.launch {
+            changeFlow.collect { change ->
+                // Verificar si el cambio es para este chat
+                val recordJson = change.record
+                if (recordJson != null) {
+                    try {
+                        val message = kotlinx.serialization.json.Json.decodeFromJsonElement<Message>(recordJson)
+                        if (message.chatId == chatId) {
+                            // Recargar mensajes
+                            loadMessages(chatId)
+                            // Marcar como entregado automáticamente si no soy el remitente
+                            if (message.senderId != myUid) {
+                                markDelivered(chatId, message.id, myUid)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("ChatRepository", "Error decoding message", e)
+                    }
                 }
             }
-            
-            channel.onPostgresChanges(
-                event = PostgresAction.UPDATE,
-                schema = "public",
-                table = "messages",
-                filter = PostgresChangeFilter.eq("chat_id", chatId)
-            ) { change ->
-                // Mensaje actualizado (lectura, eliminación, etc.)
-                loadMessages(chatId)
-            }
         }
-        
+
         awaitClose {
-            realtime.removeChannel(subscription)
+            job.cancel()
+            realtime.removeChannel(channel)
         }
     }
     

@@ -2,11 +2,9 @@ package com.example.messageapp.data
 
 import com.example.messageapp.model.Chat
 import com.example.messageapp.supabase.SupabaseConfig
-import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.realtime.PostgresAction
-import io.github.jan.supabase.realtime.PostgresChangeFilter
-import io.github.jan.supabase.realtime.Realtime
+import io.github.jan-tennert.supabase.postgrest.Postgrest
+import io.github.jan-tennert.supabase.postgrest.query.Columns
+import io.github.jan-tennert.supabase.realtime.Realtime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -15,14 +13,16 @@ import kotlinx.coroutines.withContext
 
 /**
  * Repositorio de Presencia
- * 
+ *
  * Maneja:
  * - Typing indicators ("Escribiendo...")
  * - Estado online/offline
  * - Last seen (última vez visto)
+ * 
+ * ✅ Actualizado para supabase-kt 3.x
  */
 class PresenceRepository {
-    
+
     private val db = SupabaseConfig.client.plugin(Postgrest)
     private val realtime = SupabaseConfig.client.plugin(Realtime)
     
@@ -78,38 +78,50 @@ class PresenceRepository {
     
     /**
      * Observa si la otra persona está escribiendo
-     * 
+     *
      * @param chatId ID del chat
      * @param myUid Mi ID de usuario
      * @return Flow que emite true cuando la pareja está escribiendo
      */
     fun observePartnerTyping(chatId: String, myUid: String): Flow<Boolean> = callbackFlow {
         try {
-            val channel = realtime.from("chats")
-            
-            val subscription = channel.subscribe {
-                channel.onPostgresChanges(
-                    event = PostgresAction.UPDATE,
-                    table = "chats",
-                    filter = PostgresChangeFilter.eq("id", chatId)
-                ) { change ->
-                    val chat = change.decodeRecord<Chat>()
-                    
-                    // Determinar si la otra persona está escribiendo
-                    val isPartnerTyping = if (chat.memberIds.firstOrNull() == myUid) {
-                        chat.user2Typing
-                    } else {
-                        chat.user1Typing
+            val channel = realtime.channel("chats:public:chats")
+
+            // Flujo de cambios
+            val changeFlow = channel.postgrestChangeFlow(schema = "public") {
+                table = "chats"
+            }
+
+            // Suscribirse
+            channel.subscribe()
+
+            val job = kotlinx.coroutines.launch {
+                changeFlow.collect { change ->
+                    val recordJson = change.record
+                    if (recordJson != null) {
+                        try {
+                            val chat = kotlinx.serialization.json.Json.decodeFromJsonElement<Chat>(recordJson)
+                            if (chat.id == chatId) {
+                                // Determinar si la otra persona está escribiendo
+                                val isPartnerTyping = if (chat.memberIds.firstOrNull() == myUid) {
+                                    chat.user2Typing
+                                } else {
+                                    chat.user1Typing
+                                }
+                                trySend(isPartnerTyping)
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("PresenceRepository", "Error decoding chat", e)
+                        }
                     }
-                    
-                    trySend(isPartnerTyping)
                 }
             }
-            
+
             awaitClose {
-                realtime.removeChannel(subscription)
+                job.cancel()
+                realtime.removeChannel(channel)
             }
-            
+
         } catch (e: Exception) {
             android.util.Log.w("PresenceRepository", "Error al observar typing", e)
             close()
@@ -142,30 +154,44 @@ class PresenceRepository {
     
     /**
      * Observa el estado online de la pareja
-     * 
+     *
      * @param partnerId ID de la pareja
      * @return Flow que emite true cuando la pareja está online
      */
     fun observePartnerOnline(partnerId: String): Flow<Boolean> = callbackFlow {
         try {
-            val channel = realtime.from("users")
-            
-            val subscription = channel.subscribe {
-                channel.onPostgresChanges(
-                    event = PostgresAction.UPDATE,
-                    table = "users",
-                    filter = PostgresChangeFilter.eq("id", partnerId)
-                ) { change ->
-                    val user = change.decodeRecord<Chat>()
-                    val isOnline = (user as? Map<*, *>)?.get("is_online") as? Boolean ?: false
-                    trySend(isOnline)
+            val channel = realtime.channel("users:public:users")
+
+            // Flujo de cambios
+            val changeFlow = channel.postgrestChangeFlow(schema = "public") {
+                table = "users"
+            }
+
+            // Suscribirse
+            channel.subscribe()
+
+            val job = kotlinx.coroutines.launch {
+                changeFlow.collect { change ->
+                    val recordJson = change.record
+                    if (recordJson != null) {
+                        try {
+                            val user = kotlinx.serialization.json.Json.decodeFromJsonElement<Chat>(recordJson)
+                            if (user.id == partnerId) {
+                                val isOnline = user.isOnline
+                                trySend(isOnline)
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("PresenceRepository", "Error decoding user", e)
+                        }
+                    }
                 }
             }
-            
+
             awaitClose {
-                realtime.removeChannel(subscription)
+                job.cancel()
+                realtime.removeChannel(channel)
             }
-            
+
         } catch (e: Exception) {
             android.util.Log.w("PresenceRepository", "Error al observar online status", e)
             close()

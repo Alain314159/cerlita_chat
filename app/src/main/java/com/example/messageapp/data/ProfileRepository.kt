@@ -3,9 +3,9 @@ package com.example.messageapp.data
 import android.net.Uri
 import com.example.messageapp.supabase.SupabaseConfig
 import com.example.messageapp.crypto.E2ECipher
-import io.github.jan.supabase.auth.Auth
-import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.storage.Storage
+import io.github.jan-tennert.supabase.auth.Auth
+import io.github.jan-tennert.supabase.postgrest.Postgrest
+import io.github.jan-tennert.supabase.storage.Storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

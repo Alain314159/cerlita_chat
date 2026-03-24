@@ -9,12 +9,12 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.example.messageapp.model.User
 import com.example.messageapp.supabase.SupabaseConfig
 import com.example.messageapp.crypto.E2ECipher
-import io.github.jan.supabase.auth.Auth
-import io.github.jan.supabase.auth.providers.Email
-import io.github.jan.supabase.auth.providers.IDToken
-import io.github.jan.supabase.auth.providers.Google
-import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan-tennert.supabase.auth.Auth
+import io.github.jan-tennert.supabase.auth.providers.Email
+import io.github.jan-tennert.supabase.auth.providers.IDToken
+import io.github.jan-tennert.supabase.auth.providers.Google
+import io.github.jan-tennert.supabase.postgrest.Postgrest
+import io.github.jan-tennert.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -87,7 +87,7 @@ class AuthRepository {
     
     /**
      * Registro con email y password
-     * 
+     *
      * @param email Email del usuario
      * @param password Contraseña (mínimo 6 caracteres)
      * @return Result con el UID del usuario o la excepción
@@ -98,24 +98,26 @@ class AuthRepository {
             if (!isValidEmail(email)) {
                 return@withContext Result.failure(IllegalArgumentException("Email inválido"))
             }
-            
+
             // Validar password
             if (password.length < 6) {
                 return@withContext Result.failure(IllegalArgumentException("Password debe tener al menos 6 caracteres"))
             }
-            
-            // ✅ API CORRECTA para supabase-kt 2.x
-            // Crear usuario con Supabase Auth
-            val authResult = auth.signUp(email, password)
 
-            val uid = authResult.user?.id
-            
+            // ✅ API CORRECTA para supabase-kt 3.x
+            val authResult = auth.signUpWith(Email) {
+                this.email = email
+                this.password = password
+            }
+
+            val uid = authResult.user?.id ?: return@withContext Result.failure(Exception("User ID is null"))
+
             // Crear perfil en la tabla users
             createUserProfile(uid, email)
-            
+
             android.util.Log.d("AuthRepository", "Usuario registrado: $uid")
             Result.success(uid)
-            
+
         } catch (e: Exception) {
             android.util.Log.w("AuthRepository", "Sign up error: ${e.message}", e)
             Result.failure(e)
@@ -127,19 +129,21 @@ class AuthRepository {
      */
     suspend fun signInWithEmail(email: String, password: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            // ✅ API CORRECTA para supabase-kt 2.x
-            // Login con Supabase Auth
-            auth.signIn(email, password)
+            // ✅ API CORRECTA para supabase-kt 3.x
+            auth.signInWith(Email) {
+                email = email
+                password = password
+            }
 
             val uid = auth.currentSessionOrNull()?.user?.id
                 ?: throw IllegalStateException("User ID not found after login")
-            
+
             // Verificar/actualizar perfil
             upsertUserProfile(uid)
-            
+
             android.util.Log.d("AuthRepository", "Usuario logueado: $uid")
             Result.success(uid)
-            
+
         } catch (e: Exception) {
             android.util.Log.w("AuthRepository", "Sign in error: ${e.message}", e)
             Result.failure(e)
@@ -148,7 +152,7 @@ class AuthRepository {
     
     /**
      * Login anónimo (simulado con email temporal)
-     * 
+     *
      * Nota: Supabase no soporta login anónimo nativo en el plan free.
      * Esta implementación crea un usuario con email temporal único.
      */
@@ -157,12 +161,15 @@ class AuthRepository {
             // Generar email temporal único
             val tempEmail = "anon_${System.currentTimeMillis()}@messageapp.local"
             val tempPassword = java.util.UUID.randomUUID().toString()
-            
-            // Crear usuario anónimo
-            val authResult = auth.signUp(tempEmail, tempPassword)
 
-            val uid = authResult.user?.id
-            
+            // Crear usuario anónimo con API 3.x
+            val authResult = auth.signUpWith(Email) {
+                email = tempEmail
+                password = tempPassword
+            }
+
+            val uid = authResult.user?.id ?: throw Exception("User ID is null")
+
             // Crear perfil anónimo
             db.from("users").insert(
                 mapOf(
@@ -175,10 +182,10 @@ class AuthRepository {
                     "updated_at" to (System.currentTimeMillis() / 1000)
                 )
             )
-            
+
             android.util.Log.d("AuthRepository", "Usuario anónimo creado: $uid")
             Result.success(uid)
-            
+
         } catch (e: Exception) {
             android.util.Log.w("AuthRepository", "Anonymous sign in error", e)
             Result.failure(e)
@@ -319,7 +326,7 @@ class AuthRepository {
     
     /**
      * Login con Google usando Credential Manager
-     * 
+     *
      * @param context Contexto de Android
      * @param webClientId Client ID de Web de Google Cloud Console
      * @return Result con el UID del usuario o error
@@ -327,7 +334,7 @@ class AuthRepository {
     suspend fun signInWithGoogle(context: Context, webClientId: String): Result<String> = withContext(Dispatchers.IO) {
         try {
             val credentialManager = CredentialManager.create(context)
-            
+
             // Configurar opción de Google ID
             val googleIdOption = GetGoogleIdOption.Builder()
                 .setServerClientId(webClientId)
@@ -335,42 +342,45 @@ class AuthRepository {
                 .setAutoSelectEnabled(true) // Auto-seleccionar si hay una cuenta
                 .setNonce(java.util.UUID.randomUUID().toString()) // Prevenir replay attacks
                 .build()
-            
+
             val request = GetCredentialRequest.Builder()
                 .addCredentialOption(googleIdOption)
                 .build()
-            
+
             // Obtener credencial
             val result = credentialManager.getCredential(context, request)
             val credential = result.credential
-            
+
             // Verificar que es Google ID Token
-            if (credential is androidx.credentials.CustomCredential && 
+            if (credential is androidx.credentials.CustomCredential &&
                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                
+
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                 val idToken = googleIdTokenCredential.idToken
-                
-                // Login con Supabase usando ID Token de Google
-                auth.signInWithIdToken(provider = IDToken, idToken = idToken)
+
+                // ✅ Login con Supabase usando API 3.x
+                auth.signInWith(IDToken) {
+                    provider = io.github.jan-tennert.supabase.auth.providers.Google
+                    idToken = idToken
+                }
 
                 val uid = auth.currentSessionOrNull()?.user?.id
                     ?: throw IllegalStateException("User ID not found after Google login")
-                
+
                 // Crear/actualizar perfil
                 upsertUserProfile(uid)
-                
+
                 // Generar clave maestra para cifrado
                 E2ECipher // Inicializar cifrado
-                
+
                 android.util.Log.d("AuthRepository", "Google login exitoso: $uid")
                 Result.success(uid)
-                
+
             } else {
                 android.util.Log.w("AuthRepository", "Credencial de Google no válida")
                 Result.failure(Exception("Credencial de Google no válida"))
             }
-            
+
         } catch (e: GetCredentialException) {
             android.util.Log.w("AuthRepository", "Error de Credential Manager: ${e.message}", e)
             Result.failure(Exception("Error de Google Sign In: ${e.message}"))
