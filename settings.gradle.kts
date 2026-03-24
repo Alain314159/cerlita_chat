@@ -18,12 +18,11 @@ dependencyResolutionManagement {
         // Google / Android
         google()
         
-        // Maven Central (Supabase, Ktor, etc.)
+        // Maven Central (Supabase, Ktor, JPush, etc.)
         mavenCentral()
         
-        // Jiguang (JPush) - Repositorio chino para notificaciones
-        maven { url = uri("https://jitpack.io") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        // JCenter para dependencias legacy de Jiguang
+        maven { url = uri("https://maven.aliyun.com/repository/jcenter") }
     }
 }
 
