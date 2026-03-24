@@ -2,14 +2,11 @@ package com.example.messageapp.data
 
 import android.content.Context
 import android.util.Log
-import cn.jiguang.jpush.android.JPushInterface
-import cn.jiguang.jpush.android.api.JPushMessage
-import cn.jiguang.jpush.android.api.TagAliasCallback
+import cn.jiguang.jpush.android.api.JPushInterface
 import com.example.messageapp.supabase.SupabaseConfig
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import org.json.JSONObject
 
 /**
  * Repositorio de Notificaciones usando JPush (Aurora Mobile)
@@ -26,6 +23,7 @@ class NotificationRepository {
     }
     
     private var isInitialized = false
+    private var appContext: Context? = null
     
     // Eventos de notificaciones recibidas
     private val _notificationReceived = MutableSharedFlow<JPushNotificationData>()
@@ -40,6 +38,7 @@ class NotificationRepository {
      * Debe llamarse UNA sola vez, preferiblemente en Application.onCreate()
      */
     fun initialize(context: Context) {
+        appContext = context.applicationContext
         val appKey = SupabaseConfig.JPUSH_APP_KEY
         
         // Verificar que el App Key es válido
@@ -54,7 +53,7 @@ class NotificationRepository {
             JPushInterface.setDebugMode(true)
             
             // Inicializar JPush
-            JPushInterface.init(context)
+            JPushInterface.init(appContext)
             
             isInitialized = true
             Log.d(TAG, "JPush inicializado correctamente")
@@ -70,7 +69,8 @@ class NotificationRepository {
      * Este ID se usa para enviar notificaciones push a este dispositivo específico
      */
     fun getRegistrationId(): String {
-        return JPushInterface.getRegistrationID(App.context)
+        val ctx = appContext ?: return ""
+        return JPushInterface.getRegistrationID(ctx)
     }
     
     /**
@@ -85,9 +85,10 @@ class NotificationRepository {
      * Establece un alias para identificar al usuario
      * Esto permite enviar notificaciones a usuarios específicos
      */
-    fun setAlias(context: Context, alias: String, callback: ((Int: Int, Set<String>?, Int) -> Unit)? = null) {
+    fun setAlias(alias: String) {
+        val ctx = appContext ?: return
         try {
-            JPushInterface.setAlias(context, 0, alias)
+            JPushInterface.setAlias(ctx, 0, alias)
             Log.d(TAG, "Alias establecido: $alias")
         } catch (e: Exception) {
             Log.e(TAG, "Error estableciendo alias", e)
@@ -97,9 +98,10 @@ class NotificationRepository {
     /**
      * Elimina el alias (cuando el usuario hace logout)
      */
-    fun deleteAlias(context: Context) {
+    fun deleteAlias() {
+        val ctx = appContext ?: return
         try {
-            JPushInterface.deleteAlias(context, 0)
+            JPushInterface.deleteAlias(ctx, 0)
             Log.d(TAG, "Alias eliminado")
         } catch (e: Exception) {
             Log.e(TAG, "Error eliminando alias", e)
@@ -109,9 +111,10 @@ class NotificationRepository {
     /**
      * Establece tags para segmentación
      */
-    fun setTags(context: Context, tags: Set<String>, callback: ((Int, Set<String>?, Int) -> Unit)? = null) {
+    fun setTags(tags: Set<String>) {
+        val ctx = appContext ?: return
         try {
-            JPushInterface.setTags(context, 0, tags)
+            JPushInterface.setTags(ctx, 0, tags)
             Log.d(TAG, "Tags establecidos: $tags")
         } catch (e: Exception) {
             Log.e(TAG, "Error estableciendo tags", e)
@@ -121,25 +124,28 @@ class NotificationRepository {
     /**
      * Detiene JPush (para cuando el usuario hace logout)
      */
-    fun stopPush(context: Context) {
-        JPushInterface.stopPush(context)
+    fun stopPush() {
+        val ctx = appContext ?: return
+        JPushInterface.stopPush(ctx)
         Log.d(TAG, "JPush detenido")
     }
     
     /**
      * Resume JPush (para cuando el usuario hace login)
      */
-    fun resumePush(context: Context) {
-        JPushInterface.resumePush(context)
-        Log.d(TAG, "JPush resumed")
+    fun resumePush() {
+        val ctx = appContext ?: return
+        JPushInterface.resumePush(ctx)
+        Log.d(TAG, "JPush reanudado")
     }
     
     /**
      * Limpia todas las notificaciones
      */
-    fun clearAllNotifications(context: Context) {
+    fun clearAllNotifications() {
+        val ctx = appContext ?: return
         try {
-            JPushInterface.clearAllNotifications(context)
+            JPushInterface.clearAllNotifications(ctx)
             Log.d(TAG, "Notificaciones limpiadas")
         } catch (e: Exception) {
             Log.e(TAG, "Error limpiando notificaciones", e)
@@ -149,9 +155,10 @@ class NotificationRepository {
     /**
      * Elimina una notificación específica por ID
      */
-    fun clearNotification(context: Context, notificationId: Int) {
+    fun clearNotification(notificationId: Int) {
+        val ctx = appContext ?: return
         try {
-            JPushInterface.clearNotificationById(context, notificationId)
+            JPushInterface.clearNotificationById(ctx, notificationId)
             Log.d(TAG, "Notificación $notificationId eliminada")
         } catch (e: Exception) {
             Log.e(TAG, "Error eliminando notificación", e)
@@ -161,16 +168,18 @@ class NotificationRepository {
     /**
      * Verifica si las notificaciones están habilitadas
      */
-    fun areNotificationsEnabled(context: Context): Boolean {
-        return JPushInterface.isNotificationEnabled(context) == 1
+    fun areNotificationsEnabled(): Boolean {
+        val ctx = appContext ?: return false
+        return JPushInterface.isNotificationEnabled(ctx) == 1
     }
     
     /**
      * Abre la configuración de notificaciones del sistema
      */
-    fun openNotificationSettings(context: Context) {
+    fun openNotificationSettings() {
+        val ctx = appContext ?: return
         try {
-            JPushInterface.goToAppSettings(context)
+            JPushInterface.goToAppSettings(ctx)
         } catch (e: Exception) {
             Log.e(TAG, "Error abriendo settings", e)
         }
@@ -187,13 +196,3 @@ data class JPushNotificationData(
     val notificationId: Int,
     val messageId: String
 )
-
-/**
- * Referencia al contexto de la aplicación
- */
-class App {
-    companion object {
-        lateinit var context: Context
-            private set
-    }
-}

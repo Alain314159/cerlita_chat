@@ -48,9 +48,9 @@ data class User(
     @SerialName("typing_in_chat")
     val typingInChat: String? = null,
     
-    // Notificaciones
-    @SerialName("onesignal_player_id")
-    val oneSignalPlayerId: String? = null,
+    // Notificaciones - JPush (Aurora Mobile)
+    @SerialName("jpush_registration_id")
+    val jpushRegistrationId: String? = null,
     
     @SerialName("created_at")
     val createdAt: Long = System.currentTimeMillis() / 1000,

@@ -272,23 +272,23 @@ class AuthRepository {
     }
     
     /**
-     * Actualiza el OneSignal Player ID para notificaciones push
+     * Actualiza el JPush Registration ID para notificaciones push
      */
-    suspend fun updateOneSignalPlayerId(playerId: String) = withContext(Dispatchers.IO) {
+    suspend fun updateJPushRegistrationId(registrationId: String) = withContext(Dispatchers.IO) {
         val uid = getCurrentUserId() ?: return@withContext
         
         try {
             db.from("users").update(
                 mapOf(
-                    "onesignal_player_id" to playerId,
+                    "jpush_registration_id" to registrationId,
                     "updated_at" to (System.currentTimeMillis() / 1000)
                 )
             ) {
                 filter { eq("id", uid) }
             }
-            android.util.Log.d("AuthRepository", "OneSignal Player ID actualizado: $playerId")
+            android.util.Log.d("AuthRepository", "JPush Registration ID actualizado: $registrationId")
         } catch (e: Exception) {
-            android.util.Log.w("AuthRepository", "Update OneSignal ID error", e)
+            android.util.Log.w("AuthRepository", "Update JPush ID error", e)
         }
     }
     

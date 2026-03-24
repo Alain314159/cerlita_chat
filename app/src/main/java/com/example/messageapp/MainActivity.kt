@@ -31,7 +31,6 @@ import com.example.messageapp.ui.contacts.ContactsScreen
 import com.example.messageapp.ui.groups.GroupCreateScreen
 import com.example.messageapp.ui.profile.ProfileScreen
 import com.example.messageapp.viewmodel.AuthViewModel
-import com.onesignal.OneSignal
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -42,8 +41,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Inicializar OneSignal y obtener Player ID
-        initializeOneSignal()
+        // Inicializar JPush y obtener Registration ID
+        initializeJPush()
         
         setContent {
             MaterialTheme {
@@ -73,8 +72,8 @@ class MainActivity : ComponentActivity() {
                     composable("auth") {
                         val repo = remember { AuthRepository() }
                         AuthScreen(repo = repo) {
-                            // Después de login exitoso, actualizar OneSignal
-                            updateOneSignalPlayerId()
+                            // Después de login exitoso, actualizar JPush
+                            updateJPushRegistrationId()
                             nav.navigate("home") {
                                 popUpTo("auth") { inclusive = true }
                             }
@@ -195,33 +194,33 @@ class MainActivity : ComponentActivity() {
     }
     
     /**
-     * Inicializa OneSignal y registra el Player ID
+     * Inicializa JPush y registra el Registration ID
      */
-    private fun initializeOneSignal() {
-        if (notificationRepo.isOneSignalAvailable()) {
+    private fun initializeJPush() {
+        if (notificationRepo.isJPushAvailable()) {
             notificationRepo.initialize(this)
             
-            // Obtener Player ID y guardar en Supabase
-            updateOneSignalPlayerId()
+            // Obtener Registration ID y guardar en Supabase
+            updateJPushRegistrationId()
         }
     }
     
     /**
-     * Actualiza el OneSignal Player ID en Supabase
+     * Actualiza el JPush Registration ID en Supabase
      */
-    private fun updateOneSignalPlayerId() {
-        if (!notificationRepo.isOneSignalAvailable()) return
+    private fun updateJPushRegistrationId() {
+        if (!notificationRepo.isJPushAvailable()) return
         
         lifecycleScope.launch {
             try {
-                val playerId = notificationRepo.getPlayerId()
-                if (playerId != null) {
+                val registrationId = notificationRepo.getRegistrationId()
+                if (registrationId.isNotBlank()) {
                     val authRepo = AuthRepository()
-                    authRepo.updateOneSignalPlayerId(playerId)
-                    android.util.Log.d("MainActivity", "OneSignal Player ID actualizado: $playerId")
+                    authRepo.updateJPushRegistrationId(registrationId)
+                    android.util.Log.d("MainActivity", "JPush Registration ID actualizado: $registrationId")
                 }
             } catch (e: Exception) {
-                android.util.Log.w("MainActivity", "Error al actualizar OneSignal ID", e)
+                android.util.Log.w("MainActivity", "Error al actualizar JPush ID", e)
             }
         }
     }

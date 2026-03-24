@@ -130,14 +130,14 @@ class PairingRepository {
     
     /**
      * Envía solicitud de emparejamiento por email
-     * Usa OneSignal para notificar a la otra persona
+     * Usa JPush para notificar a la otra persona
      * 
      * @param partnerId ID de la persona a la que enviar la solicitud
      * @return Result Unit o error
      */
     suspend fun requestPairing(partnerId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            // TODO: Implementar con Edge Function de Supabase o OneSignal
+            // TODO: Implementar con Edge Function de Supabase o JPush
             // Por ahora solo retornamos éxito
             Result.success(Unit)
         } catch (e: Exception) {
