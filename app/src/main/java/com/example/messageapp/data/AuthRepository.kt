@@ -10,8 +10,8 @@ import com.example.messageapp.model.User
 import com.example.messageapp.supabase.SupabaseConfig
 import com.example.messageapp.crypto.E2ECipher
 import io.github.jan.supabase.auth.Auth
-import io.github.jan.supabase.auth.providers.builtin.Email
-import io.github.jan.supabase.auth.providers.builtin.IDToken
+import io.github.jan.supabase.auth.providers.Email
+import io.github.jan.supabase.auth.providers.IDToken
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -106,12 +106,9 @@ class AuthRepository {
             
             // ✅ API CORRECTA para supabase-kt 2.x
             // Crear usuario con Supabase Auth
-            val authResult = auth.signUpWith(Email) {
-                this.email = email
-                this.password = password
-            }
-            
-            val uid = authResult.user.id
+            val authResult = auth.signUp(email, password)
+
+            val uid = authResult.user?.id
             
             // Crear perfil en la tabla users
             createUserProfile(uid, email)
@@ -132,11 +129,8 @@ class AuthRepository {
         try {
             // ✅ API CORRECTA para supabase-kt 2.x
             // Login con Supabase Auth
-            auth.signInWith(Email) {
-                this.email = email
-                this.password = password
-            }
-            
+            auth.signIn(email, password)
+
             val uid = auth.currentSessionOrNull()?.user?.id
                 ?: throw IllegalStateException("User ID not found after login")
             
@@ -165,12 +159,9 @@ class AuthRepository {
             val tempPassword = java.util.UUID.randomUUID().toString()
             
             // Crear usuario anónimo
-            val authResult = auth.signUpWith(Email) {
-                this.email = tempEmail
-                this.password = tempPassword
-            }
-            
-            val uid = authResult.user.id
+            val authResult = auth.signUp(tempEmail, tempPassword)
+
+            val uid = authResult.user?.id
             
             // Crear perfil anónimo
             db.from("users").insert(
@@ -361,11 +352,8 @@ class AuthRepository {
                 val idToken = googleIdTokenCredential.idToken
                 
                 // Login con Supabase usando ID Token de Google
-                auth.signInWith(IDToken) {
-                    this.idToken = idToken
-                    provider = Google
-                }
-                
+                auth.signInWithIdToken(provider = IDToken, idToken = idToken)
+
                 val uid = auth.currentSessionOrNull()?.user?.id
                     ?: throw IllegalStateException("User ID not found after Google login")
                 
