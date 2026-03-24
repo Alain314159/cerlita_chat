@@ -263,15 +263,15 @@ CREATE POLICY "Receiver can update delivery status"
 -- ============================================
 
 -- Habilitar realtime en las tablas necesarias
-BEGIN;
-    -- Crear publicación si no existe
-    CREATE PUBLICATION IF NOT EXISTS supabase_realtime;
-    
-    -- Añadir tablas a realtime
-    ALTER PUBLICATION supabase_realtime ADD TABLE messages;
-    ALTER PUBLICATION supabase_realtime ADD TABLE chats;
-    ALTER PUBLICATION supabase_realtime ADD TABLE users;
-COMMIT;
+DO $$ BEGIN
+    CREATE PUBLICATION supabase_realtime;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Añadir tablas a realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+ALTER PUBLICATION supabase_realtime ADD TABLE chats;
+ALTER PUBLICATION supabase_realtime ADD TABLE users;
 
 -- ============================================
 -- 7. DATOS DE EJEMPLO (OPCIONAL - SOLO TESTING)
