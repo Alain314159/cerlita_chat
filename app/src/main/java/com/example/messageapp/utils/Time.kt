@@ -1,35 +1,64 @@
 package com.example.messageapp.utils
 
-import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.TimeUnit
 
-object Time {
-    private val dayFmt = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-    private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+/**
+ * Utilidades para manejo de tiempo
+ * ✅ Sin Firebase - Usa Long (timestamp Unix)
+ */
 
-    fun headerFor(ts: Timestamp?): String {
-        if (ts == null) return ""
-        val date = ts.toDate()
-        val cal = Calendar.getInstance()
-        val today = dayFmt.format(cal.time)
-        cal.add(Calendar.DAY_OF_YEAR, -1)
-        val yesterday = dayFmt.format(cal.time)
-        val target = dayFmt.format(date)
-        return when (target) {
-            today -> "Hoje"
-            yesterday -> "Ontem"
-            else -> target
-        }
+/**
+ * Convierte timestamp Unix (Long) a String formateado
+ */
+fun Long.toFormattedDate(pattern: String = "dd/MM/yyyy HH:mm"): String {
+    val sdf = SimpleDateFormat(pattern, Locale.getDefault())
+    return sdf.format(Date(this))
+}
+
+/**
+ * Obtiene timestamp de hace 1 día
+ */
+fun getTimestampOneDayAgo(): Long {
+    val cal = Calendar.getInstance()
+    cal.add(Calendar.DAY_OF_YEAR, -1)
+    return cal.timeInMillis
+}
+
+/**
+ * Formatea timestamp relativo (hace X minutos/horas/días)
+ */
+fun Long.toRelativeTime(): String {
+    val now = System.currentTimeMillis()
+    val diff = now - this
+
+    return when {
+        diff < 60_000 -> "Ahora"
+        diff < 3_600_000 -> "${diff / 60_000} min"
+        diff < 86_400_000 -> "${diff / 3_600_000} h"
+        diff < 604_800_000 -> "${diff / 86_400_000} d"
+        else -> toFormattedDate("dd/MM/yy")
     }
+}
 
-    fun timeFor(ts: Timestamp?): String = if (ts == null) "" else timeFmt.format(ts.toDate())
+/**
+ * Verifica si el timestamp es de hoy
+ */
+fun Long.isToday(): Boolean {
+    val now = Calendar.getInstance()
+    val timestamp = Calendar.getInstance().apply { timeInMillis = this@isToday }
+    
+    return now.get(Calendar.YEAR) == timestamp.get(Calendar.YEAR) &&
+           now.get(Calendar.DAY_OF_YEAR) == timestamp.get(Calendar.DAY_OF_YEAR)
+}
 
-    fun sameDay(a: Timestamp?, b: Timestamp?): Boolean {
-        if (a == null || b == null) return false
-        val da = dayFmt.format(a.toDate())
-        val db = dayFmt.format(b.toDate())
-        return da == db
-    }
+/**
+ * Verifica si el timestamp es de esta semana
+ */
+fun Long.isThisWeek(): Boolean {
+    val now = Calendar.getInstance()
+    val timestamp = Calendar.getInstance().apply { timeInMillis = this@isThisWeek }
+    
+    return now.get(Calendar.YEAR) == timestamp.get(Calendar.YEAR) &&
+           now.get(Calendar.WEEK_OF_YEAR) == timestamp.get(Calendar.WEEK_OF_YEAR)
 }

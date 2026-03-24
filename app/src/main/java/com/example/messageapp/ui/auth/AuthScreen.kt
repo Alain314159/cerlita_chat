@@ -13,7 +13,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.messageapp.data.AuthRepository
-import com.google.firebase.auth.FirebaseAuthException
 import kotlinx.coroutines.launch
 
 @Composable
@@ -144,8 +143,8 @@ private fun PhoneAuthSection(
                         }
                     },
                     onError = { e ->
-                        val codeErr = (e as? FirebaseAuthException)?.errorCode
-                        msg = if (codeErr != null) "[$codeErr] ${e.message}" else e.message
+                        // ✅ Usar manejo de errores estándar de Kotlin/Supabase
+                        msg = e.message ?: "Error de autenticación"
                     }
                 )
                 repo.startPhoneVerification(activity, phone, cb)
@@ -164,8 +163,8 @@ private fun PhoneAuthSection(
                     runCatching { repo.signInWithPhoneCredential(vid!!, code) }
                         .onSuccess { onLogged() }
                         .onFailure {
-                            val codeErr = (it as? FirebaseAuthException)?.errorCode
-                            msg = if (codeErr != null) "[$codeErr] ${it.message}" else it.message
+                            // ✅ Usar manejo de errores estándar
+                            msg = it.message ?: "Error al confirmar"
                         }
                 }
             }) { Text("Confirmar") }

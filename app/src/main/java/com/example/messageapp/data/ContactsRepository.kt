@@ -2,43 +2,192 @@ package com.example.messageapp.data
 
 import android.content.ContentResolver
 import android.provider.ContactsContract
-import com.google.firebase.Timestamp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
+import com.example.messageapp.supabase.SupabaseConfig
+import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.postgrest.Postgrest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-class ContactsRepository(
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
-) {
-    private fun col(uid: String) = db.collection("contacts").document(uid).collection("items")
+/**
+ * Repositorio para gestionar contactos usando Supabase
+ */
+class ContactsRepository {
 
-    suspend fun addContact(myUid: String, otherUid: String, alias: String?) {
-        col(myUid).document(otherUid).set(
-            mapOf("alias" to (alias ?: ""), "createdAt" to FieldValue.serverTimestamp())
-        ).await()
-    }
-    suspend fun removeContact(myUid: String, otherUid: String) {
-        col(myUid).document(otherUid).delete().await()
-    }
-    suspend fun listContacts(myUid: String): List<Map<String, Any?>> {
-        return col(myUid).get().await().documents.map { it.data ?: emptyMap() }
+    private val db = SupabaseConfig.client.plugin(Postgrest)
+
+    /**
+     * Agrega un contacto a la lista del usuario
+     */
+    suspend fun addContact(myUid: String, otherUid: String, alias: String?): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            db.from("contacts").insert(
+                mapOf(
+                    "user_id" to myUid,
+                    "contact_user_id" to otherUid,
+                    "alias" to (alias ?: ""),
+                    "created_at" to (System.currentTimeMillis() / 1000)
+                )
+            )
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
+    /**
+     * Elimina un contacto de la lista del usuario
+     */
+    suspend fun removeContact(myUid: String, otherUid: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            db.from("contacts").delete {
+                filter { eq("user_id", myUid) }
+                filter { eq("contact_user_id", otherUid) }
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Lista todos los contactos del usuario
+     */
+    suspend fun listContacts(myUid: String): Result<List<ContactItem>> = withContext(Dispatchers.IO) {
+        try {
+            val response = db.from("contacts")
+                .select {
+                    filter { eq("user_id", myUid) }
+                }
+                .decodeList<ContactResponse>()
+
+            val contacts = response.map { contact ->
+                // Obtener información del usuario contactado
+                val userInfo = db.from("users")
+                    .select {
+                        filter { eq("id", contact.contactUserId) }
+                    }
+                    .decodeSingleOrNull<UserInfoResponse>()
+
+                ContactItem(
+                    userId = contact.contactUserId,
+                    alias = contact.alias,
+                    displayName = userInfo?.displayName ?: "Usuario",
+                    photoUrl = userInfo?.photoUrl,
+                    isPaired = userInfo?.isPaired ?: false
+                )
+            }
+
+            Result.success(contacts)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Importa contactos del dispositivo
+     */
     fun importDeviceContacts(resolver: ContentResolver): List<String> {
         val phones = mutableListOf<String>()
+        
         val cursor = resolver.query(
             ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
             arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
             null, null, null
         )
+        
         cursor?.use {
             val idx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
             while (it.moveToNext()) {
                 val raw = it.getString(idx) ?: continue
-                phones.add(raw.replace("\\s+".toRegex(), "")) // normaliza simples
+                // Normalizar: eliminar espacios y caracteres especiales
+                phones.add(raw.replace("\\s+".toRegex(), "").replace("[^0-9+]".toRegex(), ""))
             }
         }
+        
         return phones.distinct()
     }
+
+    /**
+     * Busca usuarios por email para agregar como contacto
+     */
+    suspend fun searchUsersByEmail(email: String): Result<List<UserSearchResult>> = withContext(Dispatchers.IO) {
+        try {
+            val users = db.from("users")
+                .select {
+                    filter { 
+                        eq("email", email)
+                        not { eq("id", SupabaseConfig.client.plugin(Auth).currentUserOrNull()?.id) }
+                    }
+                }
+                .decodeList<UserSearchResponse>()
+
+            Result.success(
+                users.map { user ->
+                    UserSearchResult(
+                        id = user.id,
+                        email = user.email,
+                        displayName = user.displayName,
+                        photoUrl = user.photoUrl,
+                        isPaired = user.isPaired
+                    )
+                }
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
+
+/**
+ * Item de contacto
+ */
+data class ContactItem(
+    val userId: String,
+    val alias: String,
+    val displayName: String,
+    val photoUrl: String?,
+    val isPaired: Boolean
+)
+
+/**
+ * Resultado de búsqueda de usuario
+ */
+data class UserSearchResult(
+    val id: String,
+    val email: String,
+    val displayName: String,
+    val photoUrl: String?,
+    val isPaired: Boolean
+)
+
+/**
+ * Data class para la respuesta de contactos
+ */
+private data class ContactResponse(
+    val user_id: String,
+    val contact_user_id: String,
+    val alias: String,
+    val created_at: Long
+)
+
+/**
+ * Data class para información de usuario
+ */
+private data class UserInfoResponse(
+    val display_name: String,
+    val photo_url: String?,
+    val is_paired: Boolean
+)
+
+/**
+ * Data class para búsqueda de usuarios
+ */
+private data class UserSearchResponse(
+    val id: String,
+    val email: String,
+    val display_name: String,
+    val photo_url: String?,
+    val is_paired: Boolean
+)

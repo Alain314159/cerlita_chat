@@ -8,11 +8,12 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.messageapp.ui.chatlist.ChatListScreen
 import com.example.messageapp.ui.contacts.ContactsScreen
 import com.example.messageapp.ui.profile.ProfileScreen
+import com.example.messageapp.viewmodel.AuthViewModel
 import com.example.messageapp.viewmodel.ChatListViewModel
-import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun HomeScreen(
@@ -23,7 +24,11 @@ fun HomeScreen(
     onOpenProfile: () -> Unit = {}
 ) {
     var tab by remember { mutableStateOf(0) }
-    val myUid = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+    
+    // ✅ Usar AuthViewModel en lugar de FirebaseAuth
+    val authVm: AuthViewModel = remember { AuthViewModel() }
+    val myUid by authVm.currentUserId.collectAsStateWithLifecycle()
+    
     val listVm = remember { ChatListViewModel() }
 
     Scaffold(
@@ -37,7 +42,7 @@ fun HomeScreen(
                 NavigationBarItem(
                     selected = tab == 1, onClick = { tab = 1 },
                     icon = { Icon(Icons.Default.Contacts, contentDescription = null) },
-                    label = { Text("Contatos") }
+                    label = { Text("Contactos") }
                 )
                 NavigationBarItem(
                     selected = tab == 2, onClick = { tab = 2 },
@@ -52,19 +57,19 @@ fun HomeScreen(
                 myUid = myUid,
                 vm = listVm,
                 onOpenChat = onOpenChat,
-                onOpenContacts = { tab = 1; onOpenContacts() },
+                onOpenProfile = onOpenProfile,
                 onOpenNewGroup = onOpenNewGroup,
-                onOpenProfile = { tab = 2; onOpenProfile() },
                 onLogout = onLoggedOut
             )
             1 -> ContactsScreen(
                 myUid = myUid,
                 onOpenChat = onOpenChat,
-                modifier = Modifier.padding(insets)
+                onBack = {}
             )
             2 -> ProfileScreen(
                 onLoggedOut = onLoggedOut,
-                modifier = Modifier.padding(insets)
+                onBack = {},
+                onOpenAvatarPicker = {}
             )
         }
     }

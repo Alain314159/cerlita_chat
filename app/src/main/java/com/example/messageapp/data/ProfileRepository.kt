@@ -1,34 +1,142 @@
 package com.example.messageapp.data
 
 import android.net.Uri
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
-import kotlinx.coroutines.tasks.await
+import com.example.messageapp.supabase.SupabaseConfig
+import com.example.messageapp.crypto.E2ECipher
+import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.storage.Storage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-class ProfileRepository(
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance(),
-    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
-) {
-    suspend fun updateProfile(displayName: String, bio: String) {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
-        db.collection("users").document(uid).update(
-            mapOf("displayName" to displayName, "bio" to bio)
-        ).await()
+/**
+ * Repositorio para gestionar el perfil del usuario usando Supabase
+ */
+class ProfileRepository {
+
+    private val auth = SupabaseConfig.client.plugin(Auth)
+    private val db = SupabaseConfig.client.plugin(Postgrest)
+    private val storage = SupabaseConfig.client.plugin(Storage)
+
+    /**
+     * Actualiza el perfil del usuario en Supabase
+     */
+    suspend fun updateProfile(displayName: String, bio: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val uid = auth.currentUserOrNull()?.id
+                ?: return@withContext Result.failure(IllegalStateException("Usuario no logueado"))
+
+            db.from("users").update(
+                mapOf(
+                    "display_name" to displayName,
+                    "bio" to bio,
+                    "updated_at" to (System.currentTimeMillis() / 1000)
+                )
+            ) {
+                filter { eq("id", uid) }
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
+    /**
+     * Sube un avatar a Supabase Storage y actualiza el perfil
+     */
+    suspend fun uploadAvatar(uri: Uri): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val uid = auth.currentUserOrNull()?.id
+                ?: return@withContext Result.failure(IllegalStateException("Usuario no logueado"))
 
-    suspend fun uploadAvatar(uri: Uri): String {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return ""
-        val ref = storage.reference.child("avatars/$uid/avatar.jpg")
+            // Bucket para avatares
+            val bucket = storage.from("avatars")
+            
+            // Nombre del archivo
+            val fileName = "$uid/avatar.jpg"
 
-        val metadata = com.google.firebase.storage.StorageMetadata.Builder()
-            .setContentType("image/jpeg")
-            .build()
+            // Leer el archivo como ByteArray
+            val bytes = readUriBytes(uri)
+            
+            // Subir a Supabase Storage
+            bucket.upload(fileName, bytes) {
+                upsert = true
+            }
 
-        ref.putFile(uri, metadata).await()
-        val url = ref.downloadUrl.await().toString()
-        db.collection("users").document(uid).update("photoUrl", url).await()
-        return url
+            // Obtener URL pública
+            val url = bucket.publicUrl(fileName)
+
+            // Actualizar en la base de datos
+            db.from("users").update(
+                mapOf(
+                    "photo_url" to url,
+                    "updated_at" to (System.currentTimeMillis() / 1000)
+                )
+            ) {
+                filter { eq("id", uid) }
+            }
+
+            Result.success(url)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Obtiene el perfil actual del usuario
+     */
+    suspend fun getCurrentProfile(): Result<UserProfile> = withContext(Dispatchers.IO) {
+        try {
+            val uid = auth.currentUserOrNull()?.id
+                ?: return@withContext Result.failure(IllegalStateException("Usuario no logueado"))
+
+            val user = db.from("users")
+                .select {
+                    filter { eq("id", uid) }
+                }
+                .decodeSingle<UserProfileResponse>()
+
+            Result.success(
+                UserProfile(
+                    displayName = user.displayName,
+                    bio = user.bio,
+                    photoUrl = user.photoUrl,
+                    isPaired = user.isPaired,
+                    pairingCode = user.pairingCode
+                )
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Lee los bytes de un URI
+     */
+    private suspend fun readUriBytes(uri: Uri): ByteArray = withContext(Dispatchers.IO) {
+        SupabaseConfig.client.httpClient.request(uri.toString()).body<ByteArray>()
     }
 }
+
+/**
+ * Data class para el perfil de usuario
+ */
+data class UserProfile(
+    val displayName: String,
+    val bio: String,
+    val photoUrl: String?,
+    val isPaired: Boolean,
+    val pairingCode: String?
+)
+
+/**
+ * Data class para la respuesta de la base de datos
+ */
+private data class UserProfileResponse(
+    val display_name: String,
+    val bio: String,
+    val photo_url: String?,
+    val is_paired: Boolean,
+    val pairing_code: String?
+)

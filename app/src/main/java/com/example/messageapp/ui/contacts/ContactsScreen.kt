@@ -1,6 +1,5 @@
 package com.example.messageapp.ui.contacts
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,10 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import coil.compose.rememberAsyncImagePainter
-import com.example.messageapp.data.ChatRepository
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
+import com.example.messageapp.data.ContactsRepository
 import kotlinx.coroutines.launch
 
 data class ContactItem(val uid: String, val name: String, val photo: String?)
@@ -28,11 +24,11 @@ fun ContactsScreen(
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val db = remember { FirebaseFirestore.getInstance() }
     var query by remember { mutableStateOf(TextFieldValue("")) }
     var items by remember { mutableStateOf(listOf<ContactItem>()) }
+    var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
-    val repo = remember { ChatRepository() }
+    val contactsRepo = remember { ContactsRepository() }
 
     val (deviceContacts, requestPermission) = rememberDeviceContacts()
 
@@ -44,25 +40,24 @@ fun ContactsScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
                     }
                 },
-                title = { Text("Contatos") }
+                title = { Text("Contactos") }
             )
         }
     ) { insets ->
-        DisposableEffect(Unit) {
-            var reg: ListenerRegistration? = null
-            reg = db.collection("users")
-                .addSnapshotListener { qs, _ ->
-                    items = qs?.documents?.mapNotNull {
-                        val uid = it.id
-                        if (uid == myUid) null
-                        else ContactItem(
-                            uid,
-                            it.getString("displayName") ?: "@${uid.take(6)}",
-                            it.getString("photoUrl")
-                        )
-                    }.orEmpty()
+        // ✅ Cargar contactos desde Supabase
+        LaunchedEffect(myUid) {
+            isLoading = true
+            val result = contactsRepo.listContacts(myUid)
+            result.onSuccess { contacts ->
+                items = contacts.map { contact ->
+                    ContactItem(
+                        uid = contact.userId,
+                        name = contact.alias.ifBlank { contact.displayName },
+                        photo = contact.photoUrl
+                    )
                 }
-            onDispose { reg?.remove() }
+            }
+            isLoading = false
         }
 
         val filtered = remember(items, query) {
@@ -78,37 +73,40 @@ fun ContactsScreen(
             }
             Spacer(Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text("Buscar contatos") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(12.dp))
-
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(filtered) { u ->
-                    ElevatedCard(Modifier.fillMaxWidth()) {
-                        Row(
-                            Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (filtered.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No hay contactos")
+                }
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(filtered) { contact ->
+                        Card(
+                            onClick = { onOpenChat(contact.uid) },
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Image(
-                                painter = rememberAsyncImagePainter(u.photo),
-                                contentDescription = null,
-                                modifier = Modifier.size(40.dp)
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(u.name, style = MaterialTheme.typography.titleMedium)
-                                Text("@${u.uid.take(6)}")
-                            }
-                            Button(onClick = {
-                                scope.launch {
-                                    val id = repo.ensureDirectChat(myUid, u.uid)
-                                    onOpenChat(id)
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = contact.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TextButton(onClick = { /* TODO: Eliminar contacto */ }) {
+                                    Text("Eliminar")
                                 }
-                            }) { Text("Conversar") }
+                            }
                         }
                     }
                 }
