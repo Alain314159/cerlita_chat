@@ -7,9 +7,10 @@ plugins {
     // Requerido para Room Database (KSP - Kotlin Symbol Processing)
     id("com.google.devtools.ksp") version "2.1.0-1.0.29"
 
-    // Plugins de calidad de código (comentados para build rápido - descomentar cuando se necesiten)
-    // id("io.gitlab.arturbosch.detekt") version "1.23.8"
-    // id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
+    // Plugins de calidad de código
+    // Habilitados para análisis estático automático
+    id("io.gitlab.arturbosch.detekt") version "1.23.8"
+    id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
 }
 
 android {

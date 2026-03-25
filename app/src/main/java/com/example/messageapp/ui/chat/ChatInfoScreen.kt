@@ -79,8 +79,9 @@ fun ChatInfoScreen(
         title = snap.getString("name") ?: "Conversa"
         photo = snap.getString("photoUrl")
         owner = snap.getString("ownerId")
-        @Suppress("UNCHECKED_CAST")
-        val memberIds = (snap.get("members") as? List<String>).orEmpty()
+        
+        // ✅ SAFE CAST - Helper function para evitar ClassCastException
+        val memberIds = snap.get("members")?.safeCastToList<String>().orEmpty()
 
         val all = mutableListOf<MemberUi>()
         memberIds.chunked(10).forEach { ch ->
@@ -98,6 +99,19 @@ fun ChatInfoScreen(
         members = if (type == "group" && owner != null)
             all.sortedByDescending { it.uid == owner } else all
     }
+}
+
+// ✅ HELPER FUNCTION - Safe cast para evitar ClassCastException
+@Suppress("UNCHECKED_CAST")
+private fun <T> Any.safeCastToList(): List<T> {
+    return try {
+        this as? List<T> ?: emptyList()
+    } catch (e: ClassCastException) {
+        emptyList()
+    } catch (e: Exception) {
+        emptyList()
+    }
+}
 
     Scaffold(
         topBar = {
