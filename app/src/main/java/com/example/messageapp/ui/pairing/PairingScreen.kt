@@ -98,7 +98,7 @@ fun PairingScreen(
                     // Mostrar código o botón para generar
                     if (pairingStatus?.pairingCode != null) {
                         Text(
-                            text = pairingStatus!!.pairingCode!!,
+                            text = pairingStatus?.pairingCode ?: "",
                             style = MaterialTheme.typography.displayLarge,
                             color = MaterialTheme.colorScheme.primary,
                             letterSpacing = androidx.compose.ui.unit.SpacedBy(8.dp)

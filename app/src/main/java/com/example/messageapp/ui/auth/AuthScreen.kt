@@ -21,7 +21,7 @@ fun AuthScreen(
     onLogged: () -> Unit
 ) {
     val ctx = LocalContext.current
-    val act = ctx as Activity
+    val act = ctx as? Activity ?: return
     var tab by remember { mutableStateOf(0) } // 0=Email, 1=Telefone
 
     Column(
@@ -104,7 +104,7 @@ private fun EmailAuthSection(
             } else msg = "Preencha o email."
         }) { Text("Esqueci minha senha") }
 
-        if (msg != null) Text(msg!!, color = MaterialTheme.colorScheme.error)
+        if (msg != null) Text(msg, color = MaterialTheme.colorScheme.error)
     }
 }
 
@@ -160,7 +160,7 @@ private fun PhoneAuthSection(
 
             Button(onClick = {
                 scope.launch {
-                    runCatching { repo.signInWithPhoneCredential(vid!!, code) }
+                    runCatching { repo.signInWithPhoneCredential(vid ?: return@runCatching, code) }
                         .onSuccess { onLogged() }
                         .onFailure {
                             // ✅ Usar manejo de errores estándar
@@ -170,6 +170,6 @@ private fun PhoneAuthSection(
             }) { Text("Confirmar") }
         }
 
-        if (msg != null) Text(msg!!, color = MaterialTheme.colorScheme.error)
+        if (msg != null) Text(msg, color = MaterialTheme.colorScheme.error)
     }
 }

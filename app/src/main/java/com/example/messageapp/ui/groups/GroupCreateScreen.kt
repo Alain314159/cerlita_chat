@@ -145,7 +145,9 @@ fun GroupCreateScreen(
                                 if (photoUri != null) {
                                     runCatching {
                                         val ref = st.reference.child("chats/$chatId/avatar.jpg")
-                                        ref.putFile(photoUri!!).await()
+                                        photoUri?.let { uri ->
+                                            ref.putFile(uri).await()
+                                        }
                                         val url = ref.downloadUrl.await().toString()
                                         repo.updateGroupMeta(chatId, name = null, photoUrl = url)
                                     }

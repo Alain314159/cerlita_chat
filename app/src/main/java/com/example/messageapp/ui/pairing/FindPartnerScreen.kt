@@ -210,12 +210,12 @@ fun FindPartnerScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = foundUser!!.displayName,
+                        text = foundUser?.displayName ?: "Usuario",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = foundUser!!.email,
+                        text = foundUser?.email ?: "",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -224,7 +224,7 @@ fun FindPartnerScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.sendPairingRequest(foundUser!!.uid)
+                        viewModel.sendPairingRequest(foundUser?.uid ?: return@onClick)
                         showConfirmDialog = false
                     }
                 ) {
