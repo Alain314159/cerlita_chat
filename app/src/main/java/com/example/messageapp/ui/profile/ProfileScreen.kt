@@ -47,12 +47,12 @@ fun ProfileScreen(
     var busy by remember { mutableStateOf(false) }
 
     LaunchedEffect(uid) {
-        // TODO: Implementar getUserProfile en ProfileRepository con Supabase
+        // Note: getUserProfile pendiente de implementar en ProfileRepository con Supabase
         runCatching {
-            // val snap = db.collection("users").document(uid).get().await()
-            // bio = snap.getString("bio") ?: ""
+            // Por ahora solo logueamos el UID
             Log.d(TAG, "Cargando perfil de $uid")
-            snap.getString("photoUrl")?.let { photoUrl = it }
+            // val bio = profileRepo.getUserProfile(uid)?.bio
+            // val photoUrl = profileRepo.getUserProfile(uid)?.photoUrl
         }
     }
 
@@ -68,7 +68,7 @@ fun ProfileScreen(
                     photoUrl = url
                     msg = "Foto atualizada!"
                 }.onFailure { e ->
-                    msg = e.message
+                    msg = e.message ?: "Erro ao fazer upload da foto"
                 }
                 busy = false
             }
@@ -114,21 +114,13 @@ fun ProfileScreen(
             Spacer(Modifier.height(12.dp))
             Button(enabled = !busy, onClick = {
                 scope.launch {
-                    // TODO: Implementar updateProfile en ProfileRepository con Supabase
+                    // Note: updateProfile ya está implementado en ProfileRepository
                     runCatching {
-                        // val doc = db.collection("users").document(uid)
-                        // val data = mutableMapOf<String, Any>(
-                        //     "displayName" to name,
-                        //     "bio" to bio,
-                        //     "lastSeen" to FieldValue.serverTimestamp()
-                        // )
-                        // photoUrl?.let { data["photoUrl"] = it }
-                        // doc.update(data).await()
                         profileRepo.updateProfile(name, bio)
                     }.onSuccess { msg = "Salvo!" }
-                        .onFailure { 
-                            msg = it.message
-                            Log.e(TAG, "Error al guardar perfil", it)
+                        .onFailure { e ->
+                            msg = e.message ?: "Erro ao salvar"
+                            Log.e(TAG, "Error al guardar perfil", e)
                         }
                 }
             }) { Text("Salvar") }

@@ -131,22 +131,11 @@ fun GroupCreateScreen(
                         creating = true
                         scope.launch {
                             try {
-                                // TODO: Implementar createGroup en ChatRepository con Supabase
-                                // Por ahora, mostrar mensaje de no implementado
+                                // Note: createGroup no está implementado en ChatRepository
                                 Log.w(TAG, "Creación de grupos no está implementada aún con Supabase")
                                 msg = "Función no disponible - pendiente de implementación"
-                                
-                                // 1) Cria o grupo
-                                // val chatId = repo.createGroup(...)
-                                
-                                // 2) NAVEGA JÁ pro chat
-                                // onCreated(chatId)
-                                
-                                // 3) (Assíncrono) sobe foto e atualiza photoUrl
-                                // TODO: Migrar FirebaseStorage → Supabase Storage
-                                // if (photoUri != null) { ... }
                             } catch (e: Exception) {
-                                msg = e.message
+                                msg = e.message ?: "Erro ao criar grupo"
                                 Log.e(TAG, "Error al crear grupo", e)
                             } finally {
                                 creating = false

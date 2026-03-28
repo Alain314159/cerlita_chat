@@ -106,7 +106,7 @@ private fun EmailAuthSection(
         TextButton(onClick = {
             if (email.isNotBlank()) {
                 scope.launch {
-                    // TODO: Implementar sendPasswordReset en AuthRepository
+                    // Note: sendPasswordReset no está implementado en AuthRepository
                     Log.w(TAG, "Password reset no está implementado aún")
                     msg = "Función no disponible"
                 }
