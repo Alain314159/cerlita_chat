@@ -17,9 +17,12 @@ naming:
   active: true
   FunctionNaming:
     active: true
-    # Permitir backticks para tests (ej: `should return true`)
-    functionPattern: '([a-z][a-zA-Z0-9]*)|(`.*`)'
-    ignoreAnnotated: ['Test', 'ParameterizedTest']
+    # Permitir:
+    # 1. Funciones normales: shouldReturnTrue
+    # 2. Tests con backticks: `should return true`
+    # 3. Composables con mayúscula: ChatScreen (convención de Compose)
+    functionPattern: '([a-z][a-zA-Z0-9]*)|(`.*`)|([A-Z][a-zA-Z0-9]*)'
+    ignoreAnnotated: ['Test', 'ParameterizedTest', 'Composable']
   ConstructorParameterNaming:
     active: true
     parameterPattern: '[a-z][A-Za-z0-9]*|(_[a-z][A-Za-z0-9]*)'
