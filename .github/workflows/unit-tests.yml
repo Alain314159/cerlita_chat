@@ -69,7 +69,7 @@ jobs:
     # 6. Subir reporte de tests como artifact
     - name: Subir Reporte de Tests
       if: always()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v4
       with:
         name: test-results-html
         path: app/build/reports/tests/testDebugUnitTest/
@@ -78,7 +78,7 @@ jobs:
     # 7. Subir logs de texto de los tests
     - name: Subir Logs de Tests
       if: always()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v4
       with:
         name: test-logs
         path: app/build/test-results/
@@ -87,7 +87,7 @@ jobs:
     # 8. Subir log completo con TODOS los warnings y errores
     - name: Subir Log Completo (Verbose)
       if: always()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v4
       with:
         name: test-full-output-log
         path: test-full-output.log

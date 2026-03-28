@@ -13,8 +13,6 @@ env:
     -Dorg.gradle.jvmargs=-Xmx8g
     -Dorg.gradle.daemon=false
     -Dkotlin.incremental=false
-  # Node.js 24 para acciones JavaScript (reemplaza Node.js 20 deprecated)
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   # ============================================
@@ -109,7 +107,7 @@ jobs:
 
     # Subir reportes como artifacts
     - name: 📤 Upload Quality Reports
-      uses: actions/upload-artifact@v4  # v4 con Node.js 24 via FORCE_JAVASCRIPT_ACTIONS_TO_NODE24
+      uses: actions/upload-artifact@v5  # v5 con Node.js 24
       if: always()  # Subir aunque falle
       with:
         name: code-quality-reports
@@ -268,7 +266,7 @@ jobs:
 
     # Subir APK Debug
     - name: 📤 Upload Debug APK
-      uses: actions/upload-artifact@v4  # v4 con Node.js 24
+      uses: actions/upload-artifact@v5  # v5 con Node.js 24
       with:
         name: app-debug-apk
         path: app/build/outputs/apk/debug/app-debug.apk
@@ -277,7 +275,7 @@ jobs:
 
     # Subir APK Release (si existe)
     - name: 📤 Upload Release APK (if exists)
-      uses: actions/upload-artifact@v4  # v4 con Node.js 24
+      uses: actions/upload-artifact@v5  # v5 con Node.js 24
       if: hashFiles('app/build/outputs/apk/release/*.apk') != ''
       with:
         name: app-release-apk
@@ -286,7 +284,7 @@ jobs:
 
     # Subir logs de compilación
     - name: 📤 Upload Build Logs
-      uses: actions/upload-artifact@v4  # v4 con Node.js 24
+      uses: actions/upload-artifact@v5  # v5 con Node.js 24
       if: always()
       with:
         name: build-logs
