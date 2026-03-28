@@ -152,13 +152,14 @@ dependencies {
 
     // ============================================
     // KTOR - Versión compatible con Supabase 3.4.1
+    // NOTA: Ktor 3.x no existe, usar versión 2.x estable
     // ============================================
-    implementation("io.ktor:ktor-client-android:3.4.1")
-    implementation("io.ktor:ktor-client-core:3.4.1")
-    implementation("io.ktor:ktor-utils:3.4.1")
-    implementation("io.ktor:ktor-client-plugins:3.4.1")
-    implementation("io.ktor:ktor-client-content-negotiation:3.4.1")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:3.4.1")
+    implementation("io.ktor:ktor-client-android:2.3.13")
+    implementation("io.ktor:ktor-client-core:2.3.13")
+    implementation("io.ktor:ktor-utils:2.3.13")
+    implementation("io.ktor:ktor-client-plugins:2.3.13")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.13")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.13")
 
     // Kotlinx Serialization - Compatible con Kotlin 2.1.0
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
@@ -166,8 +167,9 @@ dependencies {
     // ============================================
     // JPUSH (Aurora Mobile) - GRÁTIS y funciona desde Cuba
     // Repositorio: https://maven.aliyun.com/repository/jcenter
+    // NOTA: Versión 4.3.9 no existe, usar 4.3.8
     // ============================================
-    implementation("cn.jiguang.jpush:jpush:4.3.9")
+    implementation("cn.jiguang.jpush:jpush:4.3.8")
 
     // Google Sign In
     implementation("com.google.android.gms:play-services-auth:21.3.0")
