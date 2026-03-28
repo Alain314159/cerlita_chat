@@ -193,11 +193,12 @@ dependencies {
 // Descomentar solo cuando se necesiten y los plugins estén configurados
 /*
 detekt {
-    config.setFrom(file("${rootProject.projectDir}/config/detekt/detekt.yml"))
+    // Usar configuración minimal que permite backticks en tests
+    config.setFrom(file("${rootProject.projectDir}/config/detekt/detekt-minimal.yml"))
     buildUponDefaultConfig = true
     allRules = false
     parallel = true
-    ignoreFailures = true
+    ignoreFailures = false  // Fallar si hay issues
     basePath = rootProject.projectDir.absolutePath
 
     reports {

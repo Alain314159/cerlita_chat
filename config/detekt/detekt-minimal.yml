@@ -1,0 +1,81 @@
+# ============================================
+# CONFIGURACIÓN DE DETEKT v1.23.8
+# Actualizado: Marzo 2026 - Optimizado para reducir issues falsos positivos
+# ============================================
+
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+  weights: {}
+
+config:
+  validation: true
+  warningsAsErrors: false
+  checkExhaustiveness: false
+
+naming:
+  active: true
+  FunctionNaming:
+    active: true
+    # Permitir backticks para tests (ej: `should return true`)
+    functionPattern: '([a-z][a-zA-Z0-9]*)|(`.*`)'
+    ignoreAnnotated: ['Test', 'ParameterizedTest']
+  ConstructorParameterNaming:
+    active: true
+    parameterPattern: '[a-z][A-Za-z0-9]*|(_[a-z][A-Za-z0-9]*)'
+  InvalidPackageDeclaration:
+    active: false  # Desactivado para proyectos Android
+  MatchingDeclarationName:
+    active: false  # Desactivado para archivos con múltiples declaraciones
+
+complexity:
+  active: true
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 15
+  LongMethod:
+    active: true
+    threshold: 60
+  LongParameterList:
+    active: true
+    functionThreshold: 6
+    constructorThreshold: 7
+  TooManyFunctions:
+    active: true
+    thresholdInFiles: 20
+    thresholdInClasses: 20
+    thresholdInInterfaces: 20
+    thresholdInObjects: 20
+    thresholdInEnums: 20
+    ignoreAnnotated: ['Test', 'ParameterizedTest']
+
+exceptions:
+  active: true
+  PrintStackTrace:
+    active: true
+  SwallowedException:
+    active: false  # Logging con Log.w() es aceptable
+  TooGenericExceptionCaught:
+    active: false  # Exception es aceptable para logging genérico
+
+style:
+  active: true
+  ForbiddenComment:
+    active: true
+    comments:
+      - 'FIXME:'
+      - 'STOPSHIP:'
+      # TODO: permitido
+  LoopWithTooManyJumpStatements:
+    active: false
+  NewLineAtEndOfFile:
+    active: false
+  ReturnCount:
+    active: false
+  UnusedParameter:
+    active: false
+  WildcardImport:
+    active: false
+  MaxLineLength:
+    active: true
+    maxLineLength: 120
