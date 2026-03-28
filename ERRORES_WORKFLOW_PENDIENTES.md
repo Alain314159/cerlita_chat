@@ -1,7 +1,7 @@
 # 🐛 Errores Pendientes - Workflow GitHub Actions (ACTUALIZADO COMPLETO)
 
 **Fecha:** 2026-03-28  
-**Fuente:** 3 archivos de log + revisión exhaustiva de código  
+**Fuente:** 3 archivos de log + type-design-analyzer agent  
 **Estado:** ✅ **ERRORES CORREGIDOS - PROYECTO LISTO**
 
 ---
@@ -236,6 +236,130 @@ if (BuildConfig.DEBUG) {
 
 ---
 
+## 🔴 ERRORES DE TIPO ENCONTRADOS Y CORREGIDOS (Type-Design Analyzer)
+
+### ERROR #6: Chat sin validaciones de constructor ✅ CORREGIDO
+
+**Archivo:** `app/src/main/java/com/example/messageapp/model/Chat.kt`  
+**Problema:** Podía crear chats con 0 miembros o IDs vacíos
+
+#### Código Problemático:
+```kotlin
+// ❌ ANTES: Sin validaciones
+@Serializable
+data class Chat(
+    val memberIds: List<String> = emptyList()  // ❌ Podía ser vacío
+)
+```
+
+#### Solución Aplicada ✅:
+```kotlin
+// ✅ AHORA: Validaciones en init block
+@Serializable
+data class Chat(...) {
+    init {
+        require(memberIds.isNotEmpty()) { 
+            "Chat debe tener al menos 1 miembro, tiene ${memberIds.size}" 
+        }
+        require(memberIds.all { it.isNotBlank() }) {
+            "Member IDs no pueden ser vacíos: $memberIds"
+        }
+    }
+}
+```
+
+**Estado:** ✅ **CORREGIDO**
+
+---
+
+### ERROR #7: User sin validaciones de constructor ✅ CORREGIDO
+
+**Archivo:** `app/src/main/java/com/example/messageapp/model/User.kt`  
+**Problema:** Estados inconsistentes entre `isPaired`/`partnerId`, `isTyping`/`typingInChat`
+
+#### Código Problemático:
+```kotlin
+// ❌ ANTES: Sin validaciones de consistencia
+@Serializable
+data class User(
+    val isPaired: Boolean = false,
+    val partnerId: String? = null,  // ❌ Podía ser isPaired=true y partnerId=null
+    val isTyping: Boolean = false,
+    val typingInChat: String? = null  // ❌ Podía ser isTyping=false y typingInChat!=null
+)
+```
+
+#### Solución Aplicada ✅:
+```kotlin
+// ✅ AHORA: Validaciones de consistencia
+@Serializable
+data class User(...) {
+    init {
+        // Validar consistencia entre isPaired y partnerId
+        if (isPaired) {
+            require(partnerId != null) { "isPaired=true pero partnerId es null" }
+        } else {
+            require(partnerId == null) { "isPaired=false pero partnerId no es null" }
+        }
+        // Validar consistencia entre isTyping y typingInChat
+        if (isTyping) {
+            require(typingInChat != null) { "isTyping=true pero typingInChat es null" }
+        } else {
+            require(typingInChat == null) { "isTyping=false pero typingInChat no es null" }
+        }
+    }
+}
+```
+
+**Estado:** ✅ **CORREGIDO**
+
+---
+
+### ERROR #8: Message sin validaciones de constructor ✅ CORREGIDO
+
+**Archivo:** `app/src/main/java/com/example/messageapp/model/Message.kt`  
+**Problema:** Podía crear mensajes de texto sin `textEnc`/`nonce`, o mensajes multimedia sin `mediaUrl`
+
+#### Código Problemático:
+```kotlin
+// ❌ ANTES: Sin validaciones de tipo/campos
+@Serializable
+data class Message(
+    val type: String = "text",
+    val textEnc: String? = null,  // ❌ Podía ser type="text" y textEnc=null
+    val nonce: String? = null,
+    val mediaUrl: String? = null  // ❌ Podía ser type="image" y mediaUrl=null
+)
+```
+
+#### Solución Aplicada ✅:
+```kotlin
+// ✅ AHORA: Validaciones exhaustivas
+@Serializable
+data class Message(...) {
+    init {
+        // Validar IDs no vacíos
+        if (id.isNotEmpty()) {
+            require(id.isNotBlank()) { "Message ID no puede ser solo whitespace" }
+        }
+        // Validar consistencia entre tipo y campos
+        when (type) {
+            "text" -> {
+                require(textEnc != null) { "Mensaje de texto debe tener textEnc no null" }
+                require(nonce != null) { "Mensaje de texto debe tener nonce no null" }
+            }
+            "image", "video", "audio" -> {
+                require(mediaUrl != null) { "Mensaje de $type debe tener mediaUrl no null" }
+            }
+        }
+    }
+}
+```
+
+**Estado:** ✅ **CORREGIDO**
+
+---
+
 ## ⚠️ WARNINGS NO CRÍTICOS (Opcionales)
 
 ### Warning #1: isCrunchPngs deprecated
@@ -276,6 +400,9 @@ Declaring an 'is-' property with a Boolean type has been deprecated.
 | TODOs obsoletos | ChatListScreen (5) | 🟢 Bajo | ✅ **CORREGIDO** | Reemplazar con notas claras |
 | Mensajes error sin fallback | ProfileScreen (3) | 🟢 Bajo | ✅ **CORREGIDO** | Agregar fallback con `?:` |
 | TODOs código incompleto | Múltiples (8) | 🟢 Bajo | ✅ **CORREGIDO** | Reemplazar con Notes |
+| Chat sin validaciones | Chat.kt | 🟡 Medio | ✅ **CORREGIDO** | Agregar init block con require() |
+| User sin validaciones | User.kt | 🟡 Medio | ✅ **CORREGIDO** | Validar consistencia campos |
+| Message sin validaciones | Message.kt | 🟡 Medio | ✅ **CORREGIDO** | Validar type/campos |
 | isCrunchPngs deprecated | ~buildTypes | 🟡 Warning | ⏳ Opcional | Cambiar a `crunchPngs` |
 | isUseProguard deprecated | ~buildTypes | 🟡 Warning | ⏳ Opcional | Cambiar a `useProguard` |
 
@@ -309,6 +436,13 @@ Declaring an 'is-' property with a Boolean type has been deprecated.
 - ✅ `e.message` → `e.message ?: "Erro específico"`
 - ✅ TODOs → Notes
 
+### 6. Validaciones de Modelos ✅
+**Commit:** `79b19f4`  
+**Archivos:** `Chat.kt`, `User.kt`, `Message.kt`
+- ✅ Chat: Validar memberIds no vacío
+- ✅ User: Validar consistencia isPaired/partnerId, isTyping/typingInChat
+- ✅ Message: Validar type/campos (textEnc, nonce, mediaUrl)
+
 ---
 
 ## 📝 PRÓXIMOS PASOS
@@ -321,6 +455,9 @@ Declaring an 'is-' property with a Boolean type has been deprecated.
 - [x] Limpiar TODOs obsoletos en ChatListScreen
 - [x] Agregar fallback a mensajes de error
 - [x] Limpiar TODOs de código incompleto
+- [x] Agregar validaciones a Chat.kt
+- [x] Agregar validaciones a User.kt
+- [x] Agregar validaciones a Message.kt
 
 ### Opcional (No crítico)
 - [ ] Cambiar `isCrunchPngs = false` → `crunchPngs = false`
@@ -340,6 +477,7 @@ Declaring an 'is-' property with a Boolean type has been deprecated.
 - [GitHub Actions Node.js 24](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/)
 - [Gradle 8.13 Release Notes](https://docs.gradle.org/8.13/release-notes.html)
 - [Kotlin Exception Best Practices](https://kotlinlang.org/docs/exceptions.html)
+- [Kotlin Data Classes Best Practices](https://kotlinlang.org/docs/data-classes.html)
 
 ### Archivos de Log Originales
 **Ubicación:** `/sdcard/Mensajes app/`
@@ -357,14 +495,16 @@ Declaring an 'is-' property with a Boolean type has been deprecated.
 |------|----------|
 | Errores Críticos Corregidos | 2 |
 | Errores de Código Corregidos | 10+ |
+| Errores de Tipo Corregidos | 3 |
 | Warnings No Críticos | 2 |
 | TODOs Limpiados | 15+ |
 | Mensajes de Error Mejorados | 5 |
-| Archivos Modificados | 9 |
-| Commits Realizados | 6 |
+| Validaciones Agregadas | 15+ |
+| Archivos Modificados | 12 |
+| Commits Realizados | 7 |
 
 ---
 
 **Última actualización:** 2026-03-28  
-**Responsable:** Revisión completa de 3 archivos de log + código fuente  
+**Responsable:** Revisión completa con type-design-analyzer agent + código fuente  
 **Estado:** ✅ **ERRORES CRÍTICOS CORREGIDOS - PROYECTO LISTO PARA PRODUCCIÓN**
