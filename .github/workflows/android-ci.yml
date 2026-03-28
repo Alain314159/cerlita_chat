@@ -55,12 +55,11 @@ jobs:
 
     # 1.1 Detekt (Análisis estático Kotlin)
     - name: 🔎 Run Detekt Analysis
-      continue-on-error: true  # No falla el workflow pero reporta errores
       run: |
         echo "=== INICIANDO DETEKT (Análisis estático Kotlin) ==="
         ./gradlew detekt --info --stacktrace 2>&1 | tee detekt-report.log
         echo "=== DETEKT COMPLETADO ==="
-        
+
         # Verificar si existe el reporte
         if [ -f "build/reports/detekt/detekt.html" ]; then
           echo "✅ Reporte HTML generado: build/reports/detekt/detekt.html"
@@ -74,11 +73,10 @@ jobs:
 
     # 1.2 Android Lint
     - name: 🔎 Run Android Lint
-      continue-on-error: true
       run: |
         echo "=== INICIANDO ANDROID LINT ==="
         ./gradlew lintDebug --info --stacktrace 2>&1 | tee lint-report.log
-        
+
         echo "=== RESULTADOS LINT ==="
         if [ -d "app/build/reports/lint-results-debug.html" ]; then
           echo "📄 Reporte HTML disponible"
@@ -88,14 +86,14 @@ jobs:
 
     # 1.3 KtLint (Formato de código)
     - name: 📝 Check Code Format (KtLint)
-      continue-on-error: true
       run: |
         echo "=== VERIFICANDO FORMATO KOTLIN ==="
-        ./gradlew ktlintCheck --info 2>&1 | tee ktlint-report.log || true
-        
+        ./gradlew ktlintCheck --info 2>&1 | tee ktlint-report.log
+
         if grep -q "FAILED" ktlint-report.log; then
           echo "⚠️  Errores de formato encontrados. Ejecuta ./gradlew ktlintFormat para corregir automáticamente"
           cat ktlint-report.log
+          exit 1  # ✅ Fallar si hay errores de formato
         fi
 
     # 1.4 Dependency Check (Vulnerabilidades)
@@ -219,15 +217,21 @@ jobs:
 
     # Ejecutar tests unitarios
     - name: 🧪 Run Unit Tests
-      continue-on-error: true
       run: |
         echo "=== EJECUTANDO TESTS UNITARIOS ==="
         ./gradlew testDebugUnitTest --info --stacktrace 2>&1 | tee test-results.log
-        
+
         echo "=== RESULTADOS TESTS ==="
         if [ -d "app/build/test-results" ]; then
           echo "✅ Tests completados. Reportes disponibles en app/build/test-results"
           find app/build/test-results -name "*.xml" -exec echo "📄 {}" \;
+        fi
+        
+        # ✅ Verificar si hay tests fallidos
+        FAILED_COUNT=$(grep -c 'failures="[^0]' app/build/test-results/**/*.xml 2>/dev/null || echo "0")
+        if [ "$FAILED_COUNT" -gt "0" ]; then
+          echo "❌ ERROR: $FAILED_COUNT tests fallaron"
+          exit 1
         fi
 
     # Compilar Release (si hay signing config)
