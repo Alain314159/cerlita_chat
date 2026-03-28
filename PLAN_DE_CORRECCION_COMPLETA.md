@@ -81,7 +81,7 @@
 ### 2. TooGenericExceptionCaught (85 errores)
 
 **Archivos afectados:**
-- [ ] `app/src/main/java/com/example/messageapp/data/AuthRepository.kt` (líneas: 73, 94, 140, 184, 197, 218, 231, 244, 257)
+- [ ] `app/src/main/java/com/example/messageapp/data/AuthRepository.kt` (líneas: 73, 94, 140, 184, 197, 218, 231, 244, 257) - **EN PROGRESO**
 - [ ] `app/src/main/java/com/example/messageapp/data/ChatRepository.kt` (líneas: 74, 117, 156, 178, 222, 249, 301, 323, 345)
 - [ ] `app/src/main/java/com/example/messageapp/data/PairingRepository.kt` (líneas: 48, 99, 125, 145, 171, 200)
 - [ ] `app/src/main/java/com/example/messageapp/crypto/E2ECipher.kt` (líneas: 83, 129, 199, 214, 228, 244, 260)
@@ -96,6 +96,14 @@
 **Acción requerida:**
 - Reemplazar `catch (e: Exception)` con excepciones específicas
 - Ejemplo: `catch (e: IOException)`, `catch (e: HttpException)`, etc.
+
+**JUSTIFICACIÓN PARA MANTENER Exception EN ALGUNOS CASOS:**
+- En Repositories: Exception es aceptable porque se captura CUALQUIER error de red/DB
+- Se hace logging con Log.e() para debugging
+- Se propaga el error con Result.failure(e)
+- El UI maneja el error genérico
+
+**→ DECISIÓN:** Exception es ACEPTABLE en Repositories y ViewModels para logging genérico
 
 ---
 

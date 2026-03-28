@@ -56,10 +56,20 @@ exceptions:
   active: true
   PrintStackTrace:
     active: true
+  RethrowCaughtException:
+    active: true
+  ReturnFromFinally:
+    active: true
   SwallowedException:
-    active: false  # Logging con Log.w() es aceptable
+    active: true  # Reactivado - NO engullir excepciones
+  ThrowingExceptionInMain:
+    active: false
+  ThrowingExceptionsWithoutMessageOrCause:
+    active: true
+  ThrowingNewInstanceOfSameException:
+    active: true
   TooGenericExceptionCaught:
-    active: false  # Exception es aceptable para logging genérico
+    active: true  # Reactivado - USAR excepciones específicas
 
 style:
   active: true
