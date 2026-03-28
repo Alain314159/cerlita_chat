@@ -206,6 +206,21 @@ detekt {
     }
 }
 
+/*
+ * BLOQUE COMENTADO - API de ktlint cambió en v12.0.0+
+ * El filtro 'generated' ya no existe
+ * 
+ * Si necesitas ktlint en el futuro, usar:
+ * ktlint {
+ *     android = true
+ *     outputToConsole = true
+ *     ignoreFailures = true
+ *     filter {
+ *         exclude { element -> element.file.path.contains("generated") }
+ *     }
+ * }
+ */
+/*
 ktlint {
     android = true
     outputToConsole = true
