@@ -8,6 +8,7 @@ on:
 
 env:
   JAVA_VERSION: '17'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # Forzar Node.js 24 para testing
 
 jobs:
   test:
@@ -17,18 +18,18 @@ jobs:
     steps:
     # 1. Descargar código del repositorio
     - name: Checkout del código
-      uses: actions/checkout@v5  # ✅ Node.js 24
+      uses: actions/checkout@v4.2.0  # ✅ Node.js 24
 
     # 2. Configurar Java 17
     - name: Configurar JDK 17
-      uses: actions/setup-java@v5  # ✅ Node.js 24
+      uses: actions/setup-java@v4.0.0  # ✅ Node.js 24
       with:
         java-version: ${{ env.JAVA_VERSION }}
         distribution: 'temurin'
 
     # 3. Cache de dependencias de Gradle (acelera builds futuros)
     - name: Cache de Gradle
-      uses: actions/cache@v5  # ✅ Node.js 24
+      uses: actions/cache@v4.0.0  # ✅ Node.js 24
       with:
         path: |
           ~/.gradle/caches
@@ -74,55 +75,48 @@ jobs:
       if: always()
       run: |
         echo "=== DIAGNÓSTICO: BUSCANDO REPORTS DE TESTS ==="
-        
-        echo -e "\n📂 Buscando en app/build/reports/tests/:"
-        find app/build/reports/tests/ -type f 2>/dev/null || echo "❌ No encontrado en reports/tests/"
-        
+
         echo -e "\n📂 Buscando en app/build/test-results/:"
-        find app/build/test-results/ -type f 2>/dev/null || echo "❌ No encontrado en test-results/"
-        
-        echo -e "\n📂 Buscando en build/reports/tests/:"
-        find build/reports/tests/ -type f 2>/dev/null || echo "❌ No encontrado en build/reports/tests/"
-        
-        echo -e "\n📂 Buscando en build/test-results/:"
-        find build/test-results/ -type f 2>/dev/null || echo "❌ No encontrado en build/test-results/"
-        
-        echo -e "\n📂 Todos los archivos XML en el proyecto:"
-        find . -name "*.xml" -path "*/build/*" -type f 2>/dev/null | head -20 || echo "❌ No se encontraron XMLs"
-        
-        echo -e "\n📂 Estructura completa de build:"
-        ls -la app/build/ 2>/dev/null || echo "❌ app/build/ no existe"
-        ls -la app/build/reports/ 2>/dev/null || echo "❌ app/build/reports/ no existe"
-        ls -la app/build/test-results/ 2>/dev/null || echo "❌ app/build/test-results/ no existe"
+        find app/build/test-results/ -name "*.xml" -type f 2>/dev/null | head -20 || echo "❌ No encontrado"
+
+        echo -e "\n📂 Buscando en app/build/reports/tests/:"
+        find app/build/reports/tests/ -type f 2>/dev/null | head -20 || echo "❌ No encontrado"
+
+        echo -e "\n📂 Todos los XML de tests en el proyecto:"
+        find . -name "TEST-*.xml" -type f 2>/dev/null | head -20 || echo "❌ No se encontraron XMLs"
+
+        echo -e "\n📂 Estructura de test-results:"
+        ls -laR app/build/test-results/ 2>/dev/null | head -50 || echo "❌ app/build/test-results/ no existe"
+
+        echo -e "\n📂 Estructura de reports/tests:"
+        ls -laR app/build/reports/tests/ 2>/dev/null | head -50 || echo "❌ app/build/reports/tests/ no existe"
 
     # 6. Subir reporte de tests como artifact
     - name: Subir Reporte de Tests (HTML)
       if: always()
-      uses: actions/upload-artifact@v5  # ✅ Node.js 24
+      uses: actions/upload-artifact@v6.0.0  # ✅ Node.js 24
       with:
         name: test-results-html
         path: |
-          app/build/reports/tests/testDebugUnitTest/
-          build/reports/tests/testDebugUnitTest/
+          app/build/reports/tests/**
         retention-days: 7
-        if-no-files-found: warn
+        if-no-files-found: warn  # ✅ Warn en lugar de error
 
     # 7. Subir logs de texto de los tests (XML)
     - name: Subir Logs de Tests (XML)
       if: always()
-      uses: actions/upload-artifact@v5  # ✅ Node.js 24
+      uses: actions/upload-artifact@v6.0.0  # ✅ Node.js 24
       with:
         name: test-logs-xml
         path: |
-          app/build/test-results/testDebugUnitTest/
-          build/test-results/testDebugUnitTest/
+          app/build/test-results/**/TEST-*.xml
         retention-days: 7
-        if-no-files-found: warn
+        if-no-files-found: warn  # ✅ Warn en lugar de error
 
     # 8. Subir log completo con TODOS los warnings y errores
     - name: Subir Log Completo (Verbose)
       if: always()
-      uses: actions/upload-artifact@v5  # ✅ Node.js 24
+      uses: actions/upload-artifact@v6.0.0  # ✅ Node.js 24
       with:
         name: test-full-output-log
         path: test-full-output.log

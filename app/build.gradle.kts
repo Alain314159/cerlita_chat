@@ -81,6 +81,23 @@ android {
         unitTests {
             isIncludeAndroidResources = true
             isReturnDefaultValues = false  // ✅ Fallar si hay mocks sin configurar (NO devolver valores por defecto)
+            
+            // Configuración de reportes para GitHub Actions
+            all {
+                testLogging {
+                    events("passed", "skipped", "failed", "standardOut", "standardError")
+                    exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                    showExceptions = true
+                    showCauses = true
+                    showStackTraces = true
+                }
+                reports {
+                    junitXml.required = true  // ✅ Genera XML para GitHub Actions
+                    junitXml.outputLocation = file("$buildDir/test-results")
+                    html.required = true  // ✅ Genera HTML para visualización
+                    html.outputLocation = file("$buildDir/reports/tests")
+                }
+            }
         }
     }
 
