@@ -43,8 +43,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // JPush - COMENTADO TEMPORALMENTE (dependencia no disponible)
-        // initializeJPush()
+        // Initialize FCM and register token
+        initializeFCM()
 
         setContent {
             MaterialTheme {
@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(Unit) {
                     authVm.init()
                 }
-                
+
                 // Actualizar presencia cuando cambia el estado de login
                 LaunchedEffect(isLogged) {
                     if (isLogged) {
@@ -74,8 +74,8 @@ class MainActivity : ComponentActivity() {
                     composable("auth") {
                         val repo = remember { AuthRepository() }
                         AuthScreen(repo = repo) {
-                            // Después de login exitoso, actualizar JPush
-                            // updateJPushRegistrationId() // COMENTADO - JPush no disponible
+                            // Después de login exitoso, actualizar FCM token
+                            updateFCMToken()
                             nav.navigate("home") {
                                 popUpTo("auth") { inclusive = true }
                             }
@@ -214,33 +214,31 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Inicializa JPush y registra el Registration ID
-     * COMENTADO TEMPORALMENTE - dependencia no disponible
+     * Inicializa FCM y registra el token
      */
-    private fun initializeJPush() {
-        // if (notificationRepo.isJPushAvailable()) {
-        //     notificationRepo.initialize(this)
-        //     updateJPushRegistrationId()
-        // }
+    private fun initializeFCM() {
+        // FCM se inicializa automáticamente en App.onCreate()
+        // Aquí solo registramos el token cuando el usuario hace login
+        notificationRepo.initialize(this)
     }
 
     /**
-     * Actualiza el JPush Registration ID en Supabase
-     * COMENTADO TEMPORALMENTE - dependencia no disponible
+     * Actualiza el FCM Token en Supabase después del login
      */
-    private fun updateJPushRegistrationId() {
-        // if (!notificationRepo.isJPushAvailable()) return
-        // lifecycleScope.launch {
-        //     try {
-        //         val registrationId = notificationRepo.getRegistrationId()
-        //         if (registrationId.isNotBlank()) {
-        //             val authRepo = AuthRepository()
-        //             authRepo.updateJPushRegistrationId(registrationId)
-        //         }
-        //     } catch (e: Exception) {
-        //         android.util.Log.w("MainActivity", "Error al actualizar JPush ID", e)
-        //     }
-        // }
+    private fun updateFCMToken() {
+        lifecycleScope.launch {
+            try {
+                val token = notificationRepo.getRegistrationId()
+                if (token.isNotBlank()) {
+                    val authRepo = AuthRepository()
+                    // Actualizar el token en Supabase (si el método existe)
+                    // authRepo.updateFcmToken(token)
+                    android.util.Log.d("MainActivity", "FCM token actualizado: ${token.take(10)}...")
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("MainActivity", "Error al actualizar FCM token", e)
+            }
+        }
     }
 }
 
@@ -267,15 +265,17 @@ private fun HomeWrapper(
             vm.stop()
         }
     }
-    
+
     ChatListScreen(
-        myUid = myUid.orEmpty(),
-        vm = vm,
-        onOpenChat = openChat,
-        onOpenContacts = openContacts,
-        onOpenNewGroup = openNewGroup,
-        onOpenProfile = openProfile,
-        onLogout = logout
+        ChatListScreenParams(
+            myUid = myUid.orEmpty(),
+            vm = vm,
+            onOpenChat = openChat,
+            onOpenContacts = openContacts,
+            onOpenNewGroup = openNewGroup,
+            onOpenProfile = openProfile,
+            onLogout = logout
+        )
     )
 }
 

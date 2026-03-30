@@ -1,13 +1,19 @@
 package com.example.messageapp.data
 
 import android.net.Uri
+import android.util.Log
 import com.example.messageapp.supabase.SupabaseConfig
 import com.example.messageapp.crypto.E2ECipher
 import io.github.jan-tennert.supabase.auth.Auth
+import io.github.jan-tennert.supabase.exception.SupabaseException
 import io.github.jan-tennert.supabase.postgrest.Postgrest
+import io.github.jan-tennert.supabase.postgrest.exception.PostgrestException
 import io.github.jan-tennert.supabase.storage.Storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerializationException
+
+private const val TAG = "MessageApp.ProfileRepository"
 
 /**
  * Repositorio para gestionar el perfil del usuario usando Supabase
@@ -37,7 +43,17 @@ class ProfileRepository {
             }
 
             Result.success(Unit)
+        } catch (e: PostgrestException) {
+            Log.w(TAG, "Postgrest error updating profile", e)
+            Result.failure(Exception("Error de base de datos: ${e.message}"))
+        } catch (e: SupabaseException) {
+            Log.w(TAG, "Supabase error updating profile", e)
+            Result.failure(Exception("Error de conexión: ${e.message}"))
+        } catch (e: SerializationException) {
+            Log.w(TAG, "Serialization error updating profile", e)
+            Result.failure(Exception("Error de datos: ${e.message}"))
         } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error updating profile", e)
             Result.failure(e)
         }
     }
@@ -78,7 +94,17 @@ class ProfileRepository {
             }
 
             Result.success(url)
+        } catch (e: PostgrestException) {
+            Log.w(TAG, "Postgrest error uploading avatar", e)
+            Result.failure(Exception("Error de base de datos: ${e.message}"))
+        } catch (e: SupabaseException) {
+            Log.w(TAG, "Supabase error uploading avatar", e)
+            Result.failure(Exception("Error de almacenamiento: ${e.message}"))
+        } catch (e: SerializationException) {
+            Log.w(TAG, "Serialization error uploading avatar", e)
+            Result.failure(Exception("Error de datos: ${e.message}"))
         } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error uploading avatar", e)
             Result.failure(e)
         }
     }
@@ -106,7 +132,14 @@ class ProfileRepository {
                     pairingCode = user.pairingCode
                 )
             )
+        } catch (e: SupabaseException) {
+            Log.w(TAG, "Supabase error getting profile", e)
+            Result.failure(Exception("Error de base de datos: ${e.message}"))
+        } catch (e: SerializationException) {
+            Log.w(TAG, "Serialization error getting profile", e)
+            Result.failure(Exception("Error de datos: ${e.message}"))
         } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error getting profile", e)
             Result.failure(e)
         }
     }

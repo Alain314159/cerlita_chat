@@ -8,11 +8,11 @@
     
     <!-- Permisos de Notificaciones -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    
+
     <!-- Permisos de Contactos (opcional, para futura funcionalidad) -->
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
-    
-    <!-- Permisos JPush -->
+
+    <!-- Permisos de Firebase Cloud Messaging -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
@@ -36,53 +36,27 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        
-        <!-- JPush BroadcastReceiver para manejar notificaciones -->
-        <receiver
-            android:name=".push.JPushBroadcastReceiver"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="cn.jiguang.jpush.intent.REGISTRATION" />
-                <action android:name="cn.jiguang.jpush.intent.MESSAGE_RECEIVED" />
-                <action android:name="cn.jiguang.jpush.intent.NOTIFICATION_RECEIVED" />
-                <action android:name="cn.jiguang.jpush.intent.NOTIFICATION_OPENED" />
-                <action android:name="cn.jiguang.jpush.intent.CONNECTION" />
-                <action android:name="cn.jiguang.jpush.intent.RICHPUSH_CALLBACK" />
-                <category android:name="${applicationId}" />
-            </intent-filter>
-        </receiver>
-        
-        <!-- JPush Service para mensajes en foreground -->
+
+        <!-- Firebase Cloud Messaging Service -->
         <service
-            android:name=".push.JPushService"
+            android:name=".push.FCMMessageService"
             android:enabled="true"
             android:exported="false">
             <intent-filter>
-                <action android:name="cn.jiguang.jpush.service" />
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-        
-        <!-- Receiver para boot completado (reiniciar JPush) -->
-        <receiver
-            android:name="cn.jiguang.jpush.android.service.JPushBootReceiver"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.REBOOT" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </receiver>
-        
-        <!-- Canal de notificación para Android 13+ -->
+
+        <!-- Canal de notificación predeterminado para FCM -->
         <meta-data
-            android:name="JPUSH_CHANNEL"
-            android:value="DEFAULT" />
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/default_notification_channel_id" />
         <meta-data
-            android:name="JPUSH_APPKEY"
-            android:value="${JPUSH_APPKEY}" />
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/colorAccent" />
 
     </application>
 </manifest>

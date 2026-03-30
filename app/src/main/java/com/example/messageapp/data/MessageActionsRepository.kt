@@ -1,0 +1,161 @@
+package com.example.messageapp.data
+
+import android.util.Log
+import com.example.messageapp.model.Message
+import com.example.messageapp.supabase.SupabaseConfig
+import io.github.jan-tennert.supabase.postgrest.Postgrest
+import io.github.jan-tennert.supabase.postgrest.exception.PostgrestException
+import io.github.jan-tennert.supabase.postgrest.query.Columns
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+// ✅ TAG constante para logging
+private const val TAG = "MessageApp"
+
+/**
+ * Repositorio de Acciones de Mensajes usando Supabase Postgrest
+ *
+ * Responsabilidad única: Operaciones de ESCRITURA sobre mensajes
+ *
+ * Funciones (5):
+ * 1. pinMessage
+ * 2. unpinMessage
+ * 3. deleteMessageForUser
+ * 4. deleteMessageForAll
+ * 5. countUnreadMessages
+ */
+class MessageActionsRepository {
+
+    private val db = SupabaseConfig.client.plugin(Postgrest)
+
+    /**
+     * Fija un mensaje en el chat
+     */
+    suspend fun pinMessage(chatId: String, messageId: String, snippet: String) = withContext(Dispatchers.IO) {
+        try {
+            db.from("chats").update(
+                mapOf(
+                    "pinned_message_id" to messageId,
+                    "pinned_snippet" to snippet,
+                    "updated_at" to (System.currentTimeMillis() / 1000)
+                )
+            ) {
+                filter { eq("id", chatId) }
+            }
+        } catch (e: PostgrestException) {
+            Log.w(TAG, "MessageActionsRepository: Postgrest error pinning message", e)
+        } catch (e: Exception) {
+            Log.w(TAG, "MessageActionsRepository: Unexpected error pinning message", e)
+        }
+    }
+
+    /**
+     * Desfija un mensaje
+     */
+    suspend fun unpinMessage(chatId: String) = withContext(Dispatchers.IO) {
+        try {
+            db.from("chats").update(
+                mapOf(
+                    "pinned_message_id" to null,
+                    "pinned_snippet" to null
+                )
+            ) {
+                filter { eq("id", chatId) }
+            }
+        } catch (e: PostgrestException) {
+            Log.w(TAG, "MessageActionsRepository: Postgrest error unpinning message", e)
+        } catch (e: Exception) {
+            Log.w(TAG, "MessageActionsRepository: Unexpected error unpinning message", e)
+        }
+    }
+
+    /**
+     * Elimina un mensaje solo para el usuario (soft delete)
+     */
+    suspend fun deleteMessageForUser(chatId: String, messageId: String, uid: String) = withContext(Dispatchers.IO) {
+        try {
+            // Obtener mensaje actual
+            val message = db.from("messages")
+                .select(columns = Columns.list("deleted_for")) {
+                    filter { eq("id", messageId) }
+                }
+                .decodeSingle<Message>()
+
+            val currentDeletedFor = message?.deletedFor?.toMutableList() ?: mutableListOf()
+            if (!currentDeletedFor.contains(uid)) {
+                currentDeletedFor.add(uid)
+            }
+
+            db.from("messages").update(
+                mapOf(
+                    "deleted_for" to currentDeletedFor
+                )
+            ) {
+                filter { eq("id", messageId) }
+            }
+        } catch (e: PostgrestException) {
+            Log.w(TAG, "MessageActionsRepository: Postgrest error deleting message for user", e)
+        } catch (e: kotlinx.serialization.SerializationException) {
+            Log.w(TAG, "MessageActionsRepository: Serialization error decoding message", e)
+        } catch (e: Exception) {
+            Log.w(TAG, "MessageActionsRepository: Unexpected error deleting message for user", e)
+        }
+    }
+
+    /**
+     * Elimina un mensaje para todos (hard delete del contenido)
+     */
+    suspend fun deleteMessageForAll(chatId: String, messageId: String) = withContext(Dispatchers.IO) {
+        try {
+            db.from("messages").update(
+                mapOf(
+                    "type" to "deleted",
+                    "text_enc" to "",
+                    "nonce" to null,
+                    "auth_tag" to null,
+                    "deleted_for_all" to true
+                )
+            ) {
+                filter { eq("id", messageId) }
+            }
+
+            // Actualizar último mensaje del chat
+            db.from("chats").update(
+                mapOf(
+                    "last_message_enc" to "[Mensaje eliminado]",
+                    "updated_at" to (System.currentTimeMillis() / 1000)
+                )
+            ) {
+                filter { eq("id", chatId) }
+            }
+        } catch (e: PostgrestException) {
+            Log.w(TAG, "MessageActionsRepository: Postgrest error deleting message for all", e)
+        } catch (e: Exception) {
+            Log.w(TAG, "MessageActionsRepository: Unexpected error deleting message for all", e)
+        }
+    }
+
+    /**
+     * Cuenta mensajes no leídos en un chat
+     */
+    suspend fun countUnreadMessages(chatId: String, uid: String): Int = withContext(Dispatchers.IO) {
+        try {
+            val response = db.from("messages")
+                .select(columns = Columns.list("id")) {
+                    filter {
+                        eq("chat_id", chatId) and
+                        neq("sender_id", uid) and
+                        (isNull("read_at"))
+                    }
+                }
+
+            response.size
+        } catch (e: PostgrestException) {
+            Log.w(TAG, "MessageActionsRepository: Postgrest error counting unread messages", e)
+            throw e  // Propagar error para que el caller sepa que falló
+        } catch (e: Exception) {
+            Log.w(TAG, "MessageActionsRepository: Unexpected error counting unread messages", e)
+            throw e  // Propagar error para que el caller sepa que falló
+        }
+    }
+}

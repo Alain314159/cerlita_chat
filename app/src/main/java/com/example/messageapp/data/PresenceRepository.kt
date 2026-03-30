@@ -3,6 +3,7 @@ package com.example.messageapp.data
 import android.util.Log
 import com.example.messageapp.model.Chat
 import com.example.messageapp.supabase.SupabaseConfig
+import io.github.jan-tennert.supabase.exception.SupabaseException
 import io.github.jan-tennert.supabase.postgrest.Postgrest
 import io.github.jan-tennert.supabase.postgrest.query.Columns
 import io.github.jan-tennert.supabase.realtime.Realtime
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerializationException
 
 private const val TAG = "MessageApp"
 
@@ -74,6 +76,10 @@ class PresenceRepository {
                 }
             }
 
+        } catch (e: SupabaseException) {
+            Log.w(TAG, "Supabase error in setTypingStatus", e)
+        } catch (e: SerializationException) {
+            Log.w(TAG, "Serialization error in setTypingStatus", e)
         } catch (e: Exception) {
             // ✅ CORREGIDO: Agregar logging consistente con TAG
             android.util.Log.w("PresenceRepository", "setTypingStatus failed: chatId=$chatId isTyping=$isTyping", e)
@@ -114,6 +120,8 @@ class PresenceRepository {
                                 }
                                 trySend(isPartnerTyping)
                             }
+                        } catch (e: SerializationException) {
+                            android.util.Log.w("PresenceRepository", "Serialization error decoding chat", e)
                         } catch (e: Exception) {
                             android.util.Log.w("PresenceRepository", "Error decoding chat", e)
                         }
@@ -126,6 +134,12 @@ class PresenceRepository {
                 realtime.removeChannel(channel)
             }
 
+        } catch (e: SupabaseException) {
+            android.util.Log.w("PresenceRepository", "Supabase error observing typing", e)
+            close()
+        } catch (e: SerializationException) {
+            android.util.Log.w("PresenceRepository", "Serialization error observing typing", e)
+            close()
         } catch (e: Exception) {
             android.util.Log.w("PresenceRepository", "Error al observar typing", e)
             close()
@@ -134,14 +148,14 @@ class PresenceRepository {
     
     /**
      * Actualiza el estado online/offline del usuario
-     * 
+     *
      * @param isOnline true si está online, false si está offline
      */
     suspend fun updateOnlineStatus(isOnline: Boolean) = withContext(Dispatchers.IO) {
         try {
             val userId = SupabaseConfig.client.auth.currentSessionOrNull()?.user?.id
                 ?: return@withContext
-            
+
             db.from("users").update(
                 mapOf(
                     "is_online" to isOnline,
@@ -151,6 +165,10 @@ class PresenceRepository {
             ) {
                 filter { eq("id", userId) }
             }
+        } catch (e: SupabaseException) {
+            android.util.Log.w("PresenceRepository", "Supabase error updating online status", e)
+        } catch (e: SerializationException) {
+            android.util.Log.w("PresenceRepository", "Serialization error updating online status", e)
         } catch (e: Exception) {
             android.util.Log.w("PresenceRepository", "Error al actualizar online status", e)
         }
@@ -184,6 +202,8 @@ class PresenceRepository {
                             if (userStatus.id == partnerId) {
                                 trySend(userStatus.isOnline)
                             }
+                        } catch (e: SerializationException) {
+                            Log.w(TAG, "PresenceRepository: Serialization error decoding user data", e)
                         } catch (e: Exception) {
                             Log.w(TAG, "PresenceRepository: Error decoding user data", e)
                         }
@@ -196,6 +216,12 @@ class PresenceRepository {
                 realtime.removeChannel(channel)
             }
 
+        } catch (e: SupabaseException) {
+            Log.w(TAG, "PresenceRepository: Supabase error observing online status", e)
+            close()
+        } catch (e: SerializationException) {
+            Log.w(TAG, "PresenceRepository: Serialization error observing online status", e)
+            close()
         } catch (e: Exception) {
             Log.w(TAG, "PresenceRepository: Error al observar online status", e)
             close()
@@ -217,6 +243,13 @@ class PresenceRepository {
                 .decodeSingleOrNull<UserLastSeenResponse>()
 
             response?.lastSeen
+        } catch (e: SupabaseException) {
+            // ✅ CORREGIDO: No retornar null silenciosamente - loguear
+            Log.w(TAG, "PresenceRepository: Supabase error in getPartnerLastSeen: partnerId=$partnerId", e)
+            null  // En este caso null es aceptable como "no disponible"
+        } catch (e: SerializationException) {
+            Log.w(TAG, "PresenceRepository: Serialization error in getPartnerLastSeen: partnerId=$partnerId", e)
+            null
         } catch (e: Exception) {
             // ✅ CORREGIDO: No retornar null silenciosamente - loguear
             Log.w(TAG, "PresenceRepository: getPartnerLastSeen failed: partnerId=$partnerId", e)

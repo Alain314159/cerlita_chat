@@ -90,9 +90,27 @@ object E2ECipher {
             // Formato: iv:ciphertext
             return "$ivB64:$cipherB64"
 
-        } catch (e: Exception) {
-            Log.e(TAG, "E2ECipher: Error al cifrar mensaje para chat $chatId", e)
-            throw e
+        } catch (e: java.security.KeyStoreException) {
+            Log.e(TAG, "E2ECipher: KeyStore error al cifrar mensaje para chat $chatId", e)
+            throw Exception("Error de almacenamiento de claves: ${e.message}")
+        } catch (e: java.security.NoSuchAlgorithmException) {
+            Log.e(TAG, "E2ECipher: Algoritmo no disponible al cifrar", e)
+            throw Exception("Algoritmo de cifrado no disponible: ${e.message}")
+        } catch (e: javax.crypto.NoSuchPaddingException) {
+            Log.e(TAG, "E2ECipher: Padding no disponible al cifrar", e)
+            throw Exception("Padding de cifrado no disponible: ${e.message}")
+        } catch (e: java.security.InvalidKeyException) {
+            Log.e(TAG, "E2ECipher: Clave inválida al cifrar para chat $chatId", e)
+            throw Exception("Clave de cifrado inválida: ${e.message}")
+        } catch (e: java.security.InvalidAlgorithmParameterException) {
+            Log.e(TAG, "E2ECipher: Parámetros inválidos al cifrar", e)
+            throw Exception("Parámetros de cifrado inválidos: ${e.message}")
+        } catch (e: javax.crypto.BadPaddingException) {
+            Log.e(TAG, "E2ECipher: Bad padding al cifrar", e)
+            throw Exception("Error de padding al cifrar: ${e.message}")
+        } catch (e: javax.crypto.IllegalBlockSizeException) {
+            Log.e(TAG, "E2ECipher: Illegal block size al cifrar", e)
+            throw Exception("Tamaño de bloque inválido: ${e.message}")
         }
     }
     
@@ -143,9 +161,30 @@ object E2ECipher {
         } catch (e: javax.crypto.AEADBadTagException) {
             Log.e(TAG, "E2ECipher: Tag de autenticación inválido - ¿mensaje corrupto?", e)
             return "[Error: Mensaje corrupto o clave incorrecta]"
-        } catch (e: Exception) {
-            Log.e(TAG, "E2ECipher: Error al descifrar para chat $chatId", e)
-            return "[Error: No se pudo descifrar]"
+        } catch (e: java.security.KeyStoreException) {
+            Log.e(TAG, "E2ECipher: KeyStore error al descifrar para chat $chatId", e)
+            return "[Error: Almacenamiento de claves]"
+        } catch (e: java.security.NoSuchAlgorithmException) {
+            Log.e(TAG, "E2ECipher: Algoritmo no disponible al descifrar", e)
+            return "[Error: Algoritmo no disponible]"
+        } catch (e: javax.crypto.NoSuchPaddingException) {
+            Log.e(TAG, "E2ECipher: Padding no disponible al descifrar", e)
+            return "[Error: Padding no disponible]"
+        } catch (e: java.security.InvalidKeyException) {
+            Log.e(TAG, "E2ECipher: Clave inválida al descifrar para chat $chatId", e)
+            return "[Error: Clave inválida]"
+        } catch (e: java.security.InvalidAlgorithmParameterException) {
+            Log.e(TAG, "E2ECipher: Parámetros inválidos al descifrar", e)
+            return "[Error: Parámetros inválidos]"
+        } catch (e: javax.crypto.BadPaddingException) {
+            Log.e(TAG, "E2ECipher: Bad padding al descifrar", e)
+            return "[Error: Padding incorrecto]"
+        } catch (e: javax.crypto.IllegalBlockSizeException) {
+            Log.e(TAG, "E2ECipher: Illegal block size al descifrar", e)
+            return "[Error: Tamaño de bloque inválido]"
+        } catch (e: java.lang.IllegalArgumentException) {
+            Log.e(TAG, "E2ECipher: Argumento inválido al descifrar", e)
+            return "[Error: Datos inválidos]"
         }
     }
     

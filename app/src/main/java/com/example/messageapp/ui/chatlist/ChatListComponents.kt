@@ -17,39 +17,45 @@ data class ChatListTopBarState(
     val title: String
 )
 
+/**
+ * Data class para parámetros de ChatListTopBar
+ * Reduce LongParameterList detekt warning
+ */
+data class ChatListTopBarParams(
+    val state: ChatListTopBarState,
+    val onMenuClick: () -> Unit,
+    val onOpenContacts: () -> Unit,
+    val onOpenNewGroup: () -> Unit,
+    val onOpenProfile: () -> Unit,
+    val onLogout: () -> Unit
+)
+
 @Composable
-fun ChatListTopBar(
-    state: ChatListTopBarState,
-    onMenuClick: () -> Unit,
-    onOpenContacts: () -> Unit,
-    onOpenNewGroup: () -> Unit,
-    onOpenProfile: () -> Unit,
-    onLogout: () -> Unit
-) {
+fun ChatListTopBar(params: ChatListTopBarParams) {
     var topMenu by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     TopAppBar(
-        title = { Text(state.title) },
+        title = { Text(params.state.title) },
         actions = {
-            IconButton(onClick = { topMenu = true; onMenuClick() }) {
+            IconButton(onClick = { topMenu = true; params.onMenuClick() }) {
                 Icon(Icons.Default.MoreVert, contentDescription = null)
             }
             DropdownMenu(expanded = topMenu, onDismissRequest = { topMenu = false }) {
                 DropdownMenuItem(
-                    text = { Text(if (state.showHidden) "Ver conversas ativas" else "Ver conversas Arquivadas") },
-                    onClick = { topMenu = false; onMenuClick() }
+                    text = { Text(if (params.state.showHidden) "Ver conversas ativas" else "Ver conversas Arquivadas") },
+                    onClick = { topMenu = false; params.onMenuClick() }
                 )
                 DropdownMenuItem(text = { Text("Contatos") }, onClick = {
-                    topMenu = false; onOpenContacts()
+                    topMenu = false; params.onOpenContacts()
                 })
                 DropdownMenuItem(text = { Text("Novo grupo") }, onClick = {
-                    topMenu = false; onOpenNewGroup()
+                    topMenu = false; params.onOpenNewGroup()
                 })
                 DropdownMenuItem(text = { Text("Meu perfil") }, onClick = {
-                    topMenu = false; onOpenProfile()
+                    topMenu = false; params.onOpenProfile()
                 })
                 DropdownMenuItem(text = { Text("Sair") }, onClick = {
-                    topMenu = false; onLogout()
+                    topMenu = false; params.onLogout()
                 })
             }
         }

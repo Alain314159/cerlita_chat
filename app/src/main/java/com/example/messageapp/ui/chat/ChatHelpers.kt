@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import com.example.messageapp.data.MediaUploadParams
 import com.example.messageapp.data.StorageRepository
 import com.example.messageapp.model.Message
 import com.example.messageapp.utils.Crypto
@@ -41,7 +42,7 @@ fun rememberMediaPickers(chatId: String, myUid: String?, storage: StorageReposit
                     try {
                         context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         if (myUid.isNotBlank()) {
-                            scope.launch { storage.sendMedia(chatId, myUid!!, it, "image") }
+                            scope.launch { storage.sendMedia(MediaUploadParams(chatId, myUid!!, it, "image")) }
                         }
                     } catch (e: SecurityException) {
                         Log.e(TAG, "Permission denied for image URI", e)
@@ -55,7 +56,7 @@ fun rememberMediaPickers(chatId: String, myUid: String?, storage: StorageReposit
                     try {
                         context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         if (myUid.isNotBlank()) {
-                            scope.launch { storage.sendMedia(chatId, myUid!!, it, "video") }
+                            scope.launch { storage.sendMedia(MediaUploadParams(chatId, myUid!!, it, "video")) }
                         }
                     } catch (e: SecurityException) {
                         Log.e(TAG, "Permission denied for video URI", e)
@@ -69,7 +70,7 @@ fun rememberMediaPickers(chatId: String, myUid: String?, storage: StorageReposit
                     try {
                         context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         if (myUid.isNotBlank()) {
-                            scope.launch { storage.sendMedia(chatId, myUid!!, it, "audio") }
+                            scope.launch { storage.sendMedia(MediaUploadParams(chatId, myUid!!, it, "audio")) }
                         }
                     } catch (e: SecurityException) {
                         Log.e(TAG, "Permission denied for audio URI", e)
@@ -83,7 +84,7 @@ fun rememberMediaPickers(chatId: String, myUid: String?, storage: StorageReposit
                     try {
                         context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         if (myUid.isNotBlank()) {
-                            scope.launch { storage.sendMedia(chatId, myUid!!, it, "file") }
+                            scope.launch { storage.sendMedia(MediaUploadParams(chatId, myUid!!, it, "file")) }
                         }
                     } catch (e: SecurityException) {
                         Log.e(TAG, "Permission denied for file URI", e)

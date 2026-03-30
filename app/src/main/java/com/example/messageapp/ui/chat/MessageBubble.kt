@@ -3,7 +3,6 @@ package com.example.messageapp.ui.chat
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -17,11 +16,32 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.fillMaxWidth
 import com.example.messageapp.model.Message
 import com.example.messageapp.utils.Crypto
 
+/**
+ * Data class para parámetros de MessageBubble
+ * Reduce LongParameterList detekt warning
+ */
+data class MessageBubbleParams(
+    val message: Message,
+    val isMine: Boolean,
+    val authorName: String? = null,
+    val authorPhoto: String? = null,
+    val onLongPress: () -> Unit = {},
+    val highlight: String = ""
+)
+
 @Composable
-fun MessageBubble(m: Message, isMine: Boolean, authorName: String? = null, authorPhoto: String? = null, onLongPress: () -> Unit = {}, highlight: String = "") {
+fun MessageBubble(params: MessageBubbleParams) {
+    val m = params.message
+    val isMine = params.isMine
+    val authorName = params.authorName
+    val authorPhoto = params.authorPhoto
+    val onLongPress = params.onLongPress
+    val highlight = params.highlight
+
     val bgMine = MaterialTheme.colorScheme.primaryContainer
     val bgOther = MaterialTheme.colorScheme.surfaceVariant
     val textColor = MaterialTheme.colorScheme.onSurface

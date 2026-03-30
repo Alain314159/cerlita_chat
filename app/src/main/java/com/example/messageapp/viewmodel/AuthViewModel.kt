@@ -124,11 +124,19 @@ class AuthViewModel(
      */
     fun signOut() {
         viewModelScope.launch {
-            repo.signOut()
-            _isLogged.value = false
-            _currentUserId.value = null
-            _error.value = null
-            Log.d(TAG, "AuthViewModel: User signed out")
+            val result = repo.signOut()
+            result.fold(
+                onSuccess = {
+                    _isLogged.value = false
+                    _currentUserId.value = null
+                    _error.value = null
+                    Log.d(TAG, "AuthViewModel: User signed out")
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "AuthViewModel: Sign out failed", error)
+                    _error.value = "Error al cerrar sesión: ${error.message}"
+                }
+            )
         }
     }
 

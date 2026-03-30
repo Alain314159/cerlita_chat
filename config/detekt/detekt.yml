@@ -5,7 +5,7 @@
 # ============================================
 
 build:
-  maxIssues: 0  # Cambiar a -1 para ignorar errores
+  maxIssues: 0  # Fallar si hay issues
   excludeCorrectable: false
   weights:
     # complexity: 2
@@ -95,13 +95,11 @@ complexity:
     active: false
   TooManyFunctions:
     active: true
-    thresholdInFiles: 20  # Aumentado de 11 a 20
-    thresholdInClasses: 20  # Aumentado de 11 a 20
-    thresholdInInterfaces: 20
-    thresholdInObjects: 20
-    thresholdInEnums: 20
-    # Excluir tests que tienen muchas funciones por naturaleza
-    ignoreAnnotated: ['Test', 'ParameterizedTest']
+    thresholdInFiles: 11
+    thresholdInClasses: 11
+    thresholdInInterfaces: 11
+    thresholdInObjects: 11
+    thresholdInEnums: 11
 
 coroutines:
   active: true
@@ -198,6 +196,9 @@ naming:
     active: false
   FunctionNaming:
     active: true
+    # Permitir backticks en tests para nombres más legibles
+    ignoreAnnotated: ['Test', 'ParameterizedTest']
+    functionPattern: '([a-z][a-zA-Z0-9]*)|(`.*`)'
   FunctionParameterNaming:
     active: true
   InvalidPackageDeclaration:

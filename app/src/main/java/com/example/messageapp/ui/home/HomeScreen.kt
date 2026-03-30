@@ -54,12 +54,15 @@ fun HomeScreen(
     ) { insets ->
         when (tab) {
             0 -> ChatListScreen(
-                myUid = myUid,
-                vm = listVm,
-                onOpenChat = onOpenChat,
-                onOpenProfile = onOpenProfile,
-                onOpenNewGroup = onOpenNewGroup,
-                onLogout = onLoggedOut
+                ChatListScreenParams(
+                    myUid = myUid,
+                    vm = listVm,
+                    onOpenChat = onOpenChat,
+                    onOpenProfile = onOpenProfile,
+                    onOpenNewGroup = onOpenNewGroup,
+                    onOpenContacts = { /* TODO */ },
+                    onLogout = onLoggedOut
+                )
             )
             1 -> ContactsScreen(
                 myUid = myUid,

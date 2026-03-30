@@ -6,6 +6,8 @@ plugins {
     kotlin("plugin.serialization") version "2.1.0"
     // Requerido para Room Database (KSP - Kotlin Symbol Processing)
     id("com.google.devtools.ksp") version "2.1.0-1.0.29"
+    // Firebase Cloud Messaging - Google Services Plugin
+    id("com.google.gms.google-services")
 
     // Plugins de calidad de código
     // Habilitados para análisis estático automático
@@ -22,16 +24,11 @@ android {
         minSdk = 26
         targetSdk = 35  // Cambiado a 35 (estable)
         versionCode = 1
-        versionName = "2.3-jpush" // Versión con JPush y avatares
-
-        // JPush AppKey - Se carga desde gradle.properties
-        val jpushAppKey = project.findProperty("JPUSH_APP_KEY")?.toString() ?: "TU_JPUSH_APP_KEY_AQUI"
-        manifestPlaceholders["JPUSH_APPKEY"] = jpushAppKey
+        versionName = "2.4-fcm" // Versión con Firebase Cloud Messaging
 
         // Supabase credentials - Se cargan desde gradle.properties (BUILD CONFIG)
         buildConfigField("String", "SUPABASE_URL", "\"${project.findProperty("SUPABASE_URL") ?: ""}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${project.findProperty("SUPABASE_ANON_KEY") ?: ""}\"")
-        buildConfigField("String", "JPUSH_APP_KEY", "\"$jpushAppKey\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -165,10 +162,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
     // ============================================
-    // JPUSH - COMENTADO TEMPORALMENTE (dependencia no disponible)
-    // La versión 4.3.8 no existe en repositorios Maven
+    // FIREBASE CLOUD MESSAGING - Migración desde JPush (Marzo 2026)
+    // Documentación: https://firebase.google.com/docs/cloud-messaging/android/client
     // ============================================
-    // implementation("cn.jiguang.jpush:jpush:4.3.8")
+    implementation(platform("com.google.firebase:firebase-bom:34.11.0"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    implementation("com.google.firebase:firebase-analytics-ktx")
 
     // Google Sign In
     implementation("com.google.android.gms:play-services-auth:21.3.0")

@@ -10,7 +10,7 @@ import com.example.messageapp.supabase.SupabaseConfig
  *
  * Inicializa componentes globales:
  * - Supabase (cliente)
- * - JPush (notificaciones push - Aurora Mobile) - COMENTADO TEMPORALMENTE
+ * - FCM (Firebase Cloud Messaging para notificaciones push)
  */
 class App : Application() {
 
@@ -24,15 +24,10 @@ class App : Application() {
         super.onCreate()
         instance = this
 
-        // JPush - COMENTADO TEMPORALMENTE (dependencia no disponible)
-        // val notificationRepo = NotificationRepository()
-        // if (notificationRepo.isJPushAvailable()) {
-        //     notificationRepo.initialize(this)
-        //     Log.d(TAG, "JPush inicializado en App.onCreate()")
-        //     Log.d(TAG, "JPush Registration ID: ${notificationRepo.getRegistrationId()}")
-        // } else {
-        //     Log.w(TAG, "JPush no configurado - revisa SupabaseConfig.JPUSH_APP_KEY")
-        // }
+        // Initialize Firebase Cloud Messaging (FCM)
+        val notificationRepo = NotificationRepository()
+        notificationRepo.initialize(this)
+        Log.d(TAG, "FCM inicializado en App.onCreate()")
 
         // Supabase se inicializa automáticamente cuando se usa SupabaseConfig.client
         // No necesitamos inicialización explícita aquí

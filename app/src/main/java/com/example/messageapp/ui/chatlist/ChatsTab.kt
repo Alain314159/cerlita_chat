@@ -4,23 +4,29 @@ package com.example.messageapp.ui.chatlist
 import androidx.compose.runtime.Composable
 import com.example.messageapp.viewmodel.ChatListViewModel
 
+/**
+ * Data class para parámetros de ChatsTab
+ * Reduce LongParameterList detekt warning
+ */
+data class ChatsTabParams(
+    val myUid: String,
+    val vm: ChatListViewModel,
+    val onOpenChat: (String) -> Unit,
+    val onOpenContacts: () -> Unit = {},
+    val onOpenNewGroup: () -> Unit = {},
+    val onOpenProfile: () -> Unit = {},
+    val onLogout: () -> Unit = {}
+)
+
 @Composable
-fun ChatsTab(
-    myUid: String,
-    vm: ChatListViewModel,
-    onOpenChat: (String) -> Unit,
-    onOpenContacts: () -> Unit = {},
-    onOpenNewGroup: () -> Unit = {},
-    onOpenProfile: () -> Unit = {},
-    onLogout: () -> Unit = {}
-) {
+fun ChatsTab(params: ChatsTabParams) {
     ChatListScreen(
-        myUid = myUid,
-        vm = vm,
-        onOpenChat = onOpenChat,
-        onOpenContacts = onOpenContacts,
-        onOpenNewGroup = onOpenNewGroup,
-        onOpenProfile = onOpenProfile,
-        onLogout = onLogout
+        myUid = params.myUid,
+        vm = params.vm,
+        onOpenChat = params.onOpenChat,
+        onOpenContacts = params.onOpenContacts,
+        onOpenNewGroup = params.onOpenNewGroup,
+        onOpenProfile = params.onOpenProfile,
+        onLogout = params.onLogout
     )
 }

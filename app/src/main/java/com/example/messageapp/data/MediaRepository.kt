@@ -1,11 +1,19 @@
 package com.example.messageapp.data
 
 import android.net.Uri
+import android.util.Log
 import com.example.messageapp.supabase.SupabaseConfig
+import io.github.jan-tennert.supabase.exception.SupabaseException
 import io.github.jan-tennert.supabase.storage.Storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.util.UUID
+
+/**
+ * Tag constante para logging consistente
+ */
+private const val TAG = "MessageApp.MediaRepository"
 
 /**
  * Repositorio de Multimedia usando SOLO Supabase Storage
@@ -71,9 +79,15 @@ class MediaRepository {
             )
             
             Result.success(signedUrl)
-            
+
+        } catch (e: SupabaseException) {
+            Log.w(TAG, "Supabase error uploading media", e)
+            Result.failure(Exception("Error de almacenamiento: ${e.message}"))
+        } catch (e: IOException) {
+            Log.w(TAG, "IO error reading media file", e)
+            Result.failure(Exception("Error de archivo: ${e.message}"))
         } catch (e: Exception) {
-            android.util.Log.w("MediaRepository", "Error al subir multimedia", e)
+            Log.e(TAG, "Unexpected error uploading media", e)
             Result.failure(e)
         }
     }
@@ -86,7 +100,11 @@ class MediaRepository {
             val bucket = storage.from(bucketName)
             bucket.delete(filePath)
             Result.success(Unit)
+        } catch (e: SupabaseException) {
+            Log.w(TAG, "Supabase error deleting media", e)
+            Result.failure(Exception("Error de almacenamiento: ${e.message}"))
         } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error deleting media", e)
             Result.failure(e)
         }
     }

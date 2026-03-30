@@ -26,45 +26,84 @@ import com.example.messageapp.utils.Crypto
 import com.example.messageapp.viewmodel.ChatListViewModel
 import kotlinx.coroutines.launch
 
+/**
+ * Data class para parámetros de ChatListScreen
+ * Reduce LongParameterList detekt warning
+ */
+data class ChatListScreenParams(
+    val myUid: String,
+    val vm: ChatListViewModel,
+    val onOpenChat: (String) -> Unit,
+    val onOpenContacts: () -> Unit,
+    val onOpenNewGroup: () -> Unit,
+    val onOpenProfile: () -> Unit,
+    val onLogout: () -> Unit
+)
+
 // ✅ CORREGIDO: Eliminar OptIn innecesario (API es estable)
 
+/**
+ * Data class para parámetros de ChatRow
+ * Reduce LongParameterList detekt warning
+ */
+data class ChatRowParams(
+    val myUid: String,
+    val chat: Chat,
+    val isHiddenList: Boolean,
+    val onOpen: () -> Unit,
+    val onHide: () -> Unit,
+    val onUnhide: () -> Unit,
+    val onDeleteForMe: () -> Unit,
+    val onLeave: () -> Unit,
+    val onDeleteGroup: () -> Unit
+)
+
+/**
+ * Data class para parámetros de ChatRowMenu
+ * Reduce LongParameterList detekt warning
+ */
+data class ChatRowMenuParams(
+    val expanded: Boolean,
+    val onDismiss: () -> Unit,
+    val chat: Chat,
+    val myUid: String,
+    val isHiddenList: Boolean,
+    val onHide: () -> Unit,
+    val onUnhide: () -> Unit,
+    val onDeleteForMe: () -> Unit,
+    val onLeave: () -> Unit,
+    val onDeleteGroup: () -> Unit
+)
+
 @Composable
-fun ChatListScreen(
-    myUid: String,
-    vm: ChatListViewModel,
-    onOpenChat: (String) -> Unit,
-    onOpenContacts: () -> Unit,
-    onOpenNewGroup: () -> Unit,
-    onOpenProfile: () -> Unit,
-    onLogout: () -> Unit
-) {
+fun ChatListScreen(params: ChatListScreenParams) {
     // ✅ CORREGIDO: collectAsStateWithLifecycle en lugar de collectAsState
-    val chats by vm.chats.collectAsStateWithLifecycle()
+    val chats by params.vm.chats.collectAsStateWithLifecycle()
     var showHidden by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf<Chat?>(null) }
     var confirmDeleteGroup by remember { mutableStateOf<Chat?>(null) }
     val scope = rememberCoroutineScope()
     val repo = remember { ChatRepository() }
 
-    LaunchedEffect(myUid) {
-        if (myUid.isNotBlank()) vm.start(myUid)
+    LaunchedEffect(params.myUid) {
+        if (params.myUid.isNotBlank()) params.vm.start(params.myUid)
     }
 
     // ✅ CORREGIDO: Eliminar filtro por visibleFor (propiedad no existe en Chat)
     val list = chats  // Usar lista completa por ahora
 
     Scaffold(
-        topBar = { ChatListTopBar(ChatListTopBarState(showHidden, if (showHidden) "Conversas Arquivadas" else "Mensagens"), { showHidden = !showHidden }, onOpenContacts, onOpenNewGroup, onOpenProfile, onLogout) },
-        floatingActionButton = { ChatListFab(onOpenContacts) }
+        topBar = { ChatListTopBar(ChatListTopBarParams(ChatListTopBarState(showHidden, if (showHidden) "Conversas Arquivadas" else "Mensagens"), { showHidden = !showHidden }, params.onOpenContacts, params.onOpenNewGroup, params.onOpenProfile, params.onLogout)) },
+        floatingActionButton = { ChatListFab(params.onOpenContacts) }
     ) { pad ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(pad)) {
             items(list, key = { it.id }) { c ->
                 // ✅ CORREGIDO: Eliminar métodos que no existen en ChatRepository
-                ChatRow(myUid, c, showHidden, { onOpenChat(c.id) }, 
-                    /* hideChatForUser */ null, 
-                    /* unhideChatForUser */ null, 
-                    /* leaveGroup */ null, 
-                    /* deleteGroup */ null)
+                ChatRow(ChatRowParams(params.myUid, c, showHidden, { params.onOpenChat(c.id) },
+                    /* hideChatForUser */ null,
+                    /* unhideChatForUser */ null,
+                    /* leaveGroup */ null,
+                    /* deleteGroup */ null))
                 Divider()
             }
         }
@@ -105,21 +144,13 @@ private fun DeleteGroupDialog(chat: Chat, repo: ChatRepository, scope: kotlinx.c
 */
 
 @Composable
-private fun ChatRow(
-    myUid: String,
-    chat: Chat,
-    isHiddenList: Boolean,
-    onOpen: () -> Unit,
-    onHide: () -> Unit,
-    onUnhide: () -> Unit,
-    onDeleteForMe: () -> Unit,
-    onLeave: () -> Unit,
-    onDeleteGroup: () -> Unit
-) {
+private fun ChatRow(params: ChatRowParams) {
     var menuOpen by remember { mutableStateOf(false) }
     // ✅ CORREGIDO: chat.name y chat.photoUrl no existen - usar chat.id
-    var title by remember(chat.id) { mutableStateOf(chat.id) }
-    var avatar by remember(chat.id) { mutableStateOf<String?>(null) }
+    var title by remember(params.chat.id) { mutableStateOf(params.chat.id) }
+    var avatar by remember(params.chat.id) { mutableStateOf<String?>(null) }
+    val myUid = params.myUid
+    val chat = params.chat
 
     LaunchedEffect(chat.id, chat.type, chat.memberIds, myUid) {
         // ✅ CORREGIDO: usar chat.memberIds en lugar de chat.members (Firebase)
@@ -144,7 +175,7 @@ private fun ChatRow(
         chat.lastMessageEnc?.let { Crypto.decrypt(it) } ?: chat.pinnedSnippet ?: ""
     }
 
-    androidx.compose.material3.ElevatedCard(onClick = onOpen, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+    androidx.compose.material3.ElevatedCard(onClick = params.onOpen, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
         androidx.compose.material3.ListItem(
             leadingContent = { Avatar(avatar, title.take(1).uppercase()) },
             headlineContent = { Text(title, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
@@ -155,10 +186,10 @@ private fun ChatRow(
                         androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.MoreVert, contentDescription = "Mais opções")
                     }
                     // ✅ CORREGIDO: Eliminar parámetros que no se usan
-                    ChatRowMenu(menuOpen, { menuOpen = false }, chat, myUid, isHiddenList, null, null, null, null, null)
+                    ChatRowMenu(ChatRowMenuParams(menuOpen, { menuOpen = false }, chat, myUid, params.isHiddenList, null, null, null, null, null))
                 }
             },
-            modifier = Modifier.clickable { onOpen() }
+            modifier = Modifier.clickable { params.onOpen() }
         )
     }
 }
@@ -185,31 +216,20 @@ private fun Avatar(url: String?, fallback: String) {
 }
 
 @Composable
-private fun ChatRowMenu(
-    expanded: Boolean,
-    onDismiss: () -> Unit,
-    chat: Chat,
-    myUid: String,
-    isHiddenList: Boolean,
-    onHide: () -> Unit,
-    onUnhide: () -> Unit,
-    onDeleteForMe: () -> Unit,
-    onLeave: () -> Unit,
-    onDeleteGroup: () -> Unit
-) {
-    androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        if (isHiddenList) {
-            androidx.compose.material3.DropdownMenuItem(text = { Text("Desarquivar conversa") }, onClick = onUnhide)
+private fun ChatRowMenu(params: ChatRowMenuParams) {
+    androidx.compose.material3.DropdownMenu(expanded = params.expanded, onDismissRequest = params.onDismiss) {
+        if (params.isHiddenList) {
+            androidx.compose.material3.DropdownMenuItem(text = { Text("Desarquivar conversa") }, onClick = params.onUnhide)
         } else {
-            androidx.compose.material3.DropdownMenuItem(text = { Text("Arquivar conversa") }, onClick = onHide)
-            if (chat.type == "direct") {
-                androidx.compose.material3.DropdownMenuItem(text = { Text("Excluir conversa") }, onClick = onDeleteForMe)
+            androidx.compose.material3.DropdownMenuItem(text = { Text("Arquivar conversa") }, onClick = params.onHide)
+            if (params.chat.type == "direct") {
+                androidx.compose.material3.DropdownMenuItem(text = { Text("Excluir conversa") }, onClick = params.onDeleteForMe)
             }
         }
-        if (chat.type == "group") {
-            androidx.compose.material3.DropdownMenuItem(text = { Text("Sair do grupo") }, onClick = onLeave)
-            if (chat.ownerId == myUid) {
-                androidx.compose.material3.DropdownMenuItem(text = { Text("Apagar grupo para todos") }, onClick = onDeleteGroup)
+        if (params.chat.type == "group") {
+            androidx.compose.material3.DropdownMenuItem(text = { Text("Sair do grupo") }, onClick = params.onLeave)
+            if (params.chat.ownerId == params.myUid) {
+                androidx.compose.material3.DropdownMenuItem(text = { Text("Apagar grupo para todos") }, onClick = params.onDeleteGroup)
             }
         }
     }

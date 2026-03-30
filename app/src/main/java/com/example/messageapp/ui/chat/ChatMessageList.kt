@@ -51,7 +51,16 @@ fun ChatMessageList(
                 }
             }
             items(list, key = { it.message.id }) { item ->
-                MessageBubble(m = item.message, isMine = item.message.senderId == myUid, authorName = item.authorName, authorPhoto = item.authorPhoto, onLongPress = { onMessageLongPress(item.message) }, highlight = searchQuery)
+                MessageBubble(
+                    params = MessageBubbleParams(
+                        message = item.message,
+                        isMine = item.message.senderId == myUid,
+                        authorName = item.authorName,
+                        authorPhoto = item.authorPhoto,
+                        onLongPress = { onMessageLongPress(item.message) },
+                        highlight = searchQuery
+                    )
+                )
                 Spacer(modifier = Modifier.heightIn(min = 2.dp))
             }
         }
