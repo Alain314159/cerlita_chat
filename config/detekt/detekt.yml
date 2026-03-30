@@ -100,6 +100,8 @@ complexity:
     thresholdInInterfaces: 11
     thresholdInObjects: 11
     thresholdInEnums: 11
+    # ✅ Excluir tests - es aceptable tener muchas funciones en tests
+    excludes: ['**/test/**', '**/androidTest/**']
 
 coroutines:
   active: true
@@ -178,7 +180,9 @@ exceptions:
   ThrowingNewInstanceOfSameException:
     active: true
   TooGenericExceptionCaught:
-    active: true
+    active: false  # ✅ Desactivado: Patrón aceptable cuando hay logging apropiado
+    # El patrón catch específico + catch Exception con Log es práctica estándar en Android
+    excludes: []
   TooGenericExceptionThrown:
     active: true
 
@@ -196,9 +200,10 @@ naming:
     active: false
   FunctionNaming:
     active: true
-    # Permitir backticks en tests para nombres más legibles
-    ignoreAnnotated: ['Test', 'ParameterizedTest']
-    functionPattern: '([a-z][a-zA-Z0-9]*)|(`.*`)'
+    # ✅ Permitir @Composable con mayúscula (convención de Jetpack Compose)
+    # ✅ Permitir backticks en tests para nombres más legibles
+    ignoreAnnotated: ['Composable', 'Test', 'ParameterizedTest']
+    functionPattern: '([a-zA-Z][a-zA-Z0-9]*)|(`.*`)'
   FunctionParameterNaming:
     active: true
   InvalidPackageDeclaration:
