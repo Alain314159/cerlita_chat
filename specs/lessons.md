@@ -2,6 +2,129 @@
 
 ## 📚 Registro de Errores y Soluciones
 
+### 2026-03-29: BUILD FAILED - Bloque Comentado en Gradle Kotlin DSL
+
+**Problema:**
+- Error de compilación: `Unresolved reference: generated` en línea 232 de `app/build.gradle.kts`
+- BUILD FAILED en GitHub Actions
+- El compilador de Kotlin Gradle DSL procesa bloques comentados con `/* */`
+
+**Causa raíz:**
+En Kotlin Gradle DSL, los comentarios multilínea `/* */` que contienen código DSL (como `ktlint { }`) **NO son ignorados completamente**. El compilador intenta analizar el código dentro del comentario y falla si hay referencias obsoletas.
+
+```kotlin
+// ❌ ESTO FALLA EN GRADLE KOTLIN DSL:
+/*
+ktlint {
+    android = true
+    filter {
+        exclude("**/generated/**")  // <- Unresolved reference
+    }
+}
+*/
+```
+
+**Solución:**
+Eliminar completamente los bloques de código comentados del archivo `build.gradle.kts`. Si necesitas documentación, usar comentarios de línea simple `//`:
+
+```kotlin
+// ✅ SOLUCIÓN: Eliminar bloques comentados
+// Nota: La configuración de ktlint fue removida porque la API cambió en v12.0.0+
+// El filtro 'generated' ya no existe. Usar nueva API si se necesita ktlint.
+```
+
+**Lecciones aprendidas:**
+1. ✅ En Gradle Kotlin DSL, NO usar `/* */` para comentar bloques de código DSL
+2. ✅ Usar `//` para comentarios de documentación
+3. ✅ Si el código no se usa, eliminarlo completamente (no comentar)
+4. ✅ Los comentarios multilínea solo para texto, no para código
+
+**Archivos modificados:**
+- `app/build.gradle.kts` - Eliminados bloques comentados de detekt y ktlint
+
+**Referencias:**
+- [Kotlin Gradle DSL Documentation](https://docs.gradle.org/current/userguide/kotlin_dsl.html)
+
+---
+
+### 2026-03-29: GITHUB ACTIONS - NODE.JS 24 UPDATE
+
+**Problema:**
+- GitHub Actions warning: `actions/upload-artifact@v4` usa Node.js 20 (deprecated)
+- Mensaje de error: "Node.js 20 actions are deprecated... may not work as expected"
+- Tests no generaban reports: "No files were found with the provided path"
+- Fecha de remoción: Node.js 20 será removido Septiembre 16, 2026
+
+**Causa raíz:**
+1. `unit-tests.yml` usaba `actions/upload-artifact@v4` (Node.js 20)
+2. Comando `./gradlew test` muy genérico (no usa variante de build)
+3. Paths de artifacts asumían estructura fija sin verificar
+4. Sin diagnóstico cuando tests no generan reports
+
+**Solución implementada:**
+
+1. **Actualizar todas las actions a v5 (Node.js 24):**
+```yaml
+# ANTES (Node.js 20):
+- uses: actions/upload-artifact@v4
+
+# DESPUÉS (Node.js 24):
+- uses: actions/upload-artifact@v5  # ✅ Node.js 24
+```
+
+2. **Usar variante específica de build:**
+```yaml
+# ANTES (genérico):
+- run: ./gradlew test
+
+# DESPUÉS (específico):
+- run: ./gradlew testDebugUnitTest  # ✅ Variante explícita
+```
+
+3. **Agregar paso de diagnóstico:**
+```yaml
+- name: 🔍 Diagnosticar Reports de Tests
+  if: always()
+  run: |
+    echo "=== DIAGNÓSTICO: BUSCANDO REPORTS DE TESTS ==="
+    find app/build/reports/tests/ -type f 2>/dev/null || echo "❌ No encontrado"
+    find app/build/test-results/ -type f 2>/dev/null || echo "❌ No encontrado"
+    # ... más búsquedas
+```
+
+4. **Paths múltiples para artifacts:**
+```yaml
+- name: Subir Reporte de Tests (HTML)
+  uses: actions/upload-artifact@v5
+  with:
+    path: |
+      app/build/reports/tests/testDebugUnitTest/
+      build/reports/tests/testDebugUnitTest/
+    if-no-files-found: warn  # ✅ No fallar, solo advertir
+```
+
+**Lecciones aprendidas:**
+1. ✅ Usar siempre última versión de GitHub Actions (v5+ para Node.js 24)
+2. ✅ Especificar variante de build en comandos Gradle (`testDebugUnitTest`)
+3. ✅ Agregar diagnóstico cuando artifacts pueden no existir
+4. ✅ Usar `if-no-files-found: warn` para permitir diagnóstico
+5. ✅ Buscar en múltiples paths (estructura de proyecto puede variar)
+
+**Prevención:**
+- Revisar changelog de GitHub Actions mensualmente
+- Usar Dependabot para actualizar actions automáticamente
+- Agregar logs de diagnóstico antes de subir artifacts
+- Verificar estructura de reports localmente antes de configurar CI
+
+**Archivos modificados:**
+- `.github/workflows/unit-tests.yml`
+
+**Referencias:**
+- [GitHub Blog - Node.js 20 deprecation](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/)
+- [actions/upload-artifact v5](https://github.com/actions/upload-artifact)
+
+---
+
 ### 2026-03-29: CORRECCIÓN WILDCARD IMPORTS - Detekt
 
 **Problema:**
