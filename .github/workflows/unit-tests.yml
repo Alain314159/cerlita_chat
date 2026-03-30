@@ -29,7 +29,7 @@ jobs:
 
     # 3. Cache de dependencias de Gradle (acelera builds futuros)
     - name: Cache de Gradle
-      uses: actions/cache@v4.0.0  # ✅ Node.js 24
+      uses: actions/cache@v5  # ✅ Node.js 24
       with:
         path: |
           ~/.gradle/caches
