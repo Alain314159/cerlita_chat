@@ -7,9 +7,12 @@ import com.example.messageapp.crypto.E2ECipher
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.storage
+import io.ktor.client.request.get
+import io.ktor.client.call.body
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.SerialName
 
 private const val TAG = "MessageApp.ProfileRepository"
 
@@ -122,7 +125,8 @@ class ProfileRepository {
      * Lee los bytes de un URI
      */
     private suspend fun readUriBytes(uri: Uri): ByteArray = withContext(Dispatchers.IO) {
-        SupabaseConfig.client.httpClient.request(uri.toString()).body<ByteArray>()
+        val response = SupabaseConfig.client.httpClient.get(uri.toString())
+        response.body<ByteArray>()
     }
 }
 
@@ -140,10 +144,11 @@ data class UserProfile(
 /**
  * Data class para la respuesta de la base de datos
  */
+@kotlinx.serialization.Serializable
 private data class UserProfileResponse(
-    val display_name: String,
-    val bio: String,
-    val photo_url: String?,
-    val is_paired: Boolean,
-    val pairing_code: String?
+    @SerialName("display_name") val displayName: String,
+    @SerialName("bio") val bio: String,
+    @SerialName("photo_url") val photoUrl: String?,
+    @SerialName("is_paired") val isPaired: Boolean,
+    @SerialName("pairing_code") val pairingCode: String?
 )

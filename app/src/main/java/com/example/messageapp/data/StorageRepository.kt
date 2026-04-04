@@ -28,12 +28,12 @@ data class MediaUploadParams(
 /**
  * Repositorio para enviar multimedia usando Supabase Storage
  *
- * ✅ CORREGIDO 2026-03-28: 
+ * ✅ CORREGIDO 2026-03-28:
  * - Inyección de Context en constructor
  * - readUriBytes implementado correctamente con ContentResolver
  */
-class StorageRepository @Inject constructor(
-    @android.content.Context.ApplicationContext private val context: Context
+class StorageRepository(
+    private val context: Context
 ) {
 
     private val db = SupabaseConfig.client.postgrest

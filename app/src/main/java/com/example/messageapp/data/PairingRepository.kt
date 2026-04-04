@@ -120,7 +120,7 @@ class PairingRepository {
                         eq("is_paired", false) // Solo mostrar disponibles
                     }
                 }
-                .decodeSingleOrNull()
+                .decodeSingleOrNull<PairingUserResult>()
                 ?: return@withContext Result.failure(Exception("Usuario no encontrado o ya emparejado"))
             
             Result.success(user)
@@ -184,17 +184,17 @@ class PairingRepository {
             val userId = auth.currentSessionOrNull()?.user?.id 
                 ?: return@withContext Result.failure(Exception("No autenticado"))
             
-            val user = db.from("users")
+            val result = db.from("users")
                 .select(columns = Columns.list("is_paired", "partner_id", "pairing_code")) {
                     filter { eq("id", userId) }
                 }
-                .decodeSingleOrNull()
+                .decodeSingleOrNull<PairingStatusResult>()
                 ?: return@withContext Result.failure(Exception("Usuario no encontrado"))
-            
+
             val status = PairingStatus(
-                isPaired = user.isPaired ?: false,
-                partnerId = user.partnerId,
-                pairingCode = user.pairingCode
+                isPaired = result.isPaired,
+                partnerId = result.partnerId,
+                pairingCode = result.pairingCode
             )
             
             Result.success(status)
@@ -211,4 +211,26 @@ data class PairingStatus(
     val isPaired: Boolean,
     val partnerId: String?,
     val pairingCode: String?
+)
+
+/**
+ * Data class para resultado de búsqueda de usuario
+ */
+@kotlinx.serialization.Serializable
+private data class PairingUserResult(
+    val id: String,
+    val email: String,
+    @kotlinx.serialization.SerialName("display_name") val displayName: String,
+    @kotlinx.serialization.SerialName("photo_url") val photoUrl: String?,
+    @kotlinx.serialization.SerialName("is_paired") val isPaired: Boolean
+)
+
+/**
+ * Data class para resultado de status de pairing
+ */
+@kotlinx.serialization.Serializable
+private data class PairingStatusResult(
+    @kotlinx.serialization.SerialName("is_paired") val isPaired: Boolean,
+    @kotlinx.serialization.SerialName("partner_id") val partnerId: String?,
+    @kotlinx.serialization.SerialName("pairing_code") val pairingCode: String?
 )

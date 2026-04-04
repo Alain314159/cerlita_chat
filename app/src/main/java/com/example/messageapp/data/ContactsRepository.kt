@@ -173,20 +173,22 @@ data class UserSearchResult(
 /**
  * Data class para la respuesta de contactos
  */
+@kotlinx.serialization.Serializable
 private data class ContactResponse(
-    val user_id: String,
-    val contact_user_id: String,
+    @kotlinx.serialization.SerialName("user_id") val userId: String,
+    @kotlinx.serialization.SerialName("contact_user_id") val contactUserId: String,
     val alias: String,
-    val created_at: Long
+    @kotlinx.serialization.SerialName("created_at") val createdAt: Long
 )
 
 /**
  * Data class para información de usuario
  */
+@kotlinx.serialization.Serializable
 private data class UserInfoResponse(
-    val display_name: String,
-    val photo_url: String?,
-    val is_paired: Boolean
+    @kotlinx.serialization.SerialName("display_name") val displayName: String,
+    @kotlinx.serialization.SerialName("photo_url") val photoUrl: String?,
+    @kotlinx.serialization.SerialName("is_paired") val isPaired: Boolean
 )
 
 /**
