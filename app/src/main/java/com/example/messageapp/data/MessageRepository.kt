@@ -210,9 +210,11 @@ class MessageRepository {
                 )
             ) {
                 filter {
-                    and { eq("chat_id", chatId); neq("sender_id", uid); isNull("read_at") }
-                    
-                    
+                    and {
+                        eq("chat_id", chatId)
+                        neq("sender_id", uid)
+                        isNull("read_at")
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -249,7 +251,7 @@ class MessageRepository {
                 .select(columns = Columns.list("*")) {
                     filter { and { eq("chat_id", chatId) } }
                     order("created_at", Order.DESCENDING) // DESC (más recientes primero)
-                    range(from, to)
+                    range(from.toLong(), to.toLong())
                 }
                 .decodeList<Message>()
 
@@ -278,11 +280,13 @@ class MessageRepository {
             val messages = db.from("messages")
                 .select(columns = Columns.list("*")) {
                     filter {
-                        and { eq("chat_id", chatId); neq("sender_id", uid); isNull("read_at") }
-                        lt("created_at", beforeTimestamp)
+                        and {
+                            eq("chat_id", chatId)
+                            lt("created_at", beforeTimestamp)
+                        }
                     }
                     order("created_at", Order.DESCENDING) // DESC
-                    range(from.toLong(), to.toLong())
+                    limit(limit.toLong())
                 }
                 .decodeList<Message>()
 
