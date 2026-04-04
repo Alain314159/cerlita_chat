@@ -181,7 +181,7 @@ fun AppNavigationHost(
             val myUid = authVm.currentUserId.value.orEmpty()
 
             LaunchedEffect(chatId, myUid) {
-                if (myUid.isNotEmpty()) {
+                if (myUid?.isNotEmpty() == true) {
                     chatVm.start(chatId, myUid)
                 }
             }

@@ -183,28 +183,15 @@ fun DoubleCheckIndicator(isRead: Boolean, modifier: Modifier = Modifier) {
 
 @Composable
 fun TypingDots(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "typing")
-    val dot1Alpha by infiniteTransition.animateFloat(initialValue = 0.3f, targetValue = 1f, animationSpec = infiniteRepeatable(animation = tween(600, easing = EaseInOut), repeatMode = RepeatMode.Reverse), label = "dot1")
-    val dot2Alpha by infiniteTransition.animateFloat(initialValue = 0.3f, targetValue = 1f, animationSpec = infiniteRepeatable(animation = tween(600, delayMillis = 200, easing = EaseInOut), repeatMode = RepeatMode.Reverse), label = "dot2")
-    val dot3Alpha by infiniteTransition.animateFloat(initialValue = 0.3f, targetValue = 1f, animationSpec = infiniteRepeatable(animation = tween(600, delayMillis = 400, easing = EaseInOut), repeatMode = RepeatMode.Reverse), label = "dot3")
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        Text(text = ".", style = MaterialTheme.typography.titleLarge, color = RosaChanchita, modifier = Modifier.graphicsLayer { alpha = dot1Alpha })
-        Text(text = ".", style = MaterialTheme.typography.titleLarge, color = RosaChanchita, modifier = Modifier.graphicsLayer { alpha = dot2Alpha })
-        Text(text = ".", style = MaterialTheme.typography.titleLarge, color = RosaChanchita, modifier = Modifier.graphicsLayer { alpha = dot3Alpha })
+        Text(text = "...", style = MaterialTheme.typography.titleLarge, color = RosaChanchita)
     }
 }
 
 @Composable
 fun TypingIndicator(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "typing")
-    val dot1Alpha by infiniteTransition.animateFloat(initialValue = 0.3f, targetValue = 1f, animationSpec = infiniteRepeatable(animation = tween(600, easing = EaseInOut), repeatMode = RepeatMode.Reverse), label = "dot1")
-    val dot2Alpha by infiniteTransition.animateFloat(initialValue = 0.3f, targetValue = 1f, animationSpec = infiniteRepeatable(animation = tween(600, delayMillis = 200, easing = EaseInOut), repeatMode = RepeatMode.Reverse), label = "dot2")
-    val dot3Alpha by infiniteTransition.animateFloat(initialValue = 0.3f, targetValue = 1f, animationSpec = infiniteRepeatable(animation = tween(600, delayMillis = 400, easing = EaseInOut), repeatMode = RepeatMode.Reverse), label = "dot3")
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        Text(text = "Escribiendo", style = MaterialTheme.typography.bodySmall, color = RosaChanchita, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(text = ".", style = MaterialTheme.typography.bodySmall, color = RosaChanchita, modifier = Modifier.graphicsLayer { alpha = dot1Alpha })
-        Text(text = ".", style = MaterialTheme.typography.bodySmall, color = RosaChanchita, modifier = Modifier.graphicsLayer { alpha = dot2Alpha })
-        Text(text = ".", style = MaterialTheme.typography.bodySmall, color = RosaChanchita, modifier = Modifier.graphicsLayer { alpha = dot3Alpha })
+        Text(text = "Escribiendo...", style = MaterialTheme.typography.bodySmall, color = RosaChanchita, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
