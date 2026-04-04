@@ -36,66 +36,69 @@ class ChatMediaPickers(
 
 @Composable
 fun rememberMediaPickers(chatId: String, myUid: String?, storage: StorageRepository, scope: CoroutineScope, context: Context): ChatMediaPickers {
-    return remember {
-        ChatMediaPickers(
-            image = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-                uri?.let {
-                    try {
-                        context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        if (myUid.isNotBlank()) {
-                            scope.launch { storage.sendMedia(MediaUploadParams(chatId, myUid!!, it, "image")) }
-                        }
-                    } catch (e: SecurityException) {
-                        Log.e(TAG, "Permission denied for image URI", e)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to process image URI", e)
-                    }
+    val safeUid = myUid ?: ""
+    
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                if (safeUid.isNotBlank()) {
+                    scope.launch { storage.sendMedia(MediaUploadParams(chatId, safeUid, it, "image")) }
                 }
-            },
-            video = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-                uri?.let {
-                    try {
-                        context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        if (myUid.isNotBlank()) {
-                            scope.launch { storage.sendMedia(MediaUploadParams(chatId, myUid!!, it, "video")) }
-                        }
-                    } catch (e: SecurityException) {
-                        Log.e(TAG, "Permission denied for video URI", e)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to process video URI", e)
-                    }
-                }
-            },
-            audio = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-                uri?.let {
-                    try {
-                        context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        if (myUid.isNotBlank()) {
-                            scope.launch { storage.sendMedia(MediaUploadParams(chatId, myUid!!, it, "audio")) }
-                        }
-                    } catch (e: SecurityException) {
-                        Log.e(TAG, "Permission denied for audio URI", e)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to process audio URI", e)
-                    }
-                }
-            },
-            file = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-                uri?.let {
-                    try {
-                        context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        if (myUid.isNotBlank()) {
-                            scope.launch { storage.sendMedia(MediaUploadParams(chatId, myUid!!, it, "file")) }
-                        }
-                    } catch (e: SecurityException) {
-                        Log.e(TAG, "Permission denied for file URI", e)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to process file URI", e)
-                    }
-                }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Permission denied for image URI", e)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to process image URI", e)
             }
-        )
+        }
     }
+    
+    val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                if (safeUid.isNotBlank()) {
+                    scope.launch { storage.sendMedia(MediaUploadParams(chatId, safeUid, it, "video")) }
+                }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Permission denied for video URI", e)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to process video URI", e)
+            }
+        }
+    }
+    
+    val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                if (safeUid.isNotBlank()) {
+                    scope.launch { storage.sendMedia(MediaUploadParams(chatId, safeUid, it, "audio")) }
+                }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Permission denied for audio URI", e)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to process audio URI", e)
+            }
+        }
+    }
+    
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                if (safeUid.isNotBlank()) {
+                    scope.launch { storage.sendMedia(MediaUploadParams(chatId, safeUid, it, "file")) }
+                }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Permission denied for file URI", e)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to process file URI", e)
+            }
+        }
+    }
+    
+    return ChatMediaPickers(imagePicker, videoPicker, audioPicker, filePicker)
 }
 
 // ============================================================================
@@ -103,7 +106,7 @@ fun rememberMediaPickers(chatId: String, myUid: String?, storage: StorageReposit
 // NOTE: Esta función requiere migración a Supabase - temporalmente deshabilitada
 // ============================================================================
 
-private data class SenderUi(val name: String, val photo: String?)
+data class SenderUi(val name: String, val photo: String?)
 
 @Composable
 fun rememberUsers(msgs: List<Message>): Map<String, SenderUi> {
@@ -116,18 +119,18 @@ fun rememberUsers(msgs: List<Message>): Map<String, SenderUi> {
 @Composable
 fun rememberGroupedMessagesWithAuthors(msgs: List<Message>, queryText: String, myUid: String, users: Map<String, SenderUi>): List<Pair<String, List<MessageWithAuthor>>> {
     return remember(msgs, queryText, users) {
-        val base = msgs.filter { !it.deletedFor.getOrDefault(myUid, false) }
+        val base = msgs.filter { !(it.deletedFor[myUid] ?: false) }
         val filtered = if (queryText.isBlank()) {
             base
         } else {
-            base.filter { 
-                it.type == "text" && it.textEnc != null && 
-                runCatching { Crypto.decrypt(it.textEnc!!) }.getOrElse { "" }.contains(queryText, ignoreCase = true) 
+            base.filter {
+                it.type == "text" && it.textEnc != null &&
+                runCatching { Crypto.decrypt(it.textEnc!!) }.getOrElse { "" }.contains(queryText, ignoreCase = true)
             }
         }
         val map = linkedMapOf<String, MutableList<MessageWithAuthor>>()
         filtered.forEach { m ->
-            val h = Time.headerFor(m.createdAt).ifBlank { " " }
+            val h = toFormattedDate(m.createdAt).ifBlank { " " }
             val author = users[m.senderId]
             map.getOrPut(h) { mutableListOf() }.add(MessageWithAuthor(m, author?.name, author?.photo))
         }
