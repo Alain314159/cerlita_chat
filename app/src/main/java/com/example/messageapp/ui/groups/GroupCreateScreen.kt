@@ -222,7 +222,7 @@ private fun GroupCreateMemberList(
     creating: Boolean
 ) {
     Text("Participantes", style = MaterialTheme.typography.titleMedium)
-    LazyColumn(Modifier.weight(1f)) {
+    LazyColumn(Modifier.fillMaxSize()) {
         items(users) { u ->
             val checked = selected.contains(u.uid)
             ListItem(
