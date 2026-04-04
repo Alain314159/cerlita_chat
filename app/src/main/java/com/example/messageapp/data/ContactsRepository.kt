@@ -121,11 +121,12 @@ class ContactsRepository {
      */
     suspend fun searchUsersByEmail(email: String): Result<List<UserSearchResult>> = withContext(Dispatchers.IO) {
         try {
+            val currentUserId = SupabaseConfig.client.auth.currentUserOrNull()?.id
             val users = db.from("users")
                 .select {
                     filter {
                         eq("email", email)
-                        and { neq("id", SupabaseConfig.client.auth.currentUserOrNull()?.id) }
+                        currentUserId?.let { neq("id", it) }
                     }
                 }
                 .decodeList<UserSearchResponse>()
@@ -194,10 +195,11 @@ private data class UserInfoResponse(
 /**
  * Data class para búsqueda de usuarios
  */
+@kotlinx.serialization.Serializable
 private data class UserSearchResponse(
     val id: String,
     val email: String,
-    val display_name: String,
-    val photo_url: String?,
-    val is_paired: Boolean
+    @kotlinx.serialization.SerialName("display_name") val displayName: String,
+    @kotlinx.serialization.SerialName("photo_url") val photoUrl: String?,
+    @kotlinx.serialization.SerialName("is_paired") val isPaired: Boolean
 )

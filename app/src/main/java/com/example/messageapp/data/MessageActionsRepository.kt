@@ -131,16 +131,17 @@ class MessageActionsRepository {
      */
     suspend fun countUnreadMessages(chatId: String, uid: String): Int = withContext(Dispatchers.IO) {
         try {
-            val response = db.from("messages")
+            val result = db.from("messages")
                 .select(columns = Columns.list("id")) {
                     filter {
                         eq("chat_id", chatId)
                         neq("sender_id", uid)
                         isNull("read_at")
                     }
+                    count(io.github.jan.supabase.postgrest.query.Count.EXACT)
                 }
 
-            response.count(Count.EXACT) ?: 0
+            result.count?.toInt() ?: 0
         } catch (e: Exception) {
             Log.w(TAG, "MessageActionsRepository: Error counting unread messages: ${e.message}", e)
             throw e
