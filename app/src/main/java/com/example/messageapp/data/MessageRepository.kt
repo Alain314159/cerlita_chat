@@ -3,6 +3,7 @@ package com.example.messageapp.data
 import android.util.Log
 import com.example.messageapp.model.Message
 import com.example.messageapp.supabase.SupabaseConfig
+import com.example.messageapp.utils.retryWithBackoff
 import io.github.jan-tennert.supabase.postgrest.Postgrest
 import io.github.jan-tennert.supabase.postgrest.exception.PostgrestException
 import io.github.jan-tennert.supabase.realtime.Realtime
@@ -22,17 +23,23 @@ private const val TAG = "MessageApp"
  *
  * Responsabilidad única: Observación y lectura de MENSAJES
  *
- * Funciones (5):
+ * Funciones (7):
  * 1. observeMessages
- * 2. sendText
- * 3. markDelivered
- * 4. markAsRead
- * 5. loadMessages (privada)
+ * 2. loadMessagesPaginated (con paginación)
+ * 3. sendText
+ * 4. markDelivered
+ * 5. markAsRead
+ * 6. loadMessages
+ * 7. loadOlderMessages (paginación)
  */
 class MessageRepository {
 
     private val db = SupabaseConfig.client.plugin(Postgrest)
     private val realtime = SupabaseConfig.client.plugin(Realtime)
+
+    companion object {
+        const val PAGE_SIZE = 50 // Número de mensajes por página
+    }
 
     /**
      * Observa los mensajes de un chat en tiempo real
@@ -132,7 +139,13 @@ class MessageRepository {
         require(textEnc.isNotBlank()) { "textEnc no puede estar vacío" }
         require(iv.isNotBlank()) { "iv no puede estar vacío" }
 
-        try {
+        // Retry logic para envío de mensajes (crítico que no se pierdan)
+        retryWithBackoff(
+            maxRetries = 3,
+            initialDelay = 1000,
+            maxDelay = 5000,
+            tag = TAG
+        ) {
             db.from("messages").insert(
                 mapOf(
                     "chat_id" to chatId,
@@ -157,18 +170,8 @@ class MessageRepository {
             ) {
                 filter { eq("id", chatId) }
             }
-        } catch (e: PostgrestException) {
-            Log.w(TAG, "MessageRepository: Postgrest error sending message", e)
-            throw e
-        } catch (e: RealtimeException) {
-            Log.w(TAG, "MessageRepository: Realtime error sending message", e)
-            throw e
-        } catch (e: kotlinx.serialization.SerializationException) {
-            Log.w(TAG, "MessageRepository: Serialization error sending message", e)
-            throw e
-        } catch (e: Exception) {
-            Log.w(TAG, "MessageRepository: Unexpected error sending message", e)
-            throw e
+
+            Log.d(TAG, "MessageRepository: Message sent successfully")
         }
     }
 
@@ -217,6 +220,86 @@ class MessageRepository {
             Log.w(TAG, "MessageRepository: Realtime error marking as read", e)
         } catch (e: Exception) {
             Log.w(TAG, "MessageRepository: Unexpected error marking as read", e)
+        }
+    }
+
+    /**
+     * Carga mensajes con paginación (los más recientes primero)
+     *
+     * @param chatId ID del chat
+     * @param page Número de página (0-based)
+     * @param pageSize Tamaño de página (default: PAGE_SIZE)
+     * @return Lista de mensajes ordenados por fecha (más recientes primero)
+     */
+    suspend fun loadMessagesPaginated(
+        chatId: String,
+        page: Int = 0,
+        pageSize: Int = PAGE_SIZE
+    ): List<Message> = withContext(Dispatchers.IO) {
+        require(chatId.isNotBlank()) { "chatId no puede estar vacío" }
+        require(page >= 0) { "page debe ser >= 0" }
+        require(pageSize > 0) { "pageSize debe ser > 0" }
+
+        retryWithBackoff(
+            maxRetries = 3,
+            initialDelay = 1000,
+            tag = TAG
+        ) {
+            val from = page * pageSize
+            val to = from + pageSize - 1
+
+            val messages = db.from("messages")
+                .select(columns = Columns.list("*")) {
+                    filter { eq("chat_id", chatId) }
+                    order("created_at" to false) // DESC (más recientes primero)
+                    range(from, to)
+                }
+                .decodeList<Message>()
+
+            Log.d(TAG, "MessageRepository: Loaded page $page (${messages.size} messages)")
+            messages
+        }
+    }
+
+    /**
+     * Carga mensajes más antiguos (para scroll infinito)
+     *
+     * @param chatId ID del chat
+     * @param beforeTimestamp Timestamp anterior para cargar mensajes más antiguos
+     * @param limit Número máximo de mensajes a cargar
+     * @return Lista de mensajes más antiguos
+     */
+    suspend fun loadOlderMessages(
+        chatId: String,
+        beforeTimestamp: Long,
+        limit: Int = PAGE_SIZE
+    ): List<Message> = withContext(Dispatchers.IO) {
+        require(chatId.isNotBlank()) { "chatId no puede estar vacío" }
+        require(beforeTimestamp > 0) { "beforeTimestamp debe ser > 0" }
+
+        try {
+            val messages = db.from("messages")
+                .select(columns = Columns.list("*")) {
+                    filter {
+                        eq("chat_id", chatId) and
+                        lt("created_at", beforeTimestamp)
+                    }
+                    order("created_at" to false) // DESC
+                    limit(limit)
+                }
+                .decodeList<Message>()
+
+            Log.d(TAG, "MessageRepository: Loaded $limit older messages (${messages.size} returned)")
+            messages
+        } catch (e: PostgrestException) {
+            Log.w(TAG, "MessageRepository: Postgrest error loading older messages", e)
+            emptyList()
+        } catch (e: RealtimeException) {
+            Log.w(TAG, "MessageRepository: Realtime error loading older messages", e)
+            emptyList()
+        } catch (e: Exception) {
+            Log.w(TAG, "MessageRepository: Unexpected error loading older messages", e)
+            emptyList()
         }
     }
 }
