@@ -147,10 +147,7 @@ fun AppNavigationHost(
                     authVm.signOut()
                     nav.navigate("auth") { popUpTo(0) }
                 },
-                onBack = { nav.popBackStack() },
-                onOpenProfile = {
-                    nav.navigate("avatar-picker")
-                }
+                onBack = { nav.popBackStack() }
             )
         }
 
@@ -253,8 +250,9 @@ private fun HomeRoute(
     val myUid by authVm.currentUserId.collectAsState()
 
     LaunchedEffect(myUid) {
-        if (!myUid.isNullOrBlank()) {
-            chatListVm.start(myUid)
+        val safeUid = myUid ?: ""
+        if (safeUid.isNotBlank()) {
+            chatListVm.start(safeUid)
         }
     }
 
