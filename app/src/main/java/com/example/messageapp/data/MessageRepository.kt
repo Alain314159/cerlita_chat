@@ -213,11 +213,9 @@ class MessageRepository {
                 )
             ) {
                 filter {
-                    and {
-                        eq("chat_id", chatId)
-                        neq("sender_id", uid)
-                        isNull("read_at")
-                    }
+                    eq("chat_id", chatId)
+                    neq("sender_id", uid)
+                    isNull("read_at")
                 }
             }
         } catch (e: Exception) {

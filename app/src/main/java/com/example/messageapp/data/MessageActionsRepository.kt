@@ -5,7 +5,6 @@ import com.example.messageapp.model.Message
 import com.example.messageapp.supabase.SupabaseConfig
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.query.Count
 import io.github.jan.supabase.postgrest.query.filter.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -138,7 +137,6 @@ class MessageActionsRepository {
                         neq("sender_id", uid)
                         isNull("read_at")
                     }
-                    count(io.github.jan.supabase.postgrest.query.Count.EXACT)
                 }
 
             result.count?.toInt() ?: 0
