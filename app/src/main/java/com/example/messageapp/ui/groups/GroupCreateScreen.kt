@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.example.messageapp.data.ChatRepository
 import com.example.messageapp.supabase.SupabaseConfig
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
