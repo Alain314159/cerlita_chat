@@ -58,7 +58,10 @@ class AuthWriteRepository(
             }
 
             // Registrar con Supabase
-            val authResult = auth.signUpWith(Email(email, password))
+            val authResult = auth.signUpWith(Email) {
+                this.email = email
+                this.password = password
+            }
 
             val uid = authResult.user?.id ?: return@withContext Result.failure(Exception("User ID is null"))
 
@@ -94,7 +97,10 @@ class AuthWriteRepository(
             }
 
             // Login con Supabase
-            auth.signInWith(Email(email, password))
+            auth.signInWith(Email) {
+                this.email = email
+                this.password = password
+            }
 
             val uid = auth.currentSessionOrNull()?.user?.id
                 ?: error("User ID not found after login")
@@ -118,7 +124,10 @@ class AuthWriteRepository(
             val tempPassword = java.util.UUID.randomUUID().toString()
 
             // Crear usuario anónimo
-            val authResult = auth.signUpWith(Email(tempEmail, tempPassword))
+            val authResult = auth.signUpWith(Email) {
+                email = tempEmail
+                password = tempPassword
+            }
 
             val uid = authResult.user?.id ?: error("User ID is null after anonymous sign up")
 
@@ -162,10 +171,13 @@ class AuthWriteRepository(
                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
 
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                val idToken = googleIdTokenCredential.idToken
+                val googleToken = googleIdTokenCredential.idToken
 
                 // Login con Supabase
-                auth.signInWith(IDToken(Google, idToken))
+                auth.signInWith(IDToken) {
+                    idToken = googleToken
+                    provider = Google
+                }
 
                 val uid = auth.currentSessionOrNull()?.user?.id
                     ?: error("User ID not found after Google login")

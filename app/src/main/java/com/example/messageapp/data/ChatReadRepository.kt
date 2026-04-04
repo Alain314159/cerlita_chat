@@ -5,10 +5,9 @@ import com.example.messageapp.model.Chat
 import com.example.messageapp.supabase.SupabaseConfig
 import com.example.messageapp.utils.retryWithBackoff
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.realtime.realtime
-import io.github.jan.supabase.realtime.v2.channelV2
-import io.github.jan.supabase.realtime.v2.postgrestChangeFlow
+import io.github.jan.supabase.realtime.*
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.filter.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -109,10 +108,12 @@ class ChatReadRepository {
      * Observa la lista de chats del usuario en tiempo real
      */
     fun observeChats(uid: String): Flow<List<Chat>> = callbackFlow {
-        val channel = realtime.channelV2("public", "chats")
+        val channel = realtime.channel("chats:public:chats")
 
         // Flujo de cambios de PostgREST
-        val changeFlow = channel.postgrestChangeFlow<Chat>()
+        val changeFlow = channel.postgresChangeFlow<Chat>(schema = "public") {
+            table = "chats"
+        }
 
         // Suscribirse al canal
         channel.subscribe()
@@ -163,9 +164,11 @@ class ChatReadRepository {
         }
 
         // Suscribirse a cambios en este chat específico
-        val channel = realtime.channelV2("public", "chats")
+        val channel = realtime.channel("chats:public:chats")
 
-        val changeFlow = channel.postgrestChangeFlow<Chat>()
+        val changeFlow = channel.postgresChangeFlow<Chat>(schema = "public") {
+            table = "chats"
+        }
 
         // Suscribirse al canal
         launch {

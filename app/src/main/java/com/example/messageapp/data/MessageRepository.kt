@@ -5,9 +5,12 @@ import com.example.messageapp.model.Message
 import com.example.messageapp.supabase.SupabaseConfig
 import com.example.messageapp.utils.retryWithBackoff
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.realtime.*
+
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.filter.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
@@ -58,7 +61,9 @@ class MessageRepository {
         val channel = realtime.channel("messages:public:messages")
 
         // Flujo de cambios para INSERT/UPDATE/DELETE
-        val changeFlow = channel.postgrestChangeFlow("public", "messages")
+        val changeFlow = channel.postgresChangeFlow<Message>(schema = "public") {
+            table = "messages"
+        }
 
         // Suscribirse al canal
         launch {
@@ -67,23 +72,14 @@ class MessageRepository {
 
         // Escuchar cambios
         val job = launch {
-            changeFlow.collect { change ->
-                // Verificar si el cambio es para este chat
-                val recordJson = change.record
-                if (recordJson != null) {
-                    try {
-                        val message = kotlinx.serialization.json.Json.decodeFromJsonElement<Message>(recordJson)
-                        if (message.chatId == chatId) {
-                            // Recargar mensajes
-                            val messages = loadMessages(chatId)
-                            trySend(messages)
-                            // Marcar como entregado automáticamente si no soy el remitente
-                            if (message.senderId != myUid) {
-                                markDelivered(chatId, message.id, myUid)
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "MessageRepository: Error processing message: ${e.message}", e)
+            changeFlow.collect { message ->
+                if (message.chatId == chatId) {
+                    // Recargar mensajes
+                    val messages = loadMessages(chatId)
+                    trySend(messages)
+                    // Marcar como entregado automáticamente si no soy el remitente
+                    if (message.senderId != myUid) {
+                        markDelivered(chatId, message.id, myUid)
                     }
                 }
             }
@@ -104,7 +100,7 @@ class MessageRepository {
             val messages = db.from("messages")
                 .select(columns = Columns.list("*")) {
                     filter { eq("chat_id", chatId) }
-                    order("created_at" to true) // ASC (más antiguos primero)
+                    order("created_at", true) // ASC (más antiguos primero)
                 }
                 .decodeList<Message>()
 
@@ -240,7 +236,7 @@ class MessageRepository {
             val messages = db.from("messages")
                 .select(columns = Columns.list("*")) {
                     filter { eq("chat_id", chatId) }
-                    order("created_at" to false) // DESC (más recientes primero)
+                    order("created_at", false) // DESC (más recientes primero)
                     range(from, to)
                 }
                 .decodeList<Message>()
@@ -273,7 +269,7 @@ class MessageRepository {
                         eq("chat_id", chatId) and
                         lt("created_at", beforeTimestamp)
                     }
-                    order("created_at" to false) // DESC
+                    order("created_at", false) // DESC
                     limit(limit)
                 }
                 .decodeList<Message>()

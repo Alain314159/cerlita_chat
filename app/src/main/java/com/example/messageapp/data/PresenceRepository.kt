@@ -5,12 +5,16 @@ import com.example.messageapp.model.Chat
 import com.example.messageapp.supabase.SupabaseConfig
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.postgrest.query.filter.*
+import io.github.jan.supabase.realtime.*
+
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 
@@ -93,31 +97,23 @@ class PresenceRepository {
             val channel = realtime.channel("chats:public:chats")
 
             // Flujo de cambios
-            val changeFlow = channel.postgrestChangeFlow("public", "chats")
+            val changeFlow = channel.postgresChangeFlow<Chat>(schema = "public") {
+            table = "chats"
+        }
 
             // Suscribirse
             channel.subscribe()
 
             val job = kotlinx.coroutines.launch {
-                changeFlow.collect { change ->
-                    val recordJson = change.record
-                    if (recordJson != null) {
-                        try {
-                            val chat = kotlinx.serialization.json.Json.decodeFromJsonElement<Chat>(recordJson)
-                            if (chat.id == chatId) {
-                                // Determinar si la otra persona está escribiendo
-                                val isPartnerTyping = if (chat.memberIds.firstOrNull() == myUid) {
-                                    chat.user2Typing
-                                } else {
-                                    chat.user1Typing
-                                }
-                                trySend(isPartnerTyping)
-                            }
-                        } catch (e: SerializationException) {
-                            android.util.Log.w("PresenceRepository", "Serialization error decoding chat", e)
-                        } catch (e: Exception) {
-                            android.util.Log.w("PresenceRepository", "Error decoding chat", e)
+                changeFlow.collect { chat ->
+                    if (chat.id == chatId) {
+                        // Determinar si la otra persona está escribiendo
+                        val isPartnerTyping = if (chat.memberIds.firstOrNull() == myUid) {
+                            chat.user2Typing ?: false
+                        } else {
+                            chat.user1Typing ?: false
                         }
+                        trySend(isPartnerTyping)
                     }
                 }
             }
@@ -168,26 +164,17 @@ class PresenceRepository {
             val channel = realtime.channel("users:public:users")
 
             // Flujo de cambios
-            val changeFlow = channel.postgrestChangeFlow("public", "users")
+            val changeFlow = channel.postgresChangeFlow<UserStatusResponse>(schema = "public") {
+            table = "users"
+        }
 
             // Suscribirse
             channel.subscribe()
 
             val job = kotlinx.coroutines.launch {
-                changeFlow.collect { change ->
-                    val recordJson = change.record
-                    if (recordJson != null) {
-                        try {
-                            // ✅ CORREGIDO ERROR #1: Decodificar como UserStatusResponse
-                            val userStatus = kotlinx.serialization.json.Json.decodeFromJsonElement<UserStatusResponse>(recordJson)
-                            if (userStatus.id == partnerId) {
-                                trySend(userStatus.isOnline)
-                            }
-                        } catch (e: SerializationException) {
-                            Log.w(TAG, "PresenceRepository: Serialization error decoding user data", e)
-                        } catch (e: Exception) {
-                            Log.w(TAG, "PresenceRepository: Error decoding user data", e)
-                        }
+                changeFlow.collect { userStatus ->
+                    if (userStatus.id == partnerId) {
+                        trySend(userStatus.isOnline)
                     }
                 }
             }

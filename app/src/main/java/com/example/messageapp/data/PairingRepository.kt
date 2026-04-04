@@ -4,6 +4,7 @@ import com.example.messageapp.model.User
 import com.example.messageapp.supabase.SupabaseConfig
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.filter.*
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
