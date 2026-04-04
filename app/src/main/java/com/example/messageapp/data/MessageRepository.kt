@@ -49,7 +49,7 @@ class MessageRepository {
      */
     fun observeMessages(chatId: String, myUid: String): Flow<List<Message>> = callbackFlow {
         // Cargar mensajes iniciales en una coroutine
-        launch {
+        this.launch {
             try {
                 val messages = loadMessages(chatId)
                 trySend(messages)
@@ -68,12 +68,12 @@ class MessageRepository {
         }
 
         // Suscribirse al canal
-        launch {
+        this.launch {
             channel.subscribe()
         }
 
         // Escuchar cambios
-        val job = launch {
+        val job = this.launch {
             changeFlow.collect { action ->
                 val recordJson = when (action) {
                     is PostgresAction.Insert, is PostgresAction.Update, is PostgresAction.Select -> action.record

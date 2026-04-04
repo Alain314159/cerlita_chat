@@ -105,7 +105,7 @@ class PresenceRepository {
             // Suscribirse
             channel.subscribe()
 
-            val job = kotlinx.coroutines.launch {
+            val job = this.launch {
                 changeFlow.collect { action ->
                     val recordJson = when (action) {
                         is PostgresAction.Insert, is PostgresAction.Update, is PostgresAction.Select -> action.record
@@ -179,7 +179,7 @@ class PresenceRepository {
             // Suscribirse
             channel.subscribe()
 
-            val job = kotlinx.coroutines.launch {
+            val job = this.launch {
                 changeFlow.collect { action ->
                     val recordJson = when (action) {
                         is PostgresAction.Insert, is PostgresAction.Update, is PostgresAction.Select -> action.record

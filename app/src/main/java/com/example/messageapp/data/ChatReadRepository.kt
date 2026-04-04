@@ -123,7 +123,7 @@ class ChatReadRepository {
         Log.d(TAG, "ChatReadRepository: Subscribed to chats channel for user $uid")
 
         // Cargar chats iniciales en background
-        kotlinx.coroutines.launch {
+        this.this.launch {
             try {
                 val initialChats = loadChatsForUser(uid)
                 Log.d(TAG, "ChatReadRepository: Initial load completed, ${initialChats.size} chats")
@@ -135,7 +135,7 @@ class ChatReadRepository {
         }
 
         // Escuchar cambios
-        val job = kotlinx.coroutines.launch {
+        val job = this.this.launch {
             changeFlow.collect { change ->
                 Log.d(TAG, "ChatReadRepository: Received change event, reloading chats")
                 loadChatsForUser(uid)
@@ -154,7 +154,7 @@ class ChatReadRepository {
      */
     fun observeChat(chatId: String): Flow<Chat?> = callbackFlow {
         // Cargar estado inicial
-        launch {
+        this.this.launch {
             try {
                 val chat = loadChat(chatId)
                 trySend(chat)
@@ -173,12 +173,12 @@ class ChatReadRepository {
         }
 
         // Suscribirse al canal
-        launch {
+        this.launch {
             channel.subscribe()
         }
 
         // Escuchar cambios y recargar cuando haya actualizaciones
-        val job = launch {
+        val job = this.launch {
             changeFlow.collect { action ->
                 val recordJson = when (action) {
                     is PostgresAction.Insert, is PostgresAction.Update, is PostgresAction.Select -> action.record
