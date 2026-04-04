@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 
 // ✅ TAG constante para logging
@@ -99,7 +100,9 @@ class MessageRepository {
 
         awaitClose {
             job.cancel()
-            realtime.removeChannel(channel)
+            runBlocking {
+                realtime.removeChannel(channel)
+            }
         }
     }
 
@@ -210,9 +213,11 @@ class MessageRepository {
                 )
             ) {
                 filter {
-                    eq("chat_id", chatId)
-                    neq("sender_id", uid)
-                    isNull("read_at")
+                    and {
+                        eq("chat_id", chatId)
+                        neq("sender_id", uid)
+                        isNull("read_at")
+                    }
                 }
             }
         } catch (e: Exception) {

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.SerializationException
 
@@ -128,7 +129,9 @@ class PresenceRepository {
 
             awaitClose {
                 job.cancel()
-                realtime.removeChannel(channel)
+                runBlocking {
+                    realtime.removeChannel(channel)
+                }
             }
 
         } catch (e: Exception) {
@@ -197,7 +200,9 @@ class PresenceRepository {
 
             awaitClose {
                 job.cancel()
-                realtime.removeChannel(channel)
+                runBlocking {
+                    realtime.removeChannel(channel)
+                }
             }
 
         } catch (e: Exception) {
