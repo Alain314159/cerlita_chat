@@ -113,7 +113,7 @@ class PresenceRepository {
                         else -> null
                     }
                     if (recordJson != null) {
-                        val chat = Json.decodeFromJsonElement<Chat>(recordJson)
+                        val chat = Json.decodeFromString<Chat>(recordJson.toString())
                         if (chat.id == chatId) {
                             val isPartnerTyping = if (chat.memberIds.firstOrNull() == myUid) {
                                 chat.user2Typing ?: false

@@ -14,6 +14,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
@@ -143,9 +144,11 @@ class ChatReadRepository {
         }
 
         awaitClose {
-            Log.d(TAG, "ChatReadRepository: Unsubscribing from chats channel")
-            job.cancel()
-            realtime.removeChannel(channel)
+            runBlocking {
+                Log.d(TAG, "ChatReadRepository: Unsubscribing from chats channel")
+                job.cancel()
+                realtime.removeChannel(channel)
+            }
         }
     }
 
@@ -196,8 +199,10 @@ class ChatReadRepository {
         }
 
         awaitClose {
-            job.cancel()
-            realtime.removeChannel(channel)
+            runBlocking {
+                job.cancel()
+                realtime.removeChannel(channel)
+            }
         }
     }
 
