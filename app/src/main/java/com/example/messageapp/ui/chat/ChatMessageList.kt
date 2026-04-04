@@ -38,7 +38,7 @@ fun ChatMessageList(
 ) {
     LazyColumn(
         state = listState,
-        modifier = androidx.compose.ui.Modifier.weight(1f),
+        modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(vertical = 4.dp)
     ) {
         for ((header, list) in groups) {
@@ -46,9 +46,9 @@ fun ChatMessageList(
                 androidx.compose.foundation.layout.Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                 ) {
-                    Divider(modifier = Modifier.weight(1f).padding(start = 12.dp))
+                    Divider(modifier = Modifier.fillMaxWidth().padding(start = 12.dp))
                     Text(text = header, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp))
-                    Divider(modifier = Modifier.weight(1f).padding(end = 12.dp))
+                    Divider(modifier = Modifier.fillMaxWidth().padding(end = 12.dp))
                 }
             }
             items(list, key = { it.message.id }) { item ->
