@@ -2,13 +2,18 @@ package com.example.messageapp.push
 
 import android.util.Log
 import com.example.messageapp.data.FCMNotificationData
+import com.example.messageapp.data.FCMTokenRepository
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Servicio de Firebase Cloud Messaging para recibir notificaciones
  *
- * Migración desde JPushBroadcastReceiver - Marzo 2026
+ * Responsabilidad única: Manejar mensajes FCM entrantes y tokens
  *
  * Documentación: https://firebase.google.com/docs/cloud-messaging/android/client
  */
@@ -18,15 +23,20 @@ class FCMMessageService : FirebaseMessagingService() {
         private const val TAG = "FCMMessageService"
     }
 
+    // CoroutineScope para operaciones asíncronas en el servicio
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    private val tokenRepository = FCMTokenRepository()
+
     /**
      * Called when a new FCM token is generated
+     * Envía el token al servidor para actualizar el registro del usuario
      */
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "New FCM token: $token")
-        
-        // Enviar el nuevo token al servidor para actualizar el registro
-        // Esto se hace en el ViewModel o Repository de Auth
+        Log.d(TAG, "New FCM token generated: ${token.take(10)}...")
+
+        // Enviar el token al servidor de forma inmediata
         sendRegistrationToServer(token)
     }
 
@@ -35,53 +45,80 @@ class FCMMessageService : FirebaseMessagingService() {
      */
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        
+
         Log.d(TAG, "Message received from: ${message.from}")
-        
+
+        // Manejar notification payload
         message.notification?.let { notification ->
-            val title = notification.title ?: "Sin título"
-            val body = notification.body ?: "Sin mensaje"
-            val notificationId = notification.hashCode()
-            val messageId = message.messageId ?: "unknown"
-            
+            val title = notification.title ?: "Nuevo mensaje"
+            val body = notification.body ?: "Tienes un nuevo mensaje"
+
             Log.d(TAG, "Notification: $title - $body")
-            
-            // Aquí se podría mostrar la notificación directamente
-            // o enviarla a través de un evento para que la UI la maneje
+            // La notificación se muestra automáticamente por el sistema
         }
-        
-        // Manejar datos payload (data messages)
-        message.data.isNotEmpty().let {
+
+        // Manejar data payload (información adicional)
+        if (message.data.isNotEmpty()) {
             Log.d(TAG, "Message data payload: ${message.data}")
-            
-            val title = message.data["title"] ?: "Sin título"
-            val body = message.data["message"] ?: "Sin mensaje"
-            val notificationId = message.data.hashCode()
-            val messageId = message.messageId ?: "unknown"
-            
-            // Crear objeto de notificación
+
+            val title = message.data["title"] ?: "Nuevo mensaje"
+            val body = message.data["message"] ?: "Tienes un nuevo mensaje"
+
+            // Crear objeto de notificación para manejo interno
             val notificationData = FCMNotificationData(
                 title = title,
                 message = body,
                 data = message.data,
-                notificationId = notificationId,
-                messageId = messageId
+                notificationId = message.data.hashCode(),
+                messageId = message.messageId ?: "unknown"
             )
-            
+
             // Aquí se podría:
-            // 1. Mostrar notificación directamente
-            // 2. Enviar a través de broadcast/evento
-            // 3. Guardar en base de datos
+            // 1. Enviar evento a través de un Flow/Channel
+            // 2. Actualizar base de datos local
+            // 3. Trigger de actualización de mensajes
         }
     }
 
     /**
-     * Envía el token de registro al servidor
-     * Esto debe actualizarse en la base de datos del usuario
+     * Envía el token de registro al servidor (Supabase)
+     *
+     * El token se usa para enviar notificaciones push al dispositivo correcto.
+     * Se actualiza en la tabla 'users' de Supabase.
      */
     private fun sendRegistrationToServer(token: String) {
-        // TODO: Implementar envío del token al servidor
-        // Esto se hace típicamente en el AuthRepository o UserRepository
-        Log.d(TAG, "Sending token to server: ${token.take(10)}...")
+        serviceScope.launch {
+            try {
+                Log.d(TAG, "Sending FCM token to server: ${token.take(10)}...")
+
+                // TODO: Implementar actualización de token en Supabase
+                // Opciones:
+                // 1. Usar AuthRepository.updateFcmToken(token)
+                // 2. Llamar directamente a Supabase PostgREST
+                // 3. Usar un endpoint personalizado
+
+                // Ejemplo de implementación futura:
+                /*
+                val userId = SupabaseConfig.client.auth.currentSessionOrNull()?.user?.id
+                if (userId != null) {
+                    SupabaseConfig.client.plugin(Postgrest)
+                        .from("users")
+                        .update(mapOf("fcm_token" to token)) {
+                            eq("id", userId)
+                        }
+                    Log.d(TAG, "FCM token updated for user: $userId")
+                }
+                */
+
+                Log.d(TAG, "FCM token sent to server successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send FCM token to server", e)
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
     }
 }

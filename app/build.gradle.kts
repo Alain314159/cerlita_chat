@@ -85,9 +85,7 @@ android {
         compose = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"  // Compatible con Kotlin 2.1.0
-    }
+    // composeOptions eliminado - kotlin-compose plugin maneja el compiler automáticamente
 
     lint {
         abortOnError = true  // ✅ Abortar si hay errores de lint
@@ -175,49 +173,46 @@ dependencies {
     implementation(libs.coil.video)
 
     // ============================================
-    // SUPABASE - Versión estable Marzo 2026 (3.4.1)
+    // SUPABASE - Versión estable 3.4.1 (Abril 2026)
     // Documentación: https://github.com/supabase-community/supabase-kt
-    // Group ID actualizado: io.github.jan-tennert.supabase
     // ============================================
-    implementation(platform("io.github.jan-tennert.supabase:bom:3.4.1"))
-    implementation("io.github.jan-tennert.supabase:supabase-kt:3.4.1")
-    implementation("io.github.jan-tennert.supabase:auth-kt:3.4.1")  // Autenticación (antes gotrue-kt)
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:3.4.1")  // Base de datos
-    implementation("io.github.jan-tennert.supabase:realtime-kt:3.4.1")  // Tiempo real
-    implementation("io.github.jan-tennert.supabase:storage-kt:3.4.1")  // Storage
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.kt)
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.realtime)
+    implementation(libs.supabase.storage)
 
     // ============================================
-    // KTOR - Versión 3.x compatible con Supabase 3.4.1
+    // KTOR - Versión 3.3.0 compatible con Supabase 3.x
     // Documentación: https://ktor.io/docs/welcome.html
     // ============================================
-    implementation("io.ktor:ktor-client-android:3.3.0")
-    implementation("io.ktor:ktor-client-core:3.3.0")
-    implementation("io.ktor:ktor-utils:3.3.0")
-    implementation("io.ktor:ktor-client-plugins:3.3.0")
-    implementation("io.ktor:ktor-client-content-negotiation:3.3.0")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:3.3.0")
+    implementation(libs.ktor.client.android)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.utils)
+    implementation(libs.ktor.client.plugins)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
 
-    // Kotlinx Serialization - Compatible con Kotlin 2.1.0
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    // Kotlinx Serialization
+    implementation(libs.kotlinx.serialization.json)
 
     // ============================================
-    // FIREBASE CLOUD MESSAGING - Migración desde JPush (Marzo 2026)
+    // FIREBASE CLOUD MESSAGING - Notificaciones push
     // Documentación: https://firebase.google.com/docs/cloud-messaging/android/client
-    // NOTA: Se usan versiones explícitas para evitar errores de resolución en CI
     // ============================================
-    implementation(platform("com.google.firebase:firebase-bom:34.11.0"))
-    implementation("com.google.firebase:firebase-messaging-ktx:24.1.0")
-    implementation("com.google.firebase:firebase-analytics-ktx:22.3.0")
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     // Google Sign In
-    implementation("com.google.android.gms:play-services-auth:21.3.0")
+    implementation(libs.play.services.auth)
     implementation("androidx.credentials:credentials:1.5.0-rc01")
     implementation("androidx.credentials:credentials-play-services-auth:1.5.0-rc01")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.1")
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // ============================================
     // ROOM DATABASE - Base de datos local

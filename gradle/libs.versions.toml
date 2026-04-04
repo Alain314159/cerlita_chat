@@ -1,6 +1,6 @@
 [versions]
-# Actualizado a Marzo 2026 - Versiones ESTABLES que existen
-agp = "8.9.0"  # Android Gradle Plugin estable más reciente (Marzo 2026)
+# Actualizado a Abril 2026 - Versiones ESTABLES que existen
+agp = "8.9.0"  # Android Gradle Plugin estable más reciente
 kotlin = "1.9.22"  # Kotlin LTS
 coreKtx = "1.15.0"
 junit = "4.13.2"
@@ -10,6 +10,16 @@ lifecycleRuntimeKtx = "2.8.7"
 activityCompose = "1.10.1"
 composeBom = "2024.02.00"  # Compose BOM compatible con Kotlin 1.9.22
 room = "2.6.1"  # Room para base de datos local
+
+# Third-party dependencies
+supabase = "3.4.1"  # Supabase SDK
+ktor = "3.3.0"  # Ktor HTTP client (requerido por Supabase 3.x)
+firebaseBom = "34.11.0"  # Firebase BOM
+firebaseMessaging = "24.1.0"  # Firebase Cloud Messaging
+playServicesAuth = "21.3.0"  # Google Sign In
+kotlinxSerialization = "1.7.3"  # Kotlinx Serialization
+coroutines = "1.10.1"  # Kotlin Coroutines
+coil = "2.7.0"  # Coil Image Loading
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,12 +43,40 @@ androidx-emoji2 = { group = "androidx.emoji2", name = "emoji2", version = "1.5.0
 androidx-emoji2-bundled = { group = "androidx.emoji2", name = "emoji2-bundled", version = "1.5.0" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version = "1.7.8" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version = "1.7.8" }
-coil-compose = { group = "io.coil-kt", name = "coil-compose", version = "2.7.0" }
-coil-video = { group = "io.coil-kt", name = "coil-video", version = "2.7.0" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+coil-video = { group = "io.coil-kt", name = "coil-video", version.ref = "coil" }
 # Room Database
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
+# Supabase
+supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
+supabase-kt = { group = "io.github.jan-tennert.supabase", name = "supabase-kt", version.ref = "supabase" }
+supabase-auth = { group = "io.github.jan-tennert.supabase", name = "auth-kt", version.ref = "supabase" }
+supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt", version.ref = "supabase" }
+supabase-realtime = { group = "io.github.jan-tennert.supabase", name = "realtime-kt", version.ref = "supabase" }
+supabase-storage = { group = "io.github.jan-tennert.supabase", name = "storage-kt", version.ref = "supabase" }
+
+# Ktor
+ktor-client-android = { group = "io.ktor", name = "ktor-client-android", version.ref = "ktor" }
+ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ktor-utils = { group = "io.ktor", name = "ktor-utils", version.ref = "ktor" }
+ktor-client-plugins = { group = "io.ktor", name = "ktor-client-plugins", version.ref = "ktor" }
+ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+
+# Firebase
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging-ktx", version.ref = "firebaseMessaging" }
+
+# Google Sign In
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+
+# Kotlinx
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

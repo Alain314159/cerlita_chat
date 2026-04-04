@@ -48,12 +48,20 @@ class FCMConfigRepository {
     /**
      * Obtiene el token de registro FCM único de este dispositivo
      * Este token se usa para enviar notificaciones push a este dispositivo específico
+     *
+     * @return Token FCM o string vacío si no está disponible (con logging de error)
      */
     suspend fun getRegistrationId(): String {
         return try {
-            FirebaseMessaging.getInstance().token.await()
+            val token = FirebaseMessaging.getInstance().token.await()
+            if (token.isBlank()) {
+                Log.w(TAG, "FCMConfigRepository: FCM token is empty")
+            } else {
+                Log.d(TAG, "FCMConfigRepository: FCM token retrieved: ${token.take(10)}...")
+            }
+            token
         } catch (e: IllegalStateException) {
-            Log.w(TAG, "FCMConfigRepository: FCM not initialized", e)
+            Log.w(TAG, "FCMConfigRepository: FCM not initialized - returning empty token", e)
             ""
         } catch (e: Exception) {
             Log.e(TAG, "FCMConfigRepository: Unexpected error getting FCM token", e)
