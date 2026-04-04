@@ -1,4 +1,5 @@
 package com.example.messageapp.ui.chat
+import com.example.messageapp.utils.toFormattedDate
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row

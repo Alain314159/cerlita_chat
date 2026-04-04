@@ -1,4 +1,5 @@
 package com.example.messageapp.ui.chat
+import io.github.jan.supabase.auth.auth
 
 import android.content.Intent
 import android.net.Uri

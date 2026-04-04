@@ -132,12 +132,10 @@ class MessageActionsRepository {
         try {
             val response = db.from("messages")
                 .select(columns = Columns.list("id")) {
-                    filter {
-                        and {
-                            eq("chat_id", chatId)
-                            neq("sender_id", uid)
-                            isNull("read_at")
-                        }
+                    and {
+                        eq("chat_id", chatId)
+                        neq("sender_id", uid)
+                        isNull("read_at")
                     }
                 }
 

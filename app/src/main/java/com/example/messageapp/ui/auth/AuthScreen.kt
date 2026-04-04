@@ -137,7 +137,7 @@ private fun EmailAuthSection(
             } else msg = "Preencha o email."
         }) { Text("Esqueci minha senha") }
 
-        if (msg != null) Text(msg, color = MaterialTheme.colorScheme.error)
+        if (msg?.isNotEmpty() == true) Text(msg!!, color = MaterialTheme.colorScheme.error)
     }
 }
 
@@ -196,7 +196,7 @@ private fun PhoneAuthSection(
             }) { Text("Confirmar") }
         }
 
-        if (msg != null) Text(msg, color = MaterialTheme.colorScheme.error)
+        if (msg?.isNotEmpty() == true) Text(msg!!, color = MaterialTheme.colorScheme.error)
     }
 }
 */

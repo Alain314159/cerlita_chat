@@ -1,4 +1,5 @@
 package com.example.messageapp.ui.chat
+import com.example.messageapp.utils.toFormattedDate
 
 import android.content.Context
 import android.content.Intent

@@ -63,7 +63,7 @@ class AuthWriteRepository(
                 this.password = password
             }
 
-            val uid = authResult.id ?: return@withContext Result.failure(Exception("User ID is null"))
+            val uid = authResult?.id?.toString() ?: return@withContext Result.failure(Exception("User ID is null"))
 
             // Crear perfil en la tabla users
             createUserProfile(uid, email)
@@ -129,7 +129,7 @@ class AuthWriteRepository(
                 password = tempPassword
             }
 
-            val uid = authResult.id ?: error("User ID is null after anonymous sign up")
+            val uid = authResult?.id?.toString() ?: error("User ID is null after anonymous sign up")
 
             // Crear perfil anónimo
             createUserProfile(uid, tempEmail)

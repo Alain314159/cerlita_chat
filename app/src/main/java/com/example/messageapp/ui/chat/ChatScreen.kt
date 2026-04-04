@@ -1,4 +1,5 @@
 package com.example.messageapp.ui.chat
+import io.github.jan.supabase.auth.auth
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn

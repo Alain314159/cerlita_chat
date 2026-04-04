@@ -186,7 +186,7 @@ class ChatReadRepository {
                     else -> null
                 }
                 if (recordJson != null) {
-                    val changedChat = Json.decodeFromJsonElement(recordJson)
+                    val changedChat = Json.decodeFromString<Chat>(recordJson.toString())
                     if (changedChat.id == chatId) {
                         Log.d(TAG, "ChatReadRepository: Chat $chatId updated, emitting new state")
                         trySend(changedChat)

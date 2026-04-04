@@ -1,4 +1,5 @@
 package com.example.messageapp.ui.chat
+import androidx.compose.ui.unit.dp
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
