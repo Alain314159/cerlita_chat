@@ -21,10 +21,10 @@ class ModelsTest {
     @Test
     fun `User with empty uid creates successfully`() {
         // When: Creo User con uid vacío
-        val user = User(uid = "")
+        val user = User(id = "")
 
         // Then: Debería crear exitosamente
-        assertThat(user.uid).isEmpty()
+        assertThat(user.id).isEmpty()
         assertThat(user.email).isEmpty()
         assertThat(user.displayName).isEmpty()
     }
@@ -33,7 +33,7 @@ class ModelsTest {
     fun `User with valid data creates successfully`() {
         // When: Creo User con datos válidos
         val user = User(
-            uid = "user-123",
+            id = "user-123",
             email = "test@example.com",
             displayName = "Test User",
             bio = "Test bio",
@@ -42,7 +42,7 @@ class ModelsTest {
         )
 
         // Then: Debería crear exitosamente
-        assertThat(user.uid).isEqualTo("user-123")
+        assertThat(user.id).isEqualTo("user-123")
         assertThat(user.email).isEqualTo("test@example.com")
         assertThat(user.displayName).isEqualTo("Test User")
         assertThat(user.bio).isEqualTo("Test bio")
@@ -54,7 +54,7 @@ class ModelsTest {
     fun `User with null optional fields creates successfully`() {
         // When: Creo User con campos opcionales null
         val user = User(
-            uid = "user-456",
+            id = "user-456",
             photoUrl = null,
             pairingCode = null,
             partnerId = null,
@@ -72,7 +72,7 @@ class ModelsTest {
     fun `User with unicode data creates successfully`() {
         // When: Creo User con unicode
         val user = User(
-            uid = "user-unicode",
+            id = "user-unicode",
             displayName = "Usuario 🌍",
             bio = "Bio con 你好 áéíóú"
         )
@@ -86,7 +86,7 @@ class ModelsTest {
     fun `User with very long data creates successfully`() {
         // When: Creo User con datos muy largos
         val user = User(
-            uid = "user-long",
+            id = "user-long",
             displayName = "a".repeat(500),
             bio = "b".repeat(1000)
         )
@@ -102,7 +102,7 @@ class ModelsTest {
         val user = User()
 
         // Then: Debería tener valores por defecto correctos
-        assertThat(user.uid).isEmpty()
+        assertThat(user.id).isEmpty()
         assertThat(user.email).isEmpty()
         assertThat(user.displayName).isEmpty()
         assertThat(user.photoUrl).isNull()
@@ -485,14 +485,14 @@ class ModelsTest {
     @Test
     fun `User with Messages creates successfully`() {
         // Given: User con mensajes
-        val user = User(uid = "user-1", displayName = "User 1")
+        val user = User(id = "user-1", displayName = "User 1")
         val messages = listOf(
-            Message(id = "msg-1", senderId = user.uid),
-            Message(id = "msg-2", senderId = user.uid)
+            Message(id = "msg-1", senderId = user.id),
+            Message(id = "msg-2", senderId = user.id)
         )
 
         // Then: Debería crear exitosamente
-        assertThat(user.uid).isEqualTo("user-1")
+        assertThat(user.id).isEqualTo("user-1")
         assertThat(messages).hasSize(2)
     }
 
@@ -513,11 +513,11 @@ class ModelsTest {
     @Test
     fun `User in Chat creates successfully`() {
         // Given: User en Chat
-        val user = User(uid = "user-1", displayName = "User 1")
-        val chat = Chat(id = "chat-1", memberIds = listOf(user.uid, "user-2"))
+        val user = User(id = "user-1", displayName = "User 1")
+        val chat = Chat(id = "chat-1", memberIds = listOf(user.id, "user-2"))
 
         // Then: Debería crear exitosamente
-        assertThat(chat.memberIds).contains(user.uid)
+        assertThat(chat.memberIds).contains(user.id)
     }
 
     // ============================================
@@ -528,7 +528,7 @@ class ModelsTest {
     fun `User with special characters in displayName creates successfully`() {
         // When: Creo User con caracteres especiales
         val user = User(
-            uid = "user-special",
+            id = "user-special",
             displayName = "User-<>&\"'-123"
         )
 
@@ -556,7 +556,7 @@ class ModelsTest {
     fun `User with max timestamp creates successfully`() {
         // When: Creo User con timestamp máximo
         val user = User(
-            uid = "user-max",
+            id = "user-max",
             createdAt = Long.MAX_VALUE
         )
 
@@ -584,13 +584,13 @@ class ModelsTest {
     fun `creating multiple Users concurrently does not crash`() {
         // When: Creo múltiples Users en paralelo
         val users = List(100) { index ->
-            User(uid = "user-$index", displayName = "User $index")
+            User(id = "user-$index", displayName = "User $index")
         }
 
         // Then: Ninguno debería crashar
         assertThat(users).hasSize(100)
         users.forEachIndexed { index, user ->
-            assertThat(user.uid).isEqualTo("user-$index")
+            assertThat(user.id).isEqualTo("user-$index")
         }
     }
 

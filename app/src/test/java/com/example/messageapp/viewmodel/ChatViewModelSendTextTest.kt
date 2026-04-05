@@ -2,7 +2,7 @@ package com.example.messageapp.viewmodel
 
 import app.cash.turbine.test
 import com.example.messageapp.data.ChatRepository
-import com.example.messageapp.data.PresenceRepository
+import com.example.messageapp.crypto.MessageDecryptor
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -31,14 +31,14 @@ class ChatViewModelSendTextTest {
 
     private lateinit var viewModel: ChatViewModel
     private lateinit var chatRepository: ChatRepository
-    private lateinit var presenceRepository: PresenceRepository
+    private lateinit var decryptor: MessageDecryptor
     private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setup() {
         chatRepository = mockk()
-        presenceRepository = mockk()
-        viewModel = ChatViewModel(chatRepository, presenceRepository)
+        decryptor = mockk()
+        viewModel = ChatViewModel(chatRepository, decryptor)
     }
 
     // ============================================
