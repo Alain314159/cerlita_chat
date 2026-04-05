@@ -91,7 +91,7 @@ android {
             isIncludeAndroidResources = true
             isReturnDefaultValues = false
             all {
-                it.useJUnitPlatform()
+                // it.useJUnitPlatform() - JUnit4 tests
                 it.testLogging {
                     events("passed", "skipped", "failed")
                     exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
