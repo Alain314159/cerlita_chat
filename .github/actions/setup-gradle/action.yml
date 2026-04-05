@@ -12,26 +12,26 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: 🔐 Configure Supabase
-      shell: bash
-      run: |
-        cat > gradle.properties << EOF
-org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-android.useAndroidX=true
-kotlin.code.style=official
-android.nonTransitiveRClass=true
-android.suppressUnsupportedCompileSdk=36
-SUPABASE_URL=${{ inputs.supabase-url }}
-SUPABASE_ANON_KEY=${{ inputs.supabase-anon-key }}
-EOF
-
-    - name: ☕ Setup Java 17
+    - name: Setup Java 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: 💾 Cache Gradle
+    - name: Configure Supabase credentials
+      shell: bash
+      run: |
+        echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" > gradle.properties
+        echo "android.useAndroidX=true" >> gradle.properties
+        echo "kotlin.code.style=official" >> gradle.properties
+        echo "android.nonTransitiveRClass=true" >> gradle.properties
+        echo "android.suppressUnsupportedCompileSdk=36" >> gradle.properties
+        echo "SUPABASE_URL=${{ inputs.supabase-url }}" >> gradle.properties
+        echo "SUPABASE_ANON_KEY=${{ inputs.supabase-anon-key }}" >> gradle.properties
+        echo "ksp.useKSP2=false" >> gradle.properties
+        echo "android.enableR8.fullMode=true" >> gradle.properties
+
+    - name: Cache Gradle
       uses: actions/cache@v5
       with:
         path: |
