@@ -20,24 +20,25 @@ runs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Configure Supabase credentials
+    - name: Configure Gradle properties
       shell: bash
       run: |
-        # Only overwrite gradle.properties if real secrets are provided
-        # Otherwise keep existing gradle.properties (with placeholders from repo)
+        # Always generate clean gradle.properties for CI (no org.gradle.java.home)
+        echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" > gradle.properties
+        echo "android.useAndroidX=true" >> gradle.properties
+        echo "kotlin.code.style=official" >> gradle.properties
+        echo "android.nonTransitiveRClass=true" >> gradle.properties
+        echo "android.suppressUnsupportedCompileSdk=36" >> gradle.properties
+        echo "ksp.useKSP2=false" >> gradle.properties
+        echo "android.enableR8.fullMode=true" >> gradle.properties
+
+        # Add Supabase credentials if real secrets are provided
         if [ -n "${{ inputs.supabase-url }}" ] && [ -n "${{ inputs.supabase-anon-key }}" ]; then
-          echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" > gradle.properties
-          echo "android.useAndroidX=true" >> gradle.properties
-          echo "kotlin.code.style=official" >> gradle.properties
-          echo "android.nonTransitiveRClass=true" >> gradle.properties
-          echo "android.suppressUnsupportedCompileSdk=36" >> gradle.properties
           echo "SUPABASE_URL=${{ inputs.supabase-url }}" >> gradle.properties
           echo "SUPABASE_ANON_KEY=${{ inputs.supabase-anon-key }}" >> gradle.properties
-          echo "ksp.useKSP2=false" >> gradle.properties
-          echo "android.enableR8.fullMode=true" >> gradle.properties
-          echo "✅ Real Supabase credentials configured"
         else
-          echo "ℹ️ No real secrets provided - using existing gradle.properties from repo"
+          echo "SUPABASE_URL=https://placeholder-dev.supabase.co" >> gradle.properties
+          echo "SUPABASE_ANON_KEY=sb_publishable_placeholder_for_local_testing_only" >> gradle.properties
         fi
 
     - name: Cache Gradle
