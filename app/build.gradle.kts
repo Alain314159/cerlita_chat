@@ -199,3 +199,30 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
 }
+
+// =============================================================================
+// DETEKT - Static code analysis
+// =============================================================================
+detekt {
+    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+    buildUponDefaultConfig = true
+    allRules = false
+    parallel = true
+    autoCorrect = false
+}
+
+// =============================================================================
+// KTLINT - Kotlin linter
+// =============================================================================
+ktlint {
+    android = true
+    ignoreFailures = false
+    reporters {
+        reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)
+        reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.HTML)
+    }
+    filter {
+        exclude("**/generated/**")
+        exclude("**/build/**")
+    }
+}
