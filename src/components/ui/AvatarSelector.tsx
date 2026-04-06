@@ -14,16 +14,26 @@ import * as ImagePicker from 'expo-image-picker';
 import { theme } from '@/config/theme';
 import { haptics } from '@/services/haptics';
 
-// Avatares predefinidos del sistema
+// Avatares predefinidos del sistema (placeholders SVG inline)
 const SYSTEM_AVATARS = [
-  require('@/assets/images/avatar-1.png'),
-  require('@/assets/images/avatar-2.png'),
+  {
+    id: 0,
+    color: '#FF69B4',
+    initial: '💕',
+  },
+  {
+    id: 1,
+    color: '#8E8E93',
+    initial: '🐨',
+  },
 ];
 
 export interface AvatarOption {
   type: 'system' | 'custom';
   uri?: string;
   systemId?: number;
+  color?: string;
+  initial?: string;
 }
 
 interface AvatarSelectorProps {
@@ -42,13 +52,15 @@ export function AvatarSelector({
   const [uploading, setUploading] = useState(false);
 
   const handleSystemAvatarSelect = useCallback(
-    async (avatarId: number) => {
+    async (avatar: typeof SYSTEM_AVATARS[number]) => {
       await haptics.medium();
-      const avatar: AvatarOption = {
+      const selectedAvatar: AvatarOption = {
         type: 'system',
-        systemId: avatarId,
+        systemId: avatar.id,
+        color: avatar.color,
+        initial: avatar.initial,
       };
-      await onAvatarSelect(avatar);
+      await onAvatarSelect(selectedAvatar);
     },
     [onAvatarSelect]
   );
@@ -133,8 +145,6 @@ export function AvatarSelector({
   const isCurrentSystem = (id: number) =>
     currentAvatar?.type === 'system' && currentAvatar.systemId === id;
 
-  const isCurrentCustom = () => currentAvatar?.type === 'custom';
-
   return (
     <Modal
       visible={visible}
@@ -161,30 +171,36 @@ export function AvatarSelector({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Avatares del Sistema</Text>
             <View style={styles.avatarGrid}>
-              {SYSTEM_AVATARS.map((avatar, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.avatarOption,
-                    isCurrentSystem(index) && styles.avatarOptionSelected,
-                  ]}
-                  onPress={() => handleSystemAvatarSelect(index)}
-                  accessibilityLabel={`Avatar ${index + 1}`}
-                  testID={`system-avatar-${index}`}
-                >
-                  <Image source={avatar} style={styles.avatarImage} />
-                  {isCurrentSystem(index) && (
-                    <View style={styles.selectedBadge}>
-                      <IconButton
-                        icon="check-circle"
-                        size={20}
-                        iconColor={theme.colors.textInverse}
-                        style={styles.badgeIcon}
-                      />
+              {SYSTEM_AVATARS.map((avatar) => {
+                const isSelected = isCurrentSystem(avatar.id);
+                return (
+                  <TouchableOpacity
+                    key={avatar.id}
+                    style={[
+                      styles.avatarOption,
+                      isSelected && styles.avatarOptionSelected,
+                      { backgroundColor: avatar.color + '20' },
+                    ]}
+                    onPress={() => handleSystemAvatarSelect(avatar)}
+                    accessibilityLabel={`Avatar ${avatar.initial}`}
+                    testID={`system-avatar-${avatar.id}`}
+                  >
+                    <View style={[styles.systemAvatarPlaceholder, { backgroundColor: avatar.color }]}>
+                      <Text style={styles.systemAvatarInitial}>{avatar.initial}</Text>
                     </View>
-                  )}
-                </TouchableOpacity>
-              ))}
+                    {isSelected && (
+                      <View style={styles.selectedBadge}>
+                        <IconButton
+                          icon="check-circle"
+                          size={20}
+                          iconColor={theme.colors.textInverse}
+                          style={styles.badgeIcon}
+                        />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
@@ -318,6 +334,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+  systemAvatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  systemAvatarInitial: {
+    fontSize: 48,
   },
   selectedBadge: {
     position: 'absolute',
