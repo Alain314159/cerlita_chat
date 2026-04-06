@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Chat } from '@/types';
 import { chatService } from '@/services/supabase/chat.service';
 
@@ -8,6 +9,7 @@ interface ChatStore {
   loading: boolean;
   error: string | null;
   activeChat: Chat | null;
+  channels: Map<string, RealtimeChannel>;
 
   // Actions
   loadChats: (userId: string) => Promise<void>;
@@ -18,30 +20,30 @@ interface ChatStore {
   setError: (error: string | null) => void;
 }
 
-let channel: any = null;
-
 export const useChatStore = create<ChatStore>((set, get) => ({
   // Initial state
   chats: [],
   loading: false,
   error: null,
   activeChat: null,
+  channels: new Map(),
 
   // Load chats
   loadChats: async (userId: string) => {
     try {
       set({ loading: true, error: null });
-      
+
       const chats = await chatService.getUserChats(userId);
-      
+
       set({
         chats,
         loading: false,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to load chats';
       set({
         loading: false,
-        error: error.message || 'Failed to load chats',
+        error: message,
       });
     }
   },
@@ -50,15 +52,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   createChat: async (userId1: string, userId2: string) => {
     try {
       set({ loading: true, error: null });
-      
-      const chatId = await chatService.createChat(userId1, userId2);
-      
+
+      const chat = await chatService.createChat({
+        participantIds: [userId1, userId2],
+        isGroup: false,
+      });
+
       set({ loading: false });
-      return chatId;
-    } catch (error: any) {
+      return chat.id;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to create chat';
       set({
         loading: false,
-        error: error.message || 'Failed to create chat',
+        error: message,
       });
       throw error;
     }
@@ -71,22 +77,30 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   // Subscribe to chats (realtime)
   subscribeToChats: (userId: string) => {
-    // Unsubscribe from previous
-    if (channel) {
-      channel.unsubscribe();
+    const { channels } = get();
+    const channelKey = `chats_${userId}`;
+
+    // Unsubscribe from previous if exists
+    const existingChannel = channels.get(channelKey);
+    if (existingChannel) {
+      existingChannel.unsubscribe();
+      channels.delete(channelKey);
     }
 
-    channel = chatService.subscribeToUserChats(userId, (chats) => {
+    const channel = chatService.subscribeToUserChats(userId, (chats: Chat[]) => {
       set({ chats });
     });
+
+    channels.set(channelKey, channel);
+    set({ channels });
   },
 
   // Unsubscribe from chats
   unsubscribeFromChats: () => {
-    if (channel) {
-      channel.unsubscribe();
-      channel = null;
-    }
+    const { channels } = get();
+    channels.forEach((channel) => channel.unsubscribe());
+    channels.clear();
+    set({ channels });
   },
 
   // Set error

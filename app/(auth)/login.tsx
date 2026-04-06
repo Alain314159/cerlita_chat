@@ -33,8 +33,9 @@ export default function LoginScreen() {
       setLoading(true);
       await signIn(email, password);
       // Auth state change will navigate automatically
-    } catch (error: any) {
-      Alert.alert('Error de inicio de sesión', error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      Alert.alert('Error de inicio de sesión', message);
     } finally {
       setLoading(false);
     }

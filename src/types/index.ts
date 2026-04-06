@@ -1,9 +1,16 @@
 // User types
+export interface AvatarOption {
+  type: 'system' | 'custom';
+  uri?: string;
+  systemId?: number;
+}
+
 export interface User {
   id: string;
   email: string;
   displayName: string;
   photoURL: string | null;
+  avatar?: AvatarOption;
   isOnline: boolean;
   lastSeen: Date | null;
   isTyping: boolean;
@@ -15,8 +22,9 @@ export interface User {
 // Chat types
 export interface Chat {
   id: string;
-  type: 'direct';
-  participants: string[];
+  type: 'direct' | 'group';
+  name?: string | null;
+  participants: any[];
   participantsInfo: Record<string, ParticipantInfo>;
   lastMessage: string | null;
   lastMessageAt: Date | null;

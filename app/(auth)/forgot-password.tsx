@@ -28,7 +28,7 @@ export default function ForgotPasswordScreen() {
 
     try {
       setLoading(true);
-      
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: 'cerlitachat://reset-password',
       });
@@ -36,8 +36,9 @@ export default function ForgotPasswordScreen() {
       if (error) throw error;
 
       setSent(true);
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      Alert.alert('Error', message);
     } finally {
       setLoading(false);
     }

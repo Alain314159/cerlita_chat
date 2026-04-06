@@ -1,15 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar, TextInput, IconButton, ActivityIndicator } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
 import { useMessages } from '@/hooks/useMessages';
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
@@ -22,7 +23,8 @@ export default function ChatScreen() {
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlashList<Message>>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { user } = useAuth();
   const { activeChat } = useChat(chatId);
@@ -34,31 +36,39 @@ export default function ChatScreen() {
   } = useMessages(chatId!);
 
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (messages.length > 0 && flatListRef.current) {
-      setTimeout(() => {
+      scrollTimeoutRef.current = setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
+    
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, [messages]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!messageText.trim() || sending) return;
 
     try {
       setSending(true);
       await sendMessage(messageText.trim());
       setMessageText('');
-    } catch (error) {
-      console.error('Failed to send message:', error);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to send message';
+      console.error('Failed to send message:', message);
     } finally {
       setSending(false);
     }
-  };
+  }, [messageText, sending, sendMessage]);
 
-  const renderMessage = ({ item, index }: any) => {
+  const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isMyMessage = item.senderId === user?.id;
     const prevMessage = index > 0 ? messages[index - 1] : null;
     const showDateHeader = !prevMessage || !isSameDay(
@@ -69,13 +79,13 @@ export default function ChatScreen() {
     return (
       <>
         {showDateHeader && (
-          <View style={styles.dateHeader}>
+          <View style={styles.dateHeader} testID={`date-header-${item.id}`}>
             <Text style={styles.dateHeaderText}>
               {formatDateHeader(new Date(item.createdAt))}
             </Text>
           </View>
         )}
-        
+
         <TouchableOpacity
           style={[
             styles.messageContainer,
@@ -84,6 +94,9 @@ export default function ChatScreen() {
           onLongPress={() => {
             // Show message options (copy, delete, etc.)
           }}
+          accessibilityRole="button"
+          accessibilityLabel={`Mensaje ${isMyMessage ? 'enviado' : 'recibido'}: ${item.text || 'Multimedia'}`}
+          testID={`message-${item.id}`}
         >
           <View
             style={[
@@ -115,14 +128,15 @@ export default function ChatScreen() {
         </TouchableOpacity>
       </>
     );
-  };
+  }, [messages, user?.id]);
 
-  const otherParticipant = activeChat?.participants.find((p) => p !== user?.id);
+  const otherParticipantId = activeChat?.participants?.find((p: any) => p.user_id !== user?.id);
+  const otherParticipant = otherParticipantId?.users || null;
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { paddingBottom: insets.bottom }]}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {/* Header */}
@@ -131,16 +145,18 @@ export default function ChatScreen() {
           icon="arrow-left"
           onPress={() => router.back()}
           size={24}
+          accessibilityLabel="Volver"
+          testID="back-button"
         />
-        
+
         <Avatar.Image
           size={40}
           source={require('@/assets/images/default-avatar.png')}
         />
-        
+
         <View style={styles.headerInfo}>
           <Text style={styles.headerName}>
-            {activeChat?.participantsInfo[otherParticipant || '']?.displayName || 'Chat'}
+            {otherParticipant?.display_name || activeChat?.name || 'Chat'}
           </Text>
           {isOtherUserTyping() && (
             <Text style={styles.typingText}>escribiendo...</Text>
@@ -152,6 +168,8 @@ export default function ChatScreen() {
           onPress={() => {
             // Show chat options
           }}
+          accessibilityLabel="Opciones de chat"
+          testID="chat-options-button"
         />
       </View>
 
@@ -161,12 +179,14 @@ export default function ChatScreen() {
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       ) : (
-        <FlatList
+        <FlashList
           ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
+          estimatedItemSize={60}
           contentContainerStyle={styles.messagesList}
+          removeClippedSubviews={true}
         />
       )}
 
@@ -189,26 +209,33 @@ export default function ChatScreen() {
               color={theme.colors.primary}
             />
           }
+          accessibilityLabel="Escribe un mensaje"
+          testID="message-input"
         />
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-// Message Status Component
-function MessageStatus({ status }: { status: string }) {
+// Message Status Component - Memoized for performance
+const MessageStatus = React.memo(({ status }: { status: string }) => {
   const icon = status === 'read' ? 'check-all' : status === 'delivered' ? 'check-all' : 'check';
   const color = status === 'read' ? theme.colors.tickRead : theme.colors.tickDelivered;
 
   return (
-    <IconButton
-      icon={icon}
-      size={16}
-      iconColor={color}
-      style={styles.statusIcon}
-    />
+    <View style={styles.statusIcon} testID={`message-status-${status}`}>
+      <IconButton
+        icon={icon}
+        size={16}
+        iconColor={color}
+        style={styles.statusIconInner}
+        disabled
+      />
+    </View>
   );
-}
+});
+
+MessageStatus.displayName = 'MessageStatus';
 
 // Helper functions
 function isSameDay(date1: Date, date2: Date): boolean {
@@ -330,10 +357,14 @@ const styles = StyleSheet.create({
     color: theme.colors.textTertiary,
   },
   statusIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusIconInner: {
     margin: 0,
     padding: 0,
-    width: 16,
-    height: 16,
+    width: 20,
+    height: 20,
   },
   inputContainer: {
     padding: theme.spacing.sm,

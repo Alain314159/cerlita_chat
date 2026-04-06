@@ -43,8 +43,9 @@ export default function RegisterScreen() {
       setLoading(true);
       await signUp(email, password, displayName);
       Alert.alert('Éxito', 'Cuenta creada exitosamente');
-    } catch (error: any) {
-      Alert.alert('Error de registro', error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      Alert.alert('Error de registro', message);
     } finally {
       setLoading(false);
     }

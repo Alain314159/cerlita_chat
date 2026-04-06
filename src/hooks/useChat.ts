@@ -50,6 +50,7 @@ export function useChat(chatId?: string) {
     activeChat,
     loading,
     error,
+    loadChats,
     createChat,
     getParticipants,
     setActiveChat,

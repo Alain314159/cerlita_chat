@@ -1,34 +1,98 @@
-import React, { useEffect } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Avatar, Searchbar, FAB } from 'react-native-paper';
+import { router } from 'expo-router';
+import { Searchbar, FAB } from 'react-native-paper';
+import { FlashList } from '@shopify/flash-list';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/config/theme';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import type { Chat, AvatarOption } from '@/types';
+import { haptics } from '@/services/haptics';
+import { Avatar } from '@/components/ui/Avatar';
+
+// Componente memoizado para cada item de chat
+const ChatItem = React.memo(function ChatItem({ chat, onPress }: {
+  chat: Chat;
+  onPress: (chatId: string) => void;
+}) {
+  const otherParticipant = chat.participants?.find((p: any) => p?.users) as any;
+  const participantInfo = otherParticipant?.users;
+  const displayName = participantInfo?.display_name || chat.name || 'Usuario';
+  const photoURL = participantInfo?.photo_url;
+  const isOnline = participantInfo?.is_online || false;
+  
+  // Construir avatar option
+  const userAvatar: AvatarOption | undefined = participantInfo?.avatar || (
+    photoURL ? { type: 'custom', uri: photoURL } : undefined
+  );
+
+  const handlePress = useCallback(() => {
+    haptics.medium();
+    onPress(chat.id);
+  }, [chat.id, onPress]);
+
+  return (
+    <TouchableOpacity
+      style={styles.chatItem}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`Chat con ${displayName}`}
+      accessibilityHint={`Abrir conversación con ${displayName}`}
+      testID={`chat-item-${chat.id}`}
+    >
+      <View style={styles.avatarContainer}>
+        <Avatar
+          uri={userAvatar?.type === 'custom' ? userAvatar.uri : undefined}
+          systemAvatarId={userAvatar?.type === 'system' ? userAvatar.systemId : undefined}
+          size={56}
+          displayName={displayName}
+          isOnline={isOnline}
+        />
+      </View>
+
+      <View style={styles.chatInfo}>
+        <View style={styles.chatHeader}>
+          <Text style={styles.displayName}>{displayName}</Text>
+          {chat.lastMessageAt && (
+            <Text style={styles.time}>
+              {format(new Date(chat.lastMessageAt), 'HH:mm', { locale: es })}
+            </Text>
+          )}
+        </View>
+
+        {chat.lastMessage && (
+          <Text style={styles.lastMessage} numberOfLines={1}>
+            {chat.lastMessage}
+          </Text>
+        )}
+      </View>
+
+      {chat.unreadCount > 0 && (
+        <View style={styles.unreadBadge}>
+          <Text style={styles.unreadText}>{chat.unreadCount}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+});
 
 export default function ChatListScreen() {
   const { user } = useAuth();
   const { chats, loading, loadChats } = useChat();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [refreshing, setRefreshing] = React.useState(false);
-  const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    if (user) {
-      loadChats(user.id);
-    }
-  }, [user]);
-
-  const onRefresh = React.useCallback(async () => {
+  const onRefresh = useCallback(async () => {
     if (user) {
       setRefreshing(true);
       await loadChats(user.id);
@@ -36,84 +100,55 @@ export default function ChatListScreen() {
     }
   }, [user]);
 
-  const filteredChats = chats.filter((chat) => {
-    const participantName = chat.participantsInfo[chat.participants.find((p) => p !== user?.id) || '']?.displayName || '';
-    return participantName.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  const filteredChats = useMemo(() =>
+    chats.filter((chat) => {
+      const otherUserId = chat.participants.find((p) => p !== user?.id);
+      const participantName = chat.participantsInfo[otherUserId || '']?.displayName || '';
+      return participantName.toLowerCase().includes(searchQuery.toLowerCase());
+    }),
+    [chats, searchQuery, user?.id]
+  );
 
-  const renderChatItem = ({ item }: any) => {
-    const otherUserId = item.participants.find((p: string) => p !== user?.id);
-    const participantInfo = item.participantsInfo[otherUserId];
-    const displayName = participantInfo?.displayName || 'Usuario';
-    const photoURL = participantInfo?.photoURL;
-    const isOnline = participantInfo?.isOnline || false;
+  const handleChatPress = useCallback((chatId: string) => {
+    router.push(`/(chat)/${chatId}`);
+  }, []);
 
-    return (
-      <TouchableOpacity
-        style={styles.chatItem}
-        onPress={() => router.push(`/(chat)/${item.id}`)}
-      >
-        <View style={styles.avatarContainer}>
-          <Avatar.Image
-            size={56}
-            source={photoURL ? { uri: photoURL } : require('@/assets/images/default-avatar.png')}
-          />
-          {isOnline && <View style={styles.onlineIndicator} />}
-        </View>
-        
-        <View style={styles.chatInfo}>
-          <View style={styles.chatHeader}>
-            <Text style={styles.displayName}>{displayName}</Text>
-            {item.lastMessageAt && (
-              <Text style={styles.time}>
-                {format(new Date(item.lastMessageAt), 'HH:mm', { locale: es })}
-              </Text>
-            )}
-          </View>
-          
-          {item.lastMessage && (
-            <Text style={styles.lastMessage} numberOfLines={1}>
-              {item.lastMessage}
-            </Text>
-          )}
-        </View>
-
-        {item.unreadCount > 0 && (
-          <View style={styles.unreadBadge}>
-            <Text style={styles.unreadText}>{item.unreadCount}</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
+  const renderItem = useCallback(({ item }: { item: Chat }) => (
+    <ChatItem
+      chat={item}
+      onPress={handleChatPress}
+    />
+  ), [handleChatPress]);
 
   if (!user) {
     return null;
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Encabezado */}
       <View style={styles.header}>
         <Text style={styles.title}>💕 Cerlita Chat</Text>
       </View>
 
-      {/* Search */}
+      {/* Búsqueda */}
       <View style={styles.searchContainer}>
         <Searchbar
           placeholder="Buscar chats..."
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={styles.searchbar}
+          accessibilityLabel="Buscar chats"
         />
       </View>
 
-      {/* Chat List */}
-      <FlatList
+      {/* Lista de Chats */}
+      <FlashList
         data={filteredChats}
         keyExtractor={(item) => item.id}
-        renderItem={renderChatItem}
-        contentContainerStyle={styles.listContent}
+        renderItem={renderItem}
+        estimatedItemSize={80}
+        removeClippedSubviews={true}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -132,12 +167,18 @@ export default function ChatListScreen() {
         }
       />
 
-      {/* FAB */}
+      {/* Botón flotante */}
       <FAB
         icon="plus"
-        style={styles.fab}
-        onPress={() => router.push('/(chat)/new-chat')}
+        style={[styles.fab, { bottom: insets.bottom + theme.spacing.lg }]}
+        onPress={() => {
+          haptics.medium();
+          router.push('/(chat)/new-chat');
+        }}
         color={theme.colors.textInverse}
+        accessibilityRole="button"
+        accessibilityLabel="Nuevo chat"
+        testID="new-chat-fab"
       />
     </View>
   );

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { User, AuthState } from '@/types';
+import type { User, AuthState, AvatarOption } from '@/types';
 import { authService } from '@/services/supabase/auth.service';
 import { supabase } from '@/services/supabase/config';
 
@@ -10,6 +10,7 @@ interface AuthStore extends AuthState {
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: { displayName?: string; photoURL?: string }) => Promise<void>;
+  updateAvatar: (avatar: AvatarOption) => Promise<void>;
   setError: (error: string | null) => void;
 }
 
@@ -29,7 +30,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       if (session?.user) {
         const userProfile = await authService.getUserProfile(session.user.id);
-        
+
         // Set online status
         await authService.updatePresence(true, session.user.id);
 
@@ -47,7 +48,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         if (event === 'SIGNED_IN' && session?.user) {
           const userProfile = await authService.getUserProfile(session.user.id);
           await authService.updatePresence(true, session.user.id);
-          
+
           set({
             user: userProfile,
             isAuthenticated: true,
@@ -62,10 +63,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           });
         }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to initialize';
       set({
         loading: false,
-        error: error.message || 'Failed to initialize',
+        error: message,
       });
     }
   },
@@ -74,13 +76,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   signIn: async (email: string, password: string) => {
     try {
       set({ loading: true, error: null });
-      
+
       await authService.signIn(email, password);
       // Auth state change will handle the rest
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to sign in';
       set({
         loading: false,
-        error: error.message || 'Failed to sign in',
+        error: message,
       });
       throw error;
     }
@@ -90,13 +93,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   signUp: async (email: string, password: string, displayName: string) => {
     try {
       set({ loading: true, error: null });
-      
+
       await authService.signUp(email, password, displayName);
       // Auth state change will handle the rest
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to sign up';
       set({
         loading: false,
-        error: error.message || 'Failed to sign up',
+        error: message,
       });
       throw error;
     }
@@ -107,8 +111,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       set({ loading: true });
       await authService.signOut();
-    } catch (error: any) {
-      set({ error: error.message || 'Failed to sign out' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to sign out';
+      set({ error: message });
       throw error;
     }
   },
@@ -120,20 +125,55 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (!user) throw new Error('Not authenticated');
 
       set({ loading: true });
-      
+
       await authService.updateProfile(user.id, updates);
-      
+
       // Refresh user data
       const updatedUser = await authService.getUserProfile(user.id);
-      
+
       set({
         user: updatedUser,
         loading: false,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to update profile';
       set({
         loading: false,
-        error: error.message || 'Failed to update profile',
+        error: message,
+      });
+      throw error;
+    }
+  },
+
+  // Update avatar
+  updateAvatar: async (avatar: AvatarOption) => {
+    try {
+      const { user } = get();
+      if (!user) throw new Error('Not authenticated');
+
+      set({ loading: true });
+
+      // Update user profile with avatar option
+      const updatedUser = {
+        ...user,
+        avatar,
+        photoURL: (avatar.type === 'custom' ? avatar.uri : null) as string | null,
+      };
+
+      await authService.updateProfile(user.id, {
+        displayName: updatedUser.displayName,
+        photoURL: updatedUser.photoURL ?? undefined,
+      });
+
+      set({
+        user: updatedUser,
+        loading: false,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to update avatar';
+      set({
+        loading: false,
+        error: message,
       });
       throw error;
     }

@@ -30,35 +30,23 @@ export function useMessages(chatId: string) {
     }
 
     return () => {
-      unsubscribeFromMessages();
+      unsubscribeFromMessages(chatId);
     };
-  }, [chatId]);
+  }, [chatId, loadMessages, subscribeToMessages, unsubscribeFromMessages]);
 
   // Mark all as read when opening chat
   useEffect(() => {
     if (chatId && user) {
       markAllAsRead(chatId, user.id);
     }
-  }, [chatId, user]);
+  }, [chatId, user, markAllAsRead]);
 
   // Send message
   const handleSendMessage = useCallback(async (text: string) => {
     if (!user || !chatId) return;
-    
+
     await sendMessage(chatId, user.id, text);
   }, [user, chatId, sendMessage]);
-
-  // Update typing status
-  useEffect(() => {
-    if (chatId && user) {
-      messageService; // Just to import
-      // Update local state
-      setIsTyping(isTyping);
-      
-      // Could update database here if needed
-      // But be careful not to spam the database
-    }
-  }, [isTyping, chatId, user]);
 
   // Check if other user is typing
   const isOtherUserTyping = useCallback(() => {

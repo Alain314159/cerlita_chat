@@ -1,30 +1,30 @@
-import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
+import * as Crypto from 'expo-crypto';
 
 export class E2EEncryptionService {
   private keyCache = new Map<string, CryptoKey>();
 
-  // Generate AES key for a chat
+  // Generar clave AES para un chat
   async generateChatKey(chatId: string): Promise<CryptoKey> {
-    const key = await Crypto.getRandomBytesAsync(32); // 256 bits
-    
-    // Store key securely
+    const keyBytes = await Crypto.getRandomBytesAsync(32); // 256 bits
+
+    // Almacenar clave de forma segura
     await SecureStore.setItemAsync(
       `chat_key_${chatId}`,
-      this.arrayBufferToBase64(key)
+      this.arrayBufferToBase64(keyBytes)
     );
 
-    return this.importKey(key);
+    return this.importKey(keyBytes);
   }
 
-  // Get or create key for chat
+  // Obtener o crear clave para chat
   async getChatKey(chatId: string): Promise<CryptoKey> {
     if (this.keyCache.has(chatId)) {
       return this.keyCache.get(chatId)!;
     }
 
     const storedKey = await SecureStore.getItemAsync(`chat_key_${chatId}`);
-    
+
     if (storedKey) {
       const key = await this.importKey(this.base64ToArrayBuffer(storedKey));
       this.keyCache.set(chatId, key);
@@ -34,35 +34,41 @@ export class E2EEncryptionService {
     return this.generateChatKey(chatId);
   }
 
-  // Encrypt message
+  // Cifrar mensaje
   async encrypt(plaintext: string, chatId: string): Promise<{ ciphertext: string; iv: string }> {
     const key = await this.getChatKey(chatId);
-    const iv = Crypto.getRandomBytes(12); // 96 bits for GCM
+    const iv = self.crypto.getRandomValues(new Uint8Array(12)); // 96 bits para GCM
 
     const encoded = new TextEncoder().encode(plaintext);
-    
-    const ciphertext = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv },
+
+    const ciphertextBuffer = await self.crypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv,
+      },
       key,
       encoded
     );
 
     return {
-      ciphertext: this.arrayBufferToBase64(new Uint8Array(ciphertext)),
+      ciphertext: this.arrayBufferToBase64(new Uint8Array(ciphertextBuffer)),
       iv: this.arrayBufferToBase64(iv),
     };
   }
 
-  // Decrypt message
+  // Descifrar mensaje
   async decrypt(
     ciphertext: string,
     iv: string,
     chatId: string
   ): Promise<string> {
     const key = await this.getChatKey(chatId);
-    
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: this.base64ToArrayBuffer(iv) },
+
+    const decrypted = await self.crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: this.base64ToArrayBuffer(iv),
+      },
       key,
       this.base64ToArrayBuffer(ciphertext)
     );
@@ -70,9 +76,9 @@ export class E2EEncryptionService {
     return new TextDecoder().decode(decrypted);
   }
 
-  // Import raw key
+  // Importar clave raw
   private async importKey(keyData: Uint8Array): Promise<CryptoKey> {
-    return await crypto.subtle.importKey(
+    return await self.crypto.subtle.importKey(
       'raw',
       keyData,
       'AES-GCM',
@@ -81,19 +87,18 @@ export class E2EEncryptionService {
     );
   }
 
-  // Delete chat key
+  // Eliminar clave de chat
   async deleteChatKey(chatId: string): Promise<void> {
     await SecureStore.deleteItemAsync(`chat_key_${chatId}`);
     this.keyCache.delete(chatId);
   }
 
-  // Clear all keys
+  // Limpiar todas las claves
   async clearAllKeys(): Promise<void> {
     this.keyCache.clear();
-    // Note: SecureStore keys persist, would need to delete individually
   }
 
-  // Utility: ArrayBuffer to Base64
+  // Utilidad: ArrayBuffer a Base64
   private arrayBufferToBase64(buffer: Uint8Array): string {
     let binary = '';
     buffer.forEach((byte) => {
@@ -102,7 +107,7 @@ export class E2EEncryptionService {
     return btoa(binary);
   }
 
-  // Utility: Base64 to ArrayBuffer
+  // Utilidad: Base64 a ArrayBuffer
   private base64ToArrayBuffer(base64: string): Uint8Array {
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);

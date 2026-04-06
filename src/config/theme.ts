@@ -45,6 +45,7 @@ export const theme = {
     success: '#34C759',
     warning: '#FF9500',
     error: '#FF3B30',
+    errorLight: '#FFEBEE',
     info: '#5AC8FA',
     
     // Borders

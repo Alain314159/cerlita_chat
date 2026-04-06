@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { notificationService } from '@/services/supabase/notification.service';
+import type { AvatarOption } from '@/types';
 
-export function useAuth() {
+// Re-exportar desde el provider para compatibilidad
+export { useAuth } from '@/providers/AuthProvider';
+
+// Hook para lógica adicional de autenticación
+export function useAuthLogic() {
   const {
     user,
     isAuthenticated,
@@ -13,38 +16,21 @@ export function useAuth() {
     signUp,
     signOut,
     updateProfile,
+    updateAvatar,
     setError,
   } = useAuthStore();
-
-  // Initialize on mount
-  useEffect(() => {
-    initialize();
-
-    // Cleanup
-    return () => {
-      // Set offline on unmount
-      if (user) {
-        // Note: This might not execute if app is killed
-      }
-    };
-  }, []);
-
-  // Initialize notifications when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      notificationService.initialize().catch(console.error);
-    }
-  }, [isAuthenticated]);
 
   return {
     user,
     isAuthenticated,
     loading,
     error,
+    initialize,
     signIn,
     signUp,
     signOut,
     updateProfile,
+    updateAvatar: (avatar: AvatarOption) => updateAvatar(avatar),
     setError,
   };
 }
