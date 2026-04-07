@@ -37,9 +37,6 @@ jobs:
 
       - name: Build web app
         run: npx expo export -p web
-        env:
-          # Add any environment variables your app needs during build
-          # EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
