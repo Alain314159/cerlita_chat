@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - '**.md'
+      - '**/README.md'
   pull_request:
     branches: [main]
   workflow_dispatch: # Allow manual triggers
@@ -13,10 +14,10 @@ env:
   EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
 jobs:
-  build:
-    name: Build Android APK
+  lint-and-typecheck:
+    name: Lint & Type Check
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -29,38 +30,14 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci
-          npm install -g eas-cli
+        run: npm ci
 
-      - name: Setup Expo credentials
-        run: echo $EXPO_TOKEN | eas login --non-interactive
-        if: env.EXPO_TOKEN
-
-      - name: Create .env file
-        run: |
-          cat > .env << EOF
-          EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-          EOF
-        if: env.EXPO_TOKEN
+      - name: Run ESLint
+        run: npm run lint -- --max-warnings=0
+        continue-on-error: true
 
       - name: Run TypeScript check
         run: npx tsc --noEmit
-
-      - name: Build with EAS
-        if: env.EXPO_TOKEN
-        run: eas build --platform android --profile preview --non-interactive
-
-      - name: Upload APK artifact
-        if: env.EXPO_TOKEN
-        uses: actions/upload-artifact@v4
-        with:
-          name: cerlita-chat-android
-          path: |
-            *.apk
-            *.aab
-          retention-days: 30
 
   test:
     name: Run Tests
@@ -80,11 +57,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run TypeScript check
-        run: npx tsc --noEmit
-
-      - name: Run tests
-        run: npm test -- --passWithNoTests --coverage
+      - name: Run tests with coverage
+        run: npm test -- --coverage --coverageReporters=text --coverageReporters=lcov
         continue-on-error: true
 
       - name: Upload coverage report
@@ -94,3 +68,57 @@ jobs:
           name: coverage-report
           path: coverage/
           retention-days: 7
+
+  build:
+    name: Build Android APK
+    needs: [lint-and-typecheck, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install -g eas-cli
+
+      - name: Setup EAS credentials
+        run: echo $EXPO_TOKEN | eas login --non-interactive
+        if: env.EXPO_TOKEN
+
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_FIREBASE_API_KEY=${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+          EOF
+        if: env.EXPO_TOKEN
+
+      - name: Build with EAS
+        if: env.EXPO_TOKEN
+        run: eas build --platform android --profile preview --non-interactive --wait
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eas-build-logs
+          path: |
+            *.log
+            eas-build-*.json
+          retention-days: 14

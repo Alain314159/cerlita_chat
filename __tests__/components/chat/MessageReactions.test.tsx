@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
+import { TouchableOpacity } from 'react-native';
 import { MessageReactions } from '@/components/chat/MessageReactions';
 
 describe('MessageReactions', () => {
@@ -20,7 +21,7 @@ describe('MessageReactions', () => {
     const { UNSAFE_getAllByType } = render(
       <MessageReactions reactions={{ '\u{1F44D}': { count: 1, userReacted: true } }} />
     );
-    const chips = UNSAFE_getAllByType('TouchableOpacity');
+    const chips = UNSAFE_getAllByType(TouchableOpacity);
     expect(chips.length).toBeGreaterThan(0);
   });
 

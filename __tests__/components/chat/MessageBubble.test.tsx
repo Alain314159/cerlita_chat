@@ -1,12 +1,14 @@
 import { render } from '@testing-library/react-native';
 import React from 'react';
 import { MessageBubble } from '@/components/chat/MessageBubble';
+import { IconButton } from 'react-native-paper';
 
 jest.mock('react-native-paper', () => {
   const RealModule = jest.requireActual('react-native-paper');
   return {
     ...RealModule,
     IconButton: 'IconButton',
+    TouchableOpacity: 'TouchableOpacity',
   };
 });
 
@@ -21,7 +23,7 @@ const createMessage = (overrides = {}) => ({
   status: 'sent' as const,
   deliveredAt: null,
   readAt: null,
-  createdAt: new Date('2024-01-01T12:00:00Z').toISOString(),
+  createdAt: new Date('2024-01-01T12:00:00Z'),
   editedAt: null,
   ...overrides,
 });
@@ -57,7 +59,7 @@ describe('MessageBubble', () => {
     const { UNSAFE_getAllByType } = render(
       <MessageBubble message={createMessage()} isMyMessage={false} />
     );
-    const icons = UNSAFE_getAllByType('IconButton');
+    const icons = UNSAFE_getAllByType(IconButton as any);
     const statusIcons = icons.filter((i: any) => i.props.icon === 'check-all' || i.props.icon === 'check');
     expect(statusIcons).toHaveLength(0);
   });

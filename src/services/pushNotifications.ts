@@ -51,7 +51,6 @@ async function requestPermissions(): Promise<boolean> {
         allowAlert: true,
         allowBadge: true,
         allowSound: true,
-        allowAnnouncements: true,
       },
     });
 
@@ -112,10 +111,7 @@ async function getPushToken(): Promise<string | null> {
   try {
     // On native builds with FCM configured (google-services.json / APNs key),
     // expo-notifications returns the FCM/APNs token directly.
-    const tokenResponse = await Notifications.getDevicePushTokenAsync({
-      projectId,
-      experienceId,
-    });
+    const tokenResponse = await Notifications.getDevicePushTokenAsync();
 
     return tokenResponse.data ?? null;
   } catch (error) {

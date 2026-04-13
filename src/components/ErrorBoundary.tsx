@@ -1,7 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { Button } from 'react-native-paper';
-import { theme } from '@/config/theme';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 
 interface Props {
   children: ReactNode;
@@ -13,27 +11,27 @@ interface State {
   error: Error | null;
 }
 
+/**
+ * Error Boundary component to catch and gracefully handle React errors.
+ * Prevents full app crashes by showing a friendly error screen.
+ */
 export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+  public state: State = {
+    hasError: false,
+    error: null,
+  };
 
-  static getDerivedStateFromError(error: Error): State {
+  public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log to error tracking service (e.g., Sentry)
-    console.error('ErrorBoundary caught error:', error);
-    console.error('Error info:', errorInfo);
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('[ErrorBoundary] Uncaught error:', error, errorInfo.componentStack);
+    // In production, send error to crash reporting service (Sentry, Crashlytics, etc.)
+    // Example: Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } });
   }
 
-  handleReset = () => {
-    this.setState({ hasError: false, error: null });
-  };
-
-  render() {
+  public render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
@@ -41,30 +39,19 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <View style={styles.container}>
-          <ScrollView contentContainerStyle={styles.content}>
-            <Text style={styles.icon}>⚠️</Text>
-            <Text style={styles.title}>Algo salió mal</Text>
-            <Text style={styles.subtitle}>
-              Ha ocurrido un error inesperado. Intenta recargar la pantalla.
-            </Text>
-            {this.state.error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText} selectable>
-                  {this.state.error.message}
-                </Text>
-              </View>
-            )}
-            <Button
-              mode="contained"
-              onPress={this.handleReset}
-              style={styles.button}
-              contentStyle={styles.buttonContent}
-              labelStyle={styles.buttonLabel}
-              testID="error-boundary-reset-button"
-            >
-              Intentar de nuevo
-            </Button>
-          </ScrollView>
+          <Text style={styles.title}>Algo salió mal</Text>
+          <Text style={styles.subtitle}>
+            Ha ocurrido un error inesperado. Por favor, intenta reiniciar la app.
+          </Text>
+          {this.state.error && (
+            <ScrollView style={styles.errorDetails}>
+              <Text style={styles.errorText}>{this.state.error.message}</Text>
+              <Text style={styles.errorStack}>{this.state.error.stack}</Text>
+            </ScrollView>
+          )}
+          <Pressable style={styles.button} onPress={() => this.setState({ hasError: false, error: null })}>
+            <Text style={styles.buttonText}>Reintentar</Text>
+          </Pressable>
         </View>
       );
     }
@@ -76,53 +63,53 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  content: {
-    flexGrow: 1,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: theme.spacing.xl,
-  },
-  icon: {
-    fontSize: 80,
-    marginBottom: theme.spacing.lg,
+    padding: 24,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: theme.colors.error,
-    marginBottom: theme.spacing.sm,
+    color: '#FF69B4',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: theme.colors.textSecondary,
+    color: '#666',
     textAlign: 'center',
-    marginBottom: theme.spacing.lg,
-    lineHeight: 24,
+    marginBottom: 16,
   },
-  errorContainer: {
-    backgroundColor: theme.colors.errorLight,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.lg,
+  errorDetails: {
     width: '100%',
+    maxHeight: 200,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
   },
   errorText: {
     fontSize: 14,
-    color: theme.colors.error,
     fontFamily: 'monospace',
+    color: '#333',
+  },
+  errorStack: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    color: '#888',
+    marginTop: 8,
   },
   button: {
-    backgroundColor: theme.colors.primary,
-    minWidth: 200,
+    backgroundColor: '#FF69B4',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
-  buttonContent: {
-    paddingVertical: theme.spacing.sm,
-  },
-  buttonLabel: {
+  buttonText: {
+    color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.textInverse,
+    fontWeight: '600',
   },
 });
+
+export default ErrorBoundary;

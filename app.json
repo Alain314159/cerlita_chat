@@ -9,7 +9,9 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "backgroundColor": "#FF69B4"
+      "image": "./assets/images/splash.png",
+      "backgroundColor": "#FF69B4",
+      "resizeMode": "contain"
     },
     "ios": {
       "supportsTablet": true,
@@ -88,7 +90,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "cerlita-chat"
+        "projectId": "YOUR_EAS_PROJECT_ID"
       }
     }
   }
