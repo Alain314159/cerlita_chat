@@ -26,16 +26,14 @@
     },
     "production": {
       "android": {
-        "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease"
+        "buildType": "app-bundle"
       },
       "ios": {
-        "simulator": false,
-        "enterpriseProvisioning": "adhoc"
+        "simulator": false
       },
       "autoIncrement": true,
       "cache": {
-        "key": "production-v1"
+        "disabled": false
       }
     }
   },

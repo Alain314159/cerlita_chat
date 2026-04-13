@@ -26,17 +26,24 @@ export interface NotificationSetupResult {
 
 // ---------------------------------------------------------------------------
 // Expo notification handler — controls foreground behaviour
+// Configured lazily to avoid running before auth is ready
 // ---------------------------------------------------------------------------
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+let notificationHandlerConfigured = false;
+
+function ensureNotificationHandler() {
+  if (notificationHandlerConfigured) return;
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+  notificationHandlerConfigured = true;
+}
 
 // ---------------------------------------------------------------------------
 // Permission request (iOS + Android)
@@ -101,12 +108,9 @@ async function configureAndroidChannel(): Promise<void> {
 
 async function getPushToken(): Promise<string | null> {
   if (!Device.isDevice) {
-    console.warn('[PushNotifications] Must use a physical device for push notifications');
+    if (__DEV__) console.warn('[PushNotifications] Must use a physical device for push notifications');
     return null;
   }
-
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-  const experienceId = Constants.expoConfig?.extra?.router?.origin;
 
   try {
     // On native builds with FCM configured (google-services.json / APNs key),
@@ -220,26 +224,29 @@ export function initializePushNotifications(
 
   (async () => {
     try {
-      // 1. Request permissions
+      // 1. Configure notification handler (once)
+      ensureNotificationHandler();
+
+      // 2. Request permissions
       const permitted = await requestPermissions();
       if (!permitted) {
         console.warn('[PushNotifications] Permissions denied — push notifications disabled');
         return;
       }
 
-      // 2. Configure Android channels
+      // 3. Configure Android channels
       await configureAndroidChannel();
 
-      // 3. Obtain the FCM / APNs token
+      // 4. Obtain the FCM / APNs token
       const token = await getPushToken();
       if (!token) {
         console.warn('[PushNotifications] Could not obtain push token');
         return;
       }
 
-      console.log(`[PushNotifications] Got push token (${Platform.OS}): ${token.slice(0, 20)}...`);
+      if (__DEV__) console.log(`[PushNotifications] Got push token (${Platform.OS}): ${token.slice(0, 20)}...`);
 
-      // 4. Save to Firestore
+      // 5. Save to Firestore
       await saveFcmTokenToFirestore(uid, token);
 
       // 5. Register listeners (only if still mounted)

@@ -40,10 +40,25 @@ google-services.json
 # Supabase
 supabase/
 
+# Firebase
+google-services.json
+google-service-account.json
+
 # Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 
 # Testing
 coverage/
+
+# Build artifacts
+eas-build-*.json
+*.aab
+*.apk
+*.ipa
+
+# Environment variants
+.env.*.local
+.env.development
