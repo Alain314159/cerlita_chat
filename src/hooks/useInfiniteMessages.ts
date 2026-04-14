@@ -12,7 +12,10 @@ export function useInfiniteMessages(chatId: string, initialMessages: Message[]) 
       setLoadingMore(true);
       try {
         const oldest = allMessages[0];
-        const older = await messageService.getMessages(chatId, 30, new Date(oldest.createdAt));
+        const older = await messageService.getMessages(chatId, {
+          limit: 30,
+          before: oldest.createdAt.toISOString(),
+        });
         if (older.length < 30) setHasMore(false);
         return older;
       } finally {

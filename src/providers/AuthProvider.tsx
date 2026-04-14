@@ -52,8 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Inicializar notificaciones cuando está autenticado
   useEffect(() => {
     if (isAuthenticated && !loading && user?.id) {
-      const sub = notificationService.initialize(user.id);
-      return () => { notificationService.cleanup(sub); };
+      notificationService.initialize(user.id).catch(console.error);
     }
   }, [isAuthenticated, loading, user?.id]);
 

@@ -44,7 +44,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
 
       // Subscribe to auth changes
-      authService.onAuthStateChange(async (event, session) => {
+      authService.onAuthStateChange(async (event: any, session: any) => {
         if (event === 'SIGNED_IN' && session?.user) {
           const userProfile = await authService.getUserProfile(session.user.id);
           await authService.updatePresence(true, session.user.id);

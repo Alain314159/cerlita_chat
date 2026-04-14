@@ -10,8 +10,7 @@ export function useNotifications(userId: string | null) {
   useEffect(() => {
     if (!userId) return;
 
-    const sub = notificationService.initialize(userId);
-    subscriptionRef.current = sub;
+    notificationService.initialize(userId).catch(console.error);
 
     const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
       const actionIdentifier = response.actionIdentifier;
@@ -25,7 +24,6 @@ export function useNotifications(userId: string | null) {
     });
 
     return () => {
-      notificationService.cleanup(sub);
       Notifications.removeNotificationSubscription(responseListener);
     };
   }, [userId, router]);
