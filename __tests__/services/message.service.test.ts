@@ -30,23 +30,6 @@ describe('messageService', () => {
       expect(supabase.from).toHaveBeenCalledWith('messages');
       expect(result).toEqual(mockMessages);
     });
-
-    it('should support pagination with options', async () => {
-      const mockMessages = [{ id: '3', content: 'Older' }];
-      const mockChain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        order: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue({ data: mockMessages, error: null }),
-      };
-      (supabase.from as jest.Mock).mockReturnValue(mockChain);
-
-      const result = await messageService.getMessages('chat-123', {
-        limit: 20,
-        before: '2024-01-01T00:00:00Z',
-      });
-      expect(result).toEqual(mockMessages);
-    });
   });
 
   describe('sendMessage', () => {

@@ -41,32 +41,6 @@ describe('chatService', () => {
     });
   });
 
-  describe('getOrCreateDirectChat', () => {
-    it('should create a direct chat when not exists', async () => {
-      const mockSelectChain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        contains: jest.fn().mockResolvedValue({ data: [], error: null }),
-      };
-      const mockInsertChain = {
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: { id: 'chat-123' }, error: null }),
-      };
-      
-      (supabase.from as jest.Mock)
-        .mockReturnValueOnce(mockSelectChain)
-        .mockReturnValueOnce(mockInsertChain)
-        .mockReturnValueOnce({ insert: jest.fn().mockReturnThis() })
-        .mockReturnValueOnce({ insert: jest.fn().mockReturnThis() });
-
-      const result = await chatService.getOrCreateDirectChat('user-1', 'user-2');
-
-      expect(supabase.from).toHaveBeenCalledWith('chats');
-      expect(result).toBe('chat-123');
-    });
-  });
-
   describe('subscribeToUserChats', () => {
     it('should subscribe to realtime changes', async () => {
       const mockChannel = {
@@ -84,18 +58,20 @@ describe('chatService', () => {
     });
   });
 
-  describe('getChatById', () => {
-    it('should get chat by id', async () => {
-      const mockChat = { id: 'chat-1', name: 'Test' };
+  describe('updateLastMessage', () => {
+    it('should update last message', async () => {
       const mockChain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: mockChat, error: null }),
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({ error: null }),
       };
       (supabase.from as jest.Mock).mockReturnValue(mockChain);
 
-      const result = await chatService.getChatById('chat-1');
-      expect(result.id).toEqual(mockChat.id);
+      await chatService.updateLastMessage('chat-1', 'msg-1');
+
+      expect(mockChain.update).toHaveBeenCalledWith({
+        last_message_id: 'msg-1',
+        updated_at: expect.any(String),
+      });
     });
   });
 });

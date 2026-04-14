@@ -57,6 +57,11 @@ describe('authService', () => {
         data: { user: mockUser },
         error: null,
       });
+      // Mock user profile creation
+      const mockChain = {
+        insert: jest.fn().mockResolvedValue({ error: null }),
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockChain);
 
       const result = await authService.signUp('new@test.com', 'password123', 'New User');
 

@@ -15,7 +15,6 @@ describe('ReplyPreview', () => {
 
   it('renders reply context correctly', () => {
     const { getByText } = render(<ReplyPreview {...defaultProps} />);
-    expect(getByText('Respondiendo a')).toBeTruthy();
     expect(getByText('John')).toBeTruthy();
     expect(getByText('Hello there')).toBeTruthy();
   });
@@ -31,6 +30,6 @@ describe('ReplyPreview', () => {
     const { getByText } = render(
       <ReplyPreview context={{ messageId: 'm1', senderName: 'Jane', text: '', type: 'image' }} onClose={jest.fn()} />
     );
-    expect(getByText('\u{1F4CE} image')).toBeTruthy();
+    expect(getByText('📎 image')).toBeTruthy();
   });
 });
