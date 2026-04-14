@@ -32,9 +32,7 @@ jobs:
         run: npm ci
 
       - name: Run ESLint
-        run: npx eslint . --max-warnings=0 || echo "ESLint skipped - no config file"
-        continue-on-error: true
-        if: hashFiles('eslint.config.js', '.eslintrc.js', '.eslintrc.json', '.eslintrc') != ''
+        run: npx eslint . --max-warnings=0
 
       - name: Run TypeScript check
         run: npx tsc --noEmit
@@ -63,7 +61,6 @@ jobs:
 
       - name: Run tests with coverage
         run: npm test -- --coverage --coverageReporters=text --coverageReporters=lcov
-        continue-on-error: true
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
