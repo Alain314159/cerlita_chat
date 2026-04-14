@@ -8,10 +8,9 @@ jest.mock('@/services/supabase/config', () => ({
       signUp: jest.fn(),
       signOut: jest.fn(),
       resetPasswordForEmail: jest.fn(),
-      getUser: jest.fn(),
-      setSession: jest.fn(),
       onAuthStateChange: jest.fn(),
     },
+    from: jest.fn(),
   },
 }));
 
@@ -37,19 +36,17 @@ describe('authService', () => {
       });
       expect(result.user).toEqual(mockUser);
       expect(result.session).toEqual(mockSession);
-      expect(result.error).toBeNull();
     });
 
-    it('should return error on sign in failure', async () => {
+    it('should throw error on sign in failure', async () => {
       (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
         data: { user: null, session: null },
         error: { message: 'Invalid credentials' },
       });
 
-      const result = await authService.signIn('test@test.com', 'wrong');
-
-      expect(result.user).toBeNull();
-      expect(result.error).toBe('Invalid credentials');
+      await expect(authService.signIn('test@test.com', 'wrong')).rejects.toThrow(
+        'Invalid credentials'
+      );
     });
   });
 
@@ -71,17 +68,17 @@ describe('authService', () => {
         },
       });
       expect(result.user).toEqual(mockUser);
-      expect(result.error).toBeNull();
     });
 
-    it('should return error on sign up failure', async () => {
+    it('should throw error on sign up failure', async () => {
       (supabase.auth.signUp as jest.Mock).mockResolvedValue({
         data: { user: null },
         error: { message: 'Email already registered' },
       });
 
-      const result = await authService.signUp('dup@test.com', 'pass', 'Dup');
-      expect(result.error).toBe('Email already registered');
+      await expect(authService.signUp('dup@test.com', 'pass', 'Dup')).rejects.toThrow(
+        'Email already registered'
+      );
     });
   });
 
@@ -99,39 +96,54 @@ describe('authService', () => {
     it('should reset password for email', async () => {
       (supabase.auth.resetPasswordForEmail as jest.Mock).mockResolvedValue({ error: null });
 
-      const result = await authService.resetPassword('test@test.com', 'https://example.com');
+      await authService.resetPassword('test@test.com');
 
       expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
         'test@test.com',
-        { redirectTo: 'https://example.com' }
+        { redirectTo: 'cerlitachat://reset-password' }
       );
-      expect(result.error).toBeNull();
     });
   });
 
-  describe('getCurrentUser', () => {
-    it('should get current user', async () => {
-      const mockUser = { id: '1', email: 'test@test.com' };
-      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
-        data: { user: mockUser },
-        error: null,
-      });
+  describe('getUserProfile', () => {
+    it('should get user profile', async () => {
+      const mockUser = {
+        id: '1',
+        email: 'test@test.com',
+        display_name: 'Test User',
+        photo_url: null,
+        is_online: true,
+        last_seen_at: '2024-01-01T00:00:00Z',
+        is_typing: false,
+        push_token: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+      const mockChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: mockUser, error: null }),
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockChain);
 
-      const result = await authService.getCurrentUser();
-      expect(result.user).toEqual(mockUser);
+      const result = await authService.getUserProfile('1');
+      expect(result.id).toEqual(mockUser.id);
+      expect(result.displayName).toEqual(mockUser.display_name);
     });
   });
 
-  describe('setSession', () => {
-    it('should set session with tokens', async () => {
-      const mockSession = { access_token: 'new', refresh_token: 'refresh' };
-      (supabase.auth.setSession as jest.Mock).mockResolvedValue({
-        data: { session: mockSession },
-        error: null,
+  describe('onAuthStateChange', () => {
+    it('should subscribe to auth state changes', async () => {
+      const mockSubscription = { unsubscribe: jest.fn() };
+      (supabase.auth.onAuthStateChange as jest.Mock).mockReturnValue({
+        data: { subscription: mockSubscription },
       });
 
-      const result = await authService.setSession('access', 'refresh');
-      expect(result.session).toEqual(mockSession);
+      const callback = jest.fn();
+      const subscription = authService.onAuthStateChange(callback);
+
+      expect(supabase.auth.onAuthStateChange).toHaveBeenCalled();
+      expect(subscription).toEqual(mockSubscription);
     });
   });
 });

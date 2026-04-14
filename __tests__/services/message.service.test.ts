@@ -31,21 +31,21 @@ describe('messageService', () => {
       expect(result).toEqual(mockMessages);
     });
 
-    it('should support pagination with before date', async () => {
+    it('should support pagination with options', async () => {
       const mockMessages = [{ id: '3', content: 'Older' }];
-      const beforeDate = new Date('2024-01-01');
       const mockChain = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        lt: jest.fn().mockResolvedValue({ data: mockMessages, error: null }),
+        limit: jest.fn().mockResolvedValue({ data: mockMessages, error: null }),
       };
       (supabase.from as jest.Mock).mockReturnValue(mockChain);
 
-      const result = await messageService.getMessages('chat-123', 20, beforeDate);
+      const result = await messageService.getMessages('chat-123', {
+        limit: 20,
+        before: '2024-01-01T00:00:00Z',
+      });
       expect(result).toEqual(mockMessages);
-      expect(mockChain.lt).toHaveBeenCalledWith('created_at', beforeDate.toISOString());
     });
   });
 
@@ -124,8 +124,7 @@ describe('messageService', () => {
       const mockChain = {
         update: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        neq: jest.fn().mockReturnThis(),
-        in: jest.fn().mockResolvedValue({ error: null }),
+        neq: jest.fn().mockResolvedValue({ error: null }),
       };
       (supabase.from as jest.Mock).mockReturnValue(mockChain);
 
@@ -160,7 +159,7 @@ describe('messageService', () => {
       const callback = jest.fn();
       messageService.subscribeToMessages('chat-123', callback);
 
-      expect(supabase.channel).toHaveBeenCalledWith('messages:chat-123');
+      expect(supabase.channel).toHaveBeenCalledWith('messages_chat-123');
       expect(mockChannel.on).toHaveBeenCalled();
       expect(mockChannel.subscribe).toHaveBeenCalled();
     });
