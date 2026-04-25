@@ -65,8 +65,9 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       set({ loading: true, error: null });
       const messages = await messageService.getMessages(chatId);
       const decryptedMessages = await Promise.all(
-        messages.map(async (msg) => {
+        messages.map(async (msg: any) => {
           if (msg.content && msg.message_type === 'text') {
+
             try {
               const decrypted = await e2eEncryptionService.decrypt(msg.content, '', chatId);
               return { ...msg, text: decrypted };

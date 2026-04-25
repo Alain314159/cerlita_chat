@@ -62,3 +62,4 @@ eas-build-*.json
 # Environment variants
 .env.*.local
 .env.development
+react-native-best-practices/
