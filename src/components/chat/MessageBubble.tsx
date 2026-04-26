@@ -1,6 +1,8 @@
-import React, { useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { IconButton } from 'react-native-paper';
+import { Image } from 'expo-image';
+import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
 import { theme } from '@/config/theme';
 import type { Message } from '@/types';
 import type { ReplyContext } from '@/types/message.types';
@@ -28,6 +30,8 @@ const TYPE_EMOJIS: Record<string, string> = {
   file: '\u{1F4C4}',
 };
 
+const COMMON_REACTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏'];
+
 const STATUS_CONFIG = [
   { status: 'read', icon: 'check-all' as const, colorKey: 'tickRead' },
   { status: 'delivered', icon: 'check-all' as const, colorKey: 'tickDelivered' },
@@ -35,8 +39,9 @@ const STATUS_CONFIG = [
   { status: 'failed', icon: 'alert-circle' as const, colorKey: 'error' },
 ];
 
-function StatusIcon({ status }: { status: string }) {
-  const config = STATUS_CONFIG.find((c) => c.status === status);
+function StatusIcon({ status, readAt }: { status: string; readAt?: Date | string | null }) {
+  const effectiveStatus = readAt ? 'read' : status;
+  const config = STATUS_CONFIG.find((c) => c.status === effectiveStatus);
   if (!config) return null;
   return (
     <IconButton
@@ -58,31 +63,40 @@ export const MessageBubble = React.memo(function MessageBubble({
   onReplyPress,
   isStarred,
 }: MessageBubbleProps) {
-  const messageText = useMemo(() => {
-    if (message.type === 'text') {
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const renderContent = () => {
+    if (message.type === 'image' && message.mediaURL) {
       return (
-        <Text style={[styles.text, isMyMessage ? styles.myText : styles.theirText]}>
-          {message.text}
-          {message.editedAt && <Text style={styles.editedLabel}> (editado)</Text>}
-        </Text>
+        <Image 
+          source={{ uri: message.mediaURL }} 
+          style={styles.mediaImage}
+          contentFit="cover"
+          transition={200}
+        />
       );
     }
-    if (message.mediaURL) {
-      return (
-        <Text style={[styles.text, isMyMessage ? styles.myText : styles.theirText]}>
-          {TYPE_EMOJIS[message.type] || '\u{1F4CE}'} {message.type}
-        </Text>
-      );
-    }
-    return null;
-  }, [message.type, message.text, message.mediaURL, message.editedAt, isMyMessage]);
+    return (
+      <Text style={[styles.text, isMyMessage ? styles.myText : styles.theirText]}>
+        {message.text}
+        {message.isEdited && <Text style={styles.editedLabel}> (editado)</Text>}
+      </Text>
+    );
+  };
 
   const handleLongPress = useCallback(() => {
+    setShowEmojiPicker(true);
     onLongPress?.();
   }, [onLongPress]);
 
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    onReactionPress?.(emoji);
+    setShowEmojiPicker(false);
+  }, [onReactionPress]);
+
   return (
-    <View
+    <Animated.View
+      entering={FadeInUp.duration(300)}
       style={[styles.container, isMyMessage ? styles.myMessage : styles.theirMessage]}
       testID={`message-${message.id}`}
     >
@@ -100,7 +114,7 @@ export const MessageBubble = React.memo(function MessageBubble({
         onLongPress={handleLongPress}
         activeOpacity={0.8}
       >
-        {messageText}
+        {renderContent()}
         {reactions && (
           <MessageReactions
             reactions={reactions}
@@ -111,7 +125,7 @@ export const MessageBubble = React.memo(function MessageBubble({
           <Text style={styles.time}>
             {format(new Date(message.createdAt), 'HH:mm', { locale: es })}
           </Text>
-          {isMyMessage && <StatusIcon status={message.status} />}
+          {isMyMessage && <StatusIcon status={message.status} readAt={message.readAt} />}
         </View>
       </TouchableOpacity>
       {isStarred && (
@@ -119,7 +133,37 @@ export const MessageBubble = React.memo(function MessageBubble({
           <IconButton icon="star" size={16} iconColor="#FFD700" style={styles.starIcon} />
         </View>
       )}
-    </View>
+
+      <Modal
+        visible={showEmojiPicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowEmojiPicker(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={() => setShowEmojiPicker(false)}
+        >
+          <Animated.View 
+            entering={ZoomIn.duration(200)}
+            style={[
+              styles.emojiPicker,
+              isMyMessage ? styles.myEmojiPicker : styles.theirEmojiPicker
+            ]}
+          >
+            {COMMON_REACTIONS.map((emoji) => (
+              <TouchableOpacity
+                key={emoji}
+                style={styles.emojiButton}
+                onPress={() => handleEmojiSelect(emoji)}
+              >
+                <Text style={styles.emojiText}>{emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+        </Pressable>
+      </Modal>
+    </Animated.View>
   );
 });
 
@@ -131,6 +175,7 @@ const styles = StyleSheet.create({
   bubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16 },
   myBubble: { backgroundColor: theme.colors.messageSent, borderBottomRightRadius: 4 },
   theirBubble: { backgroundColor: theme.colors.messageReceived, borderBottomLeftRadius: 4 },
+  mediaImage: { width: 250, height: 250, borderRadius: 12, marginBottom: 4 },
   text: { fontSize: 15, lineHeight: 20 },
   myText: { color: theme.colors.messageSentText },
   theirText: { color: theme.colors.messageReceivedText },
@@ -140,4 +185,26 @@ const styles = StyleSheet.create({
   statusIcon: { margin: 0, padding: 0, width: 18, height: 18, marginLeft: 2 },
   starIndicator: { position: 'absolute', top: -8, right: -8 },
   starIcon: { margin: 0 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emojiPicker: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.surface,
+    padding: 8,
+    borderRadius: 24,
+    ...theme.shadows.md,
+    gap: 8,
+  },
+  myEmojiPicker: { marginRight: 20 },
+  theirEmojiPicker: { marginLeft: 20 },
+  emojiButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  emojiText: { fontSize: 24 },
 });

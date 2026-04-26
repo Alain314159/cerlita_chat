@@ -183,8 +183,8 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         mediaURL: raw.media_url,
         thumbnailURL: raw.thumbnail_url,
         status: raw.status as Message['status'],
-        deliveredAt: null,
-        readAt: null,
+        deliveredAt: raw.delivered_at ? new Date(raw.delivered_at) : null,
+        readAt: raw.read_at ? new Date(raw.read_at) : null,
         createdAt: raw.created_at,
         editedAt: raw.is_edited ? new Date(raw.updated_at) : null,
       };

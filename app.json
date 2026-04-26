@@ -79,8 +79,7 @@
           "savePhotosPermission": "Cerlita Chat needs to save media to your library.",
           "isAccessMediaLocationEnabled": false
         }
-      ],
-      "expo-sharing"
+      ]
     ],
     "experiments": {
       "typedRoutes": true

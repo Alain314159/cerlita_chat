@@ -36,11 +36,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // Map DB rows to Chat interface
       const mappedChats = rawChats.map((row: any) => ({
         id: row.id,
-        type: row.is_group ? 'group' as const : 'direct' as const,
-        name: row.name,
         participants: row.participant_ids || [],
-        participantsInfo: {},
-        lastMessage: null,
+        lastMessageId: row.last_message_id,
         lastMessageAt: row.updated_at ? new Date(row.updated_at) : null,
         unreadCount: 0,
         createdAt: new Date(row.created_at),
@@ -90,8 +87,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       channels.delete(channelKey);
     }
 
-    const channel = chatService.subscribeToUserChats(userId, (chats: Chat[]) => {
-      set({ chats });
+    const channel = chatService.subscribeToUserChats(userId, (payload: any) => {
+      // In a real app, you might want to handle individual events (INSERT, UPDATE, DELETE)
+      // For simplicity, we just reload all chats for now or handle the payload
+      get().loadChats(userId);
     });
 
     channels.set(channelKey, channel);

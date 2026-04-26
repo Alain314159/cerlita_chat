@@ -27,7 +27,7 @@ export const theme = {
     // Ticks
     tickSent: '#8E8E93',
     tickDelivered: '#8E8E93',
-    tickRead: '#FF69B4',
+    tickRead: '#34B7F1',
     
     // Status
     online: '#34C759',

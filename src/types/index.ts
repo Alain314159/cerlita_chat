@@ -22,11 +22,8 @@ export interface User {
 // Chat types
 export interface Chat {
   id: string;
-  type: 'direct' | 'group';
-  name?: string | null;
-  participants: any[];
-  participantsInfo: Record<string, ParticipantInfo>;
-  lastMessage: string | null;
+  participants: string[]; // List of user IDs
+  lastMessageId: string | null;
   lastMessageAt: Date | null;
   unreadCount: number;
   createdAt: Date;
@@ -48,14 +45,23 @@ export interface Message {
   chatId: string;
   senderId: string;
   type: MessageType;
-  text: string | null; // Encrypted
+  text: string | null;
   mediaURL: string | null;
   thumbnailURL: string | null;
   status: MessageStatus;
-  deliveredAt: Date | null;
   readAt: Date | null;
   createdAt: Date;
-  editedAt: Date | null;
+  updatedAt: Date;
+  isEdited: boolean;
+  replyToId: string | null;
+}
+
+export interface MessageReaction {
+  id: string;
+  messageId: string;
+  userId: string;
+  emoji: string;
+  createdAt: Date;
 }
 
 // Auth types
@@ -67,7 +73,6 @@ export interface AuthState {
 }
 
 export type {
-  MessageReaction,
   ReactionCounts,
   ReplyContext,
   MessageEdit,

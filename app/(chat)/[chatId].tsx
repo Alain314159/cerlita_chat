@@ -3,10 +3,11 @@ import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-na
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar, IconButton, ActivityIndicator } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, ViewToken } from '@shopify/flash-list';
 import { useMessages } from '@/hooks/useMessages';
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
+import { useMessageStore } from '@/store/messageStore';
 import { theme } from '@/config/theme';
 import { format, isSameDay as isSameDayFn } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -15,6 +16,7 @@ import { MessageBubble } from '@/components/chat/MessageBubble';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { ReplyPreview } from '@/components/chat/ReplyPreview';
 import { ChatOptionsMenu } from '@/components/chat/ChatOptionsMenu';
+import { ChatHeader } from '@/components/chat/ChatHeader';
 
 export default function ChatScreen() {
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
@@ -26,9 +28,18 @@ export default function ChatScreen() {
 
   const { user } = useAuth();
   const { activeChat } = useChat(chatId);
-  const { messages, loading, isOtherUserTyping, sendMessage, replyContext, setReplyContext } = useMessages(chatId!);
+  const { 
+    messages, 
+    loading, 
+    isOtherUserTyping, 
+    sendMessage, 
+    addReaction,
+    markAsRead,
+    replyContext, 
+    setReplyContext 
+  } = useMessages(chatId!);
 
-  const router = useRouter();
+  const reactions = useMessageStore(state => state.reactions);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -46,26 +57,65 @@ export default function ChatScreen() {
   }, [messageText, sending, sendMessage]);
 
   const handleLongPress = useCallback((message: Message) => {
-    setReplyContext({ messageId: message.id, senderName: message.senderId === user?.id ? 'Tu' : 'Otro', text: message.text || 'Multimedia', type: message.type });
+    setReplyContext({ 
+      messageId: message.id, 
+      senderName: message.senderId === user?.id ? 'Tu' : 'Otro', 
+      text: message.text || 'Multimedia', 
+      type: message.type 
+    });
   }, [setReplyContext, user?.id]);
+
+  const handleReactionPress = useCallback((messageId: string, emoji: string) => {
+    if (user?.id) {
+      addReaction(messageId, emoji, user.id);
+    }
+  }, [addReaction, user?.id]);
+
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<ViewToken> }) => {
+    viewableItems.forEach(({ item, isViewable }) => {
+      if (isViewable && item && (item as Message).senderId !== user?.id && !(item as Message).readAt) {
+        markAsRead((item as Message).id);
+      }
+    });
+  }).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50
+  }).current;
 
   const renderMessage = useCallback(({ item }: { item: Message }) => {
     const isMyMessage = item.senderId === user?.id;
     const idx = messages.indexOf(item);
     const prevMessage = idx > 0 ? messages[idx - 1] : null;
     const showDateHeader = !prevMessage || !isSameDayFn(new Date(item.createdAt), new Date(prevMessage.createdAt));
+    
+    // Get reaction counts for this message
+    const msgReactions = reactions.get(item.id);
+    const reactionCounts: Record<string, { count: number; userReacted: boolean }> = {};
+    if (msgReactions) {
+      msgReactions.forEach((users, emoji) => {
+        reactionCounts[emoji] = { 
+          count: users.length, 
+          userReacted: users.includes(user?.id || '') 
+        };
+      });
+    }
+
     return (
       <>
         {showDateHeader && (
           <View style={styles.dateHeader}><Text style={styles.dateHeaderText}>{formatDateHeader(new Date(item.createdAt))}</Text></View>
         )}
         <MessageBubble
-          message={item} isMyMessage={isMyMessage}
+          message={item} 
+          isMyMessage={isMyMessage}
+          reactions={reactionCounts}
           onLongPress={() => handleLongPress(item)}
+          onReactionPress={(emoji) => handleReactionPress(item.id, emoji)}
         />
       </>
     );
-  }, [messages, user?.id, handleLongPress]);
+  }, [messages, user?.id, handleLongPress, handleReactionPress, reactions]);
 
   const otherParticipant = activeChat?.participants?.find((p: any) => p.user_id !== user?.id)?.users || null;
 
@@ -73,20 +123,27 @@ export default function ChatScreen() {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { paddingBottom: insets.bottom }]}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
-      <View style={styles.header}>
-        <IconButton icon="arrow-left" onPress={() => router.back()} size={24} />
-        <Avatar.Image size={40} source={require('@/assets/images/default-avatar.png')} />
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerName}>{otherParticipant?.display_name || activeChat?.name || 'Chat'}</Text>
-          {isOtherUserTyping() && <Text style={styles.typingText}>escribiendo...</Text>}
-        </View>
-        <IconButton icon="dots-vertical" onPress={() => setShowOptionsMenu(true)} />
-      </View>
+      <ChatHeader 
+        name={otherParticipant?.display_name || activeChat?.name || 'Chat'}
+        isTyping={isOtherUserTyping()}
+        isOnline={otherParticipant?.is_online}
+        photoUrl={otherParticipant?.photo_url}
+        onOpenOptions={() => setShowOptionsMenu(true)}
+      />
       {loading && messages.length === 0 ? (
         <View style={styles.loadingContainer}><ActivityIndicator size="large" color={theme.colors.primary} /></View>
       ) : (
-        <FlashList ref={flatListRef} data={messages} keyExtractor={(item) => item.id}
-          renderItem={renderMessage} estimatedItemSize={60} contentContainerStyle={styles.messagesList} removeClippedSubviews />
+        <FlashList 
+          ref={flatListRef} 
+          data={messages} 
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage} 
+          estimatedItemSize={60} 
+          contentContainerStyle={styles.messagesList} 
+          removeClippedSubviews
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+        />
       )}
       {replyContext && <ReplyPreview context={replyContext} onClose={() => setReplyContext(null)} />}
       <MessageInput value={messageText} onChangeText={setMessageText} onSend={handleSendMessage}

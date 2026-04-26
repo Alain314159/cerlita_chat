@@ -14,9 +14,9 @@ export function useMessages(chatId: string) {
     sendMessage,
     markAsRead,
     markAllAsRead,
+    addReaction,
     subscribeToMessages,
     unsubscribeFromMessages,
-    setTyping,
     setError,
     setReplyContext,
   } = useMessageStore();
@@ -30,7 +30,7 @@ export function useMessages(chatId: string) {
       loadMessages(chatId);
       subscribeToMessages(chatId);
     }
-    return () => { unsubscribeFromMessages(chatId); };
+    return () => { if (chatId) unsubscribeFromMessages(chatId); };
   }, [chatId, loadMessages, subscribeToMessages, unsubscribeFromMessages]);
 
   // Mark all as read when opening chat
@@ -40,18 +40,21 @@ export function useMessages(chatId: string) {
     }
   }, [chatId, user, markAllAsRead]);
 
-  // Set current user ID for reactions
-  useEffect(() => {
-    if (user?.id) {
-      useMessageStore.getState().setCurrentUserId(user.id);
-    }
-  }, [user?.id]);
-
   // Send message
   const handleSendMessage = useCallback(async (text: string) => {
     if (!user || !chatId) return;
     await sendMessage(chatId, user.id, text);
   }, [user, chatId, sendMessage]);
+
+  const handleAddReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!user) return;
+    await addReaction(messageId, user.id, emoji);
+  }, [user, addReaction]);
+
+  const handleMarkAsRead = useCallback(async (messageId: string) => {
+    if (!user) return;
+    await markAsRead(messageId);
+  }, [user, markAsRead]);
 
   const isOtherUserTyping = useCallback(() => {
     if (!user) return false;
@@ -66,6 +69,8 @@ export function useMessages(chatId: string) {
     setIsTyping,
     isOtherUserTyping,
     sendMessage: handleSendMessage,
+    addReaction: handleAddReaction,
+    markAsRead: handleMarkAsRead,
     setError,
     replyContext,
     setReplyContext: setReplyContext as (context: ReplyContext | null) => void,

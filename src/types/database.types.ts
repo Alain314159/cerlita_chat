@@ -1,4 +1,4 @@
-// Database types for Supabase - Updated to match actual schema
+// Database types for Supabase - Updated to match strict 1-on-1 schema
 
 export interface Database {
   public: {
@@ -44,8 +44,6 @@ export interface Database {
       chats: {
         Row: {
           id: string;
-          name: string | null;
-          is_group: boolean;
           participant_ids: string[];
           last_message_id: string | null;
           created_at: string;
@@ -53,8 +51,6 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          name?: string | null;
-          is_group?: boolean;
           participant_ids: string[];
           last_message_id?: string | null;
           created_at?: string;
@@ -62,8 +58,6 @@ export interface Database {
         };
         Update: {
           id?: string;
-          name?: string | null;
-          is_group?: boolean;
           participant_ids?: string[];
           last_message_id?: string | null;
           created_at?: string;
@@ -101,6 +95,7 @@ export interface Database {
           thumbnail_url: string | null;
           status: string;
           is_edited: boolean;
+          read_at: string | null;
           reply_to_id: string | null;
           created_at: string;
           updated_at: string;
@@ -115,6 +110,7 @@ export interface Database {
           thumbnail_url?: string | null;
           status?: string;
           is_edited?: boolean;
+          read_at?: string | null;
           reply_to_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -129,9 +125,33 @@ export interface Database {
           thumbnail_url?: string | null;
           status?: string;
           is_edited?: boolean;
+          read_at?: string | null;
           reply_to_id?: string | null;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      message_reactions: {
+        Row: {
+          id: string;
+          message_id: string;
+          user_id: string;
+          emoji: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          message_id: string;
+          user_id: string;
+          emoji: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          message_id?: string;
+          user_id?: string;
+          emoji?: string;
+          created_at?: string;
         };
       };
       notifications: {
@@ -165,7 +185,15 @@ export interface Database {
       };
     };
     Views: {};
-    Functions: {};
+    Functions: {
+      get_or_create_direct_chat: {
+        Args: {
+          user1_id: string;
+          user2_id: string;
+        };
+        Returns: string;
+      };
+    };
     Enums: {};
   };
 }

@@ -37,7 +37,7 @@ export const backupService = {
   },
 
   async exportAllChats(userId: string) {
-    type ChatRow = { id: string; name: string | null; is_group: boolean; participant_ids: string[]; last_message_id: string | null; created_at: string; updated_at: string };
+    type ChatRow = { id: string; participant_ids: string[]; last_message_id: string | null; created_at: string; updated_at: string };
 
     const { data: chats, error } = await supabase
       .from('chats')
