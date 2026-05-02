@@ -2,7 +2,8 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useRouter, useSegments } from 'expo-router';
 import { AppState, type AppStateStatus } from 'react-native';
 import { useAuthStore } from '@/store/authStore';
-import { notificationService } from '@/services/supabase/notification.service';
+import { notificationService } from '@/services/notifications/notification.service';
+import { MockNotificationProvider } from '@/services/notifications/providers/MockProvider';
 import { SplashScreen } from '@/components/ui/SplashScreen';
 import { authService } from '@/services/supabase/auth.service';
 
@@ -27,6 +28,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        // Inicializar notificaciones con el proveedor mock (cambiar por OneSignal/etc después)
+        notificationService.setProvider(new MockNotificationProvider());
         await initialize();
       } catch (error) {
         console.error('Failed to initialize auth:', error);
@@ -52,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Inicializar notificaciones cuando está autenticado
   useEffect(() => {
     if (isAuthenticated && !loading && user?.id) {
-      notificationService.initialize(user.id).catch(console.error);
+      notificationService.initialize().catch(console.error);
     }
   }, [isAuthenticated, loading, user?.id]);
 

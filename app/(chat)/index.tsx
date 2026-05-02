@@ -1,21 +1,24 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  FlatList,
   TouchableOpacity,
+  ActivityIndicator,
   RefreshControl,
+  TextInput,
 } from 'react-native';
-import { router } from 'expo-router';
-import { Searchbar, FAB } from 'react-native-paper';
-import { FlashList } from '@shopify/flash-list';
-import { useChat } from '@/hooks/useChat';
-import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '@/config/theme';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Chat, AvatarOption } from '@/types';
+import { Ionicons } from '@expo/vector-icons';
+
+import { useAuth } from '@/hooks/useAuth';
+import { useChat } from '@/hooks/useChat';
+import { theme } from '@/config/theme';
+import { Chat, AvatarOption } from '@/types';
 import { haptics } from '@/services/haptics';
 import { Avatar } from '@/components/ui/Avatar';
 
@@ -24,17 +27,9 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress }: {
   chat: Chat;
   onPress: (chatId: string) => void;
 }) {
-  const otherParticipant = chat.participants?.find((p: any) => p?.users) as any;
-  const participantInfo = otherParticipant?.users;
-  const displayName = participantInfo?.display_name || chat.name || 'Usuario';
-  const photoURL = participantInfo?.photo_url;
-  const isOnline = participantInfo?.is_online || false;
+  const displayName = chat.name || 'Chat';
+  const isOnline = false;
   
-  // Construir avatar option
-  const userAvatar: AvatarOption | undefined = participantInfo?.avatar || (
-    photoURL ? { type: 'custom', uri: photoURL } : undefined
-  );
-
   const handlePress = useCallback(() => {
     haptics.medium();
     onPress(chat.id);
@@ -46,13 +41,9 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress }: {
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={`Chat con ${displayName}`}
-      accessibilityHint={`Abrir conversación con ${displayName}`}
-      testID={`chat-item-${chat.id}`}
     >
       <View style={styles.avatarContainer}>
         <Avatar
-          uri={userAvatar?.type === 'custom' ? userAvatar.uri : undefined}
-          systemAvatarId={userAvatar?.type === 'system' ? userAvatar.systemId : undefined}
           size={56}
           displayName={displayName}
           isOnline={isOnline}
@@ -69,11 +60,9 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress }: {
           )}
         </View>
 
-        {chat.lastMessage && (
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {chat.lastMessage}
-          </Text>
-        )}
+        <Text style={styles.lastMessage} numberOfLines={1}>
+          {chat.lastMessage || 'No hay mensajes'}
+        </Text>
       </View>
 
       {chat.unreadCount > 0 && (
@@ -98,87 +87,55 @@ export default function ChatListScreen() {
       await loadChats(user.id);
       setRefreshing(false);
     }
-  }, [user]);
+  }, [user, loadChats]);
 
   const filteredChats = useMemo(() =>
     chats.filter((chat) => {
-      const otherUserId = chat.participants.find((p) => p !== user?.id);
-      const participantName = chat.participantsInfo[otherUserId || '']?.displayName || '';
-      return participantName.toLowerCase().includes(searchQuery.toLowerCase());
+      const name = chat.name || '';
+      return name.toLowerCase().includes(searchQuery.toLowerCase());
     }),
-    [chats, searchQuery, user?.id]
+    [chats, searchQuery]
   );
 
-  const handleChatPress = useCallback((chatId: string) => {
-    router.push(`/(chat)/${chatId}`);
-  }, []);
-
   const renderItem = useCallback(({ item }: { item: Chat }) => (
-    <ChatItem
-      chat={item}
-      onPress={handleChatPress}
-    />
-  ), [handleChatPress]);
-
-  if (!user) {
-    return null;
-  }
+    <ChatItem chat={item} onPress={(id) => useRouter().push(`/(chat)/${id}`)} />
+  ), []);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Encabezado */}
       <View style={styles.header}>
-        <Text style={styles.title}>💕 Cerlita Chat</Text>
+        <Text style={styles.title}>Chats</Text>
+        <TouchableOpacity onPress={() => useRouter().push('/(chat)/new')}>
+          <Ionicons name="add-circle-outline" size={28} color={theme.colors.primary} />
+        </TouchableOpacity>
       </View>
 
-      {/* Búsqueda */}
       <View style={styles.searchContainer}>
-        <Searchbar
+        <Ionicons name="search-outline" size={20} color={theme.colors.textSecondary} />
+        <TextInput
+          style={styles.searchInput}
           placeholder="Buscar chats..."
-          onChangeText={setSearchQuery}
           value={searchQuery}
-          style={styles.searchbar}
-          accessibilityLabel="Buscar chats"
+          onChangeText={setSearchQuery}
+          placeholderTextColor={theme.colors.textSecondary}
         />
       </View>
 
-      {/* Lista de Chats */}
-      <FlashList
+      <FlatList
         data={filteredChats}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        estimatedItemSize={80}
-        removeClippedSubviews={true}
+        contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[theme.colors.primary]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>💬</Text>
-            <Text style={styles.emptyTitle}>No hay chats todavía</Text>
-            <Text style={styles.emptySubtitle}>
-              Comienza una nueva conversación
-            </Text>
-          </View>
+          !loading ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No se encontraron chats</Text>
+            </View>
+          ) : null
         }
-      />
-
-      {/* Botón flotante */}
-      <FAB
-        icon="plus"
-        style={[styles.fab, { bottom: insets.bottom + theme.spacing.lg }]}
-        onPress={() => {
-          haptics.medium();
-          router.push('/(chat)/new-chat');
-        }}
-        color={theme.colors.textInverse}
-        accessibilityRole="button"
-        accessibilityLabel="Nuevo chat"
-        testID="new-chat-fab"
       />
     </View>
   );
@@ -190,50 +147,50 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.background,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.colors.primary,
+    fontSize: 28,
+    fontWeight: '700',
+    color: theme.colors.text,
   },
   searchContainer: {
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: 20,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    height: 44,
+    marginBottom: 10,
   },
-  searchbar: {
-    elevation: 0,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
+    color: theme.colors.text,
   },
   listContent: {
-    flexGrow: 1,
+    paddingBottom: 20,
   },
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderLight,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   avatarContainer: {
-    position: 'relative',
-    marginRight: theme.spacing.md,
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: theme.colors.online,
-    borderWidth: 2,
-    borderColor: theme.colors.background,
+    marginRight: 15,
   },
   chatInfo: {
     flex: 1,
+    borderBottomWidth: 0.5,
+    borderBottomColor: theme.colors.border,
+    paddingBottom: 12,
   },
   chatHeader: {
     flexDirection: 'row',
@@ -242,58 +199,40 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   displayName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    color: theme.colors.textPrimary,
+    color: theme.colors.text,
   },
   time: {
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.textSecondary,
   },
   lastMessage: {
-    fontSize: 14,
+    fontSize: 15,
     color: theme.colors.textSecondary,
   },
   unreadBadge: {
     backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
+    marginLeft: 10,
   },
   unreadText: {
-    color: theme.colors.textInverse,
-    fontSize: 12,
-    fontWeight: 'bold',
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: theme.spacing.xl,
+    marginTop: 100,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: theme.spacing.md,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.sm,
-  },
-  emptySubtitle: {
-    fontSize: 14,
+  emptyText: {
+    fontSize: 16,
     color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    margin: theme.spacing.lg,
-    right: 0,
-    bottom: 0,
-    backgroundColor: theme.colors.primary,
   },
 });

@@ -1,70 +1,22 @@
-import type { Chat, User } from '@/types';
+import { Chat, User } from '@/types';
 
-// Get other participant's info from a direct chat
-export const getOtherParticipant = (
-  chat: Chat,
-  currentUserId: string
-): User | null => {
-  if (chat.type !== 'direct') {
-    return null;
+export const getOtherParticipantId = (chat: Chat, currentUserId: string): string | null => {
+  return chat.participants.find(id => id !== currentUserId) || null;
+};
+
+export const getChatDisplayName = (chat: Chat, currentUserId: string, otherUserInfo?: any): string => {
+  if (chat.name) return chat.name;
+  
+  if (chat.type === 'direct' && otherUserInfo) {
+    return otherUserInfo.display_name || otherUserInfo.email || 'Usuario';
   }
+  
+  return chat.name || 'Chat';
+};
 
-  const participants = chat.participants as string[];
-  const otherUserId = participants.find((id) => id !== currentUserId);
-
-  if (!otherUserId) {
-    return null;
+export const getChatDisplayAvatar = (chat: Chat, otherUserInfo?: any): string | null => {
+  if (chat.type === 'direct' && otherUserInfo) {
+    return otherUserInfo.photo_url || null;
   }
-
-  // If we have participants info, return it
-  if (chat.participantsInfo[otherUserId]) {
-    const info = chat.participantsInfo[otherUserId];
-    return {
-      id: otherUserId,
-      email: '',
-      displayName: info.displayName,
-      photoURL: info.photoURL,
-      isOnline: info.isOnline,
-      lastSeen: null,
-      isTyping: false,
-      pushToken: null,
-      createdAt: chat.createdAt,
-      updatedAt: chat.updatedAt,
-    };
-  }
-
   return null;
-};
-
-// Get chat display name
-export const getChatDisplayName = (
-  chat: Chat,
-  currentUserId: string
-): string => {
-  if (chat.name) {
-    return chat.name;
-  }
-
-  if (chat.type === 'direct') {
-    const other = getOtherParticipant(chat, currentUserId);
-    return other?.displayName || 'Chat';
-  }
-
-  return 'Grupo';
-};
-
-// Generate chat ID from two user IDs (for direct chats)
-export const generateChatId = (userId1: string, userId2: string): string => {
-  const ids = [userId1, userId2].sort();
-  return `${ids[0]}_${ids[1]}`;
-};
-
-// Check if chat is muted (placeholder for future feature)
-export const isChatMuted = (chat: Chat): boolean => {
-  return false;
-};
-
-// Get unread count from chat
-export const getUnreadCount = (chat: Chat): number => {
-  return chat.unreadCount || 0;
 };

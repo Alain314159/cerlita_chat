@@ -22,8 +22,11 @@ export interface User {
 // Chat types
 export interface Chat {
   id: string;
+  name?: string | null;
+  type?: 'direct' | 'group';
   participants: string[]; // List of user IDs
   lastMessageId: string | null;
+  lastMessage?: string | null;
   lastMessageAt: Date | null;
   unreadCount: number;
   createdAt: Date;

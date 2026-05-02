@@ -117,17 +117,19 @@ export default function ChatScreen() {
     );
   }, [messages, user?.id, handleLongPress, handleReactionPress, reactions]);
 
-  const otherParticipant = activeChat?.participants?.find((p: any) => p.user_id !== user?.id)?.users || null;
+  const otherParticipantId = activeChat?.participants?.find((id) => id !== user?.id) || null;
+  // Note: En una app real aquí harías un fetch del perfil del usuario si no lo tienes
+  const otherParticipant = null; 
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { paddingBottom: insets.bottom }]}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
       <ChatHeader 
-        name={otherParticipant?.display_name || activeChat?.name || 'Chat'}
+        name={activeChat?.name || 'Chat'}
         isTyping={isOtherUserTyping()}
-        isOnline={otherParticipant?.is_online}
-        photoUrl={otherParticipant?.photo_url}
+        isOnline={false}
+        photoUrl={null}
         onOpenOptions={() => setShowOptionsMenu(true)}
       />
       {loading && messages.length === 0 ? (

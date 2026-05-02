@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as Notifications from 'expo-notifications';
-import { notificationService } from '@/services/supabase/notification.service';
+import { notificationService } from '@/services/notifications/notification.service';
 import { useRouter } from 'expo-router';
 
 export function useNotifications(userId: string | null) {
