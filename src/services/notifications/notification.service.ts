@@ -1,5 +1,5 @@
 import { NotificationProvider, NotificationPayload } from './types';
-import { authService } from '../supabase/auth.service';
+import { supabase } from '../supabase/config';
 
 class NotificationManager {
   private provider: NotificationProvider | null = null;
@@ -19,16 +19,12 @@ class NotificationManager {
       const token = await this.provider.getDeviceToken();
       if (token) {
         // Automatically sync with Supabase when we get a token
-        const { data: { session } } = await (await import('../supabase/config')).supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          await (await import('../supabase/auth.service')).authService.updateProfile(session.user.id, {
-            // We'll add push_token to the updateProfile if needed or create a specific method
-          });
-          
           // Specific method to update push token
-          await (await import('../supabase/config')).supabase
+          await supabase
             .from('users')
-            .update({ push_token: token })
+            .update({ push_token: token } as any)
             .eq('id', session.user.id);
         }
       }

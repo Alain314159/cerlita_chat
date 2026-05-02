@@ -1,177 +1,147 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import {
+  View,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Avatar, IconButton, ActivityIndicator } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FlashList, ViewToken } from '@shopify/flash-list';
-import { useMessages } from '@/hooks/useMessages';
+import { FlashList } from '@shopify/flash-list';
+
 import { useAuth } from '@/hooks/useAuth';
+import { useMessages } from '@/hooks/useMessages';
 import { useChat } from '@/hooks/useChat';
-import { useMessageStore } from '@/store/messageStore';
 import { theme } from '@/config/theme';
-import { format, isSameDay as isSameDayFn } from 'date-fns';
-import { es } from 'date-fns/locale';
-import type { Message } from '@/types';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { MessageInput } from '@/components/chat/MessageInput';
+import { ChatHeader } from '@/components/chat/ChatHeader';
 import { ReplyPreview } from '@/components/chat/ReplyPreview';
 import { ChatOptionsMenu } from '@/components/chat/ChatOptionsMenu';
-import { ChatHeader } from '@/components/chat/ChatHeader';
+import { formatDateHeader } from '@/utils/date';
+import { Message } from '@/types';
 
-export default function ChatScreen() {
-  const { chatId } = useLocalSearchParams<{ chatId: string }>();
-  const [messageText, setMessageText] = useState('');
-  const [sending, setSending] = useState(false);
-  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
-  const flatListRef = useRef<FlashList<Message>>(null);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+export default function ChatConversationScreen() {
+  const { chatId } = useLocalSearchParams();
   const { user } = useAuth();
-  const { activeChat } = useChat(chatId);
-  const { 
-    messages, 
-    loading, 
-    isOtherUserTyping, 
-    sendMessage, 
-    addReaction,
-    markAsRead,
-    replyContext, 
-    setReplyContext 
-  } = useMessages(chatId!);
-
-  const reactions = useMessageStore(state => state.reactions);
   const insets = useSafeAreaInsets();
+  const flatListRef = useRef<FlashList<any>>(null);
+
+  const {
+    messages,
+    loading,
+    sending,
+    loadMessages,
+    sendMessage,
+    subscribeToMessages,
+    unsubscribeFromMessages,
+    addReaction,
+    replyContext,
+    setReplyContext,
+  } = useMessages(chatId as string);
+
+  const { activeChat } = useChat();
+  const [messageText, setMessageText] = useState('');
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
 
   useEffect(() => {
-    if (messages.length > 0 && flatListRef.current) {
-      scrollTimeoutRef.current = setTimeout(() => { flatListRef.current?.scrollToEnd({ animated: true }); }, 100);
+    if (chatId) {
+      loadMessages(chatId as string);
+      subscribeToMessages(chatId as string);
     }
-    return () => { if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current); };
-  }, [messages]);
+    return () => unsubscribeFromMessages(chatId as string);
+  }, [chatId, loadMessages, subscribeToMessages, unsubscribeFromMessages]);
 
   const handleSendMessage = useCallback(async () => {
-    if (!messageText.trim() || sending) return;
-    try { setSending(true); await sendMessage(messageText.trim()); setMessageText(''); }
-    catch (error) { console.error('Failed to send:', error); }
-    finally { setSending(false); }
-  }, [messageText, sending, sendMessage]);
-
-  const handleLongPress = useCallback((message: Message) => {
-    setReplyContext({ 
-      messageId: message.id, 
-      senderName: message.senderId === user?.id ? 'Tu' : 'Otro', 
-      text: message.text || 'Multimedia', 
-      type: message.type 
-    });
-  }, [setReplyContext, user?.id]);
-
-  const handleReactionPress = useCallback((messageId: string, emoji: string) => {
-    if (user?.id) {
-      addReaction(messageId, emoji, user.id);
+    if (!messageText.trim() || !user || !chatId) return;
+    try {
+      const textToSend = messageText.trim();
+      setMessageText('');
+      await sendMessage(chatId as string, user.id, textToSend);
+    } catch (error) {
+      console.error('Error sending message:', error);
     }
-  }, [addReaction, user?.id]);
+  }, [messageText, user, chatId, sendMessage]);
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<ViewToken> }) => {
-    viewableItems.forEach(({ item, isViewable }) => {
-      if (isViewable && item && (item as Message).senderId !== user?.id && !(item as Message).readAt) {
-        markAsRead((item as Message).id);
-      }
-    });
-  }).current;
-
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50
-  }).current;
-
-  const renderMessage = useCallback(({ item }: { item: Message }) => {
+  const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isMyMessage = item.senderId === user?.id;
-    const idx = messages.indexOf(item);
-    const prevMessage = idx > 0 ? messages[idx - 1] : null;
-    const showDateHeader = !prevMessage || !isSameDayFn(new Date(item.createdAt), new Date(prevMessage.createdAt));
-    
-    // Get reaction counts for this message
-    const msgReactions = reactions.get(item.id);
-    const reactionCounts: Record<string, { count: number; userReacted: boolean }> = {};
-    if (msgReactions) {
-      msgReactions.forEach((users, emoji) => {
-        reactionCounts[emoji] = { 
-          count: users.length, 
-          userReacted: users.includes(user?.id || '') 
-        };
-      });
-    }
+    const prevMessage = index > 0 ? messages[index - 1] : null;
+    const showDateHeader = !prevMessage || 
+      new Date(item.createdAt).toDateString() !== new Date(prevMessage.createdAt).toDateString();
 
     return (
-      <>
+      <View>
         {showDateHeader && (
-          <View style={styles.dateHeader}><Text style={styles.dateHeaderText}>{formatDateHeader(new Date(item.createdAt))}</Text></View>
+          <View style={styles.dateHeader}>
+            <ActivityIndicator size="small" style={{ opacity: 0 }} />
+          </View>
         )}
         <MessageBubble
-          message={item} 
+          message={item}
           isMyMessage={isMyMessage}
-          reactions={reactionCounts}
-          onLongPress={() => handleLongPress(item)}
-          onReactionPress={(emoji) => handleReactionPress(item.id, emoji)}
+          onReactionPress={(emoji) => addReaction(item.id, emoji, user?.id || '')}
         />
-      </>
+      </View>
     );
-  }, [messages, user?.id, handleLongPress, handleReactionPress, reactions]);
-
-  const otherParticipantId = activeChat?.participants?.find((id) => id !== user?.id) || null;
-  // Note: En una app real aquí harías un fetch del perfil del usuario si no lo tienes
-  const otherParticipant = null; 
+  }, [messages, user?.id, addReaction]);
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { paddingBottom: insets.bottom }]}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
-      <ChatHeader 
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <ChatHeader
         name={activeChat?.name || 'Chat'}
-        isTyping={isOtherUserTyping()}
-        isOnline={false}
-        photoUrl={null}
+        photoUrl={undefined}
         onOpenOptions={() => setShowOptionsMenu(true)}
       />
-      {loading && messages.length === 0 ? (
-        <View style={styles.loadingContainer}><ActivityIndicator size="large" color={theme.colors.primary} /></View>
-      ) : (
-        <FlashList 
-          ref={flatListRef} 
-          data={messages} 
-          keyExtractor={(item) => item.id}
-          renderItem={renderMessage} 
-          estimatedItemSize={60} 
-          contentContainerStyle={styles.messagesList} 
-          removeClippedSubviews
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
+
+      <FlashList
+        ref={flatListRef}
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={renderMessage}
+        estimatedItemSize={70}
+        contentContainerStyle={styles.listContent}
+      />
+
+      {replyContext && (
+        <ReplyPreview 
+          context={replyContext as any} 
+          onClose={() => setReplyContext(null)} 
         />
       )}
-      {replyContext && <ReplyPreview context={replyContext} onClose={() => setReplyContext(null)} />}
-      <MessageInput value={messageText} onChangeText={setMessageText} onSend={handleSendMessage}
-        replyContext={replyContext} onReplyClose={() => setReplyContext(null)} disabled={sending} />
-      <ChatOptionsMenu visible={showOptionsMenu} onClose={() => setShowOptionsMenu(false)} />
+
+      <MessageInput
+        value={messageText}
+        onChangeText={setMessageText}
+        onSend={handleSendMessage}
+        replyContext={replyContext as any}
+        onReplyClose={() => setReplyContext(null)}
+        disabled={sending}
+      />
+
+      <ChatOptionsMenu
+        visible={showOptionsMenu}
+        onClose={() => setShowOptionsMenu(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
 
-function formatDateHeader(date: Date): string {
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate()) return 'Hoy';
-  if (date.getFullYear() === yesterday.getFullYear() && date.getMonth() === yesterday.getMonth() && date.getDate() === yesterday.getDate()) return 'Ayer';
-  return format(date, "d 'de' MMMM 'de' yyyy", { locale: es });
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', padding: theme.spacing.sm, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  headerInfo: { flex: 1, marginLeft: theme.spacing.sm },
-  headerName: { fontSize: 16, fontWeight: '600', color: theme.colors.textPrimary },
-  typingText: { fontSize: 12, color: theme.colors.typing, fontStyle: 'italic' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  messagesList: { padding: theme.spacing.md },
-  dateHeader: { alignItems: 'center', marginVertical: theme.spacing.md },
-  dateHeaderText: { fontSize: 12, color: theme.colors.textSecondary, backgroundColor: theme.colors.secondaryLight, paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.xs, borderRadius: theme.borderRadius.sm },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  listContent: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  dateHeader: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
 });

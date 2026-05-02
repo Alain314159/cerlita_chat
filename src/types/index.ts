@@ -53,9 +53,11 @@ export interface Message {
   thumbnailURL: string | null;
   status: MessageStatus;
   readAt: Date | null;
+  deliveredAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   isEdited: boolean;
+  editedAt?: Date | null;
   replyToId: string | null;
 }
 
@@ -75,11 +77,15 @@ export interface AuthState {
   error: string | null;
 }
 
-export type {
-  ReactionCounts,
-  ReplyContext,
-  MessageEdit,
-  ForwardTarget,
-  MessageAction,
-  MessageWithMeta,
-} from './message.types';
+export interface ReplyContext {
+  messageId: string;
+  senderName: string;
+  text: string | null;
+  type: MessageType;
+}
+
+export type ReactionCounts = Record<string, { count: number; userReacted: boolean }>;
+export type MessageEdit = { messageId: string; newText: string; chatId: string };
+export type ForwardTarget = { chatId: string; chatName: string };
+export type MessageAction = 'reply' | 'edit' | 'delete' | 'forward' | 'star';
+export type MessageWithMeta = Message & { reactions?: ReactionCounts };

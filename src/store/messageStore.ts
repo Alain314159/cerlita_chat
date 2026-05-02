@@ -185,8 +185,11 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         status: raw.status as Message['status'],
         deliveredAt: raw.delivered_at ? new Date(raw.delivered_at) : null,
         readAt: raw.read_at ? new Date(raw.read_at) : null,
-        createdAt: raw.created_at,
+        createdAt: new Date(raw.created_at),
+        updatedAt: new Date(raw.updated_at),
+        isEdited: raw.is_edited,
         editedAt: raw.is_edited ? new Date(raw.updated_at) : null,
+        replyToId: raw.reply_to_id,
       };
 
       if (msg.type === 'text' && msg.text) {

@@ -35,6 +35,8 @@ export const theme = {
     typing: '#FF69B4',
     
     // Text
+    text: '#1C1C1E', // Added for compatibility
+    textMain: '#1C1C1E', // Added for compatibility
     textPrimary: '#1C1C1E',
     textSecondary: '#8E8E93',
     textTertiary: '#C7C7CC',

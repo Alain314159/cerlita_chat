@@ -10,7 +10,7 @@ export function useNotifications(userId: string | null) {
   useEffect(() => {
     if (!userId) return;
 
-    notificationService.initialize(userId).catch(console.error);
+    notificationService.initialize().catch(console.error);
 
     const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
       const actionIdentifier = response.actionIdentifier;
