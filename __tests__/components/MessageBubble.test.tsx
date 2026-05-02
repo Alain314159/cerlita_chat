@@ -76,21 +76,21 @@ describe('MessageBubble', () => {
   describe('Read Receipts Logic', () => {
     it('should show a single check for "sent" status', () => {
       const message = createMockMessage({ status: 'sent' });
-      const { getByAccessibilityLabel } = render(
+      const { getByLabelText } = render(
         <MessageBubble message={message} isMyMessage={true} />
       );
       
-      const icon = getByAccessibilityLabel('icon-check');
+      const icon = getByLabelText('icon-check');
       expect(icon).toBeTruthy();
     });
 
     it('should show double check for "delivered" status', () => {
       const message = createMockMessage({ status: 'delivered' });
-      const { getByAccessibilityLabel } = render(
+      const { getByLabelText } = render(
         <MessageBubble message={message} isMyMessage={true} />
       );
       
-      const icon = getByAccessibilityLabel('icon-check-all');
+      const icon = getByLabelText('icon-check-all');
       expect(icon).toBeTruthy();
     });
 
@@ -99,22 +99,22 @@ describe('MessageBubble', () => {
         status: 'delivered', 
         readAt: new Date() 
       });
-      const { getByAccessibilityLabel } = render(
+      const { getByLabelText } = render(
         <MessageBubble message={message} isMyMessage={true} />
       );
       
-      const icon = getByAccessibilityLabel('icon-check-all');
+      const icon = getByLabelText('icon-check-all');
       expect(icon.props.iconColor).toBe(theme.colors.tickRead);
     });
 
     it('should not show status icons for received messages', () => {
       const message = createMockMessage({ status: 'read' });
-      const { queryByAccessibilityLabel } = render(
+      const { queryByLabelText } = render(
         <MessageBubble message={message} isMyMessage={false} />
       );
       
-      expect(queryByAccessibilityLabel('icon-check-all')).toBeNull();
-      expect(queryByAccessibilityLabel('icon-check')).toBeNull();
+      expect(queryByLabelText('icon-check-all')).toBeNull();
+      expect(queryByLabelText('icon-check')).toBeNull();
     });
   });
 

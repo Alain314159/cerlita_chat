@@ -33,7 +33,8 @@ describe('chatService', () => {
       const mockChain = {
         select: jest.fn().mockReturnThis(),
         contains: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
+        order: jest.fn().mockReturnThis(),
+        then: jest.fn((resolve) => resolve({ data: null, error: { message: 'DB error' } })),
       };
       (supabase.from as jest.Mock).mockReturnValue(mockChain);
 
@@ -52,7 +53,7 @@ describe('chatService', () => {
       const callback = jest.fn();
       chatService.subscribeToUserChats('user-123', callback);
 
-      expect(supabase.channel).toHaveBeenCalledWith('chats_user-123');
+      expect(supabase.channel).toHaveBeenCalledWith('public:chats:participants=user-123');
       expect(mockChannel.on).toHaveBeenCalled();
       expect(mockChannel.subscribe).toHaveBeenCalled();
     });

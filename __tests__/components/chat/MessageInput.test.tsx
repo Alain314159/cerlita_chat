@@ -6,10 +6,10 @@ jest.mock('react-native-paper', () => {
   const RealModule = jest.requireActual('react-native-paper');
   return {
     ...RealModule,
-    TextInput: function MockTextInput({ value, onChangeText, placeholder, testID, ...props }: any) {
+    TextInput: require('react').forwardRef(function MockTextInput({ value, onChangeText, placeholder, testID, ...props }: any, ref: any) {
       const { View, TextInput: RNTextInput } = require('react-native');
       const React = require('react');
-      return React.createElement(View, props, [
+      return React.createElement(View, { ...props, ref }, [
         React.createElement(RNTextInput, {
           key: 'input',
           value,
@@ -18,7 +18,7 @@ jest.mock('react-native-paper', () => {
           testID,
         }),
       ]);
-    },
+    }),
     IconButton: 'IconButton',
   };
 });

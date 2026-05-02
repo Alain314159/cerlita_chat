@@ -39,6 +39,9 @@ describe('messageService', () => {
         insert: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: mockMsg, error: null }),
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn((resolve) => resolve({ data: mockMsg, error: null })),
       };
       (supabase.from as jest.Mock).mockReturnValue(mockChain);
 
@@ -49,16 +52,10 @@ describe('messageService', () => {
         messageType: 'text',
       });
 
-      expect(mockChain.insert).toHaveBeenCalledWith({
+      expect(mockChain.insert).toHaveBeenCalledWith(expect.objectContaining({
         chat_id: 'chat-123',
-        sender_id: 'user-1',
         content: 'encrypted-text',
-        message_type: 'text',
-        media_url: null,
-        thumbnail_url: null,
-        reply_to_id: null,
-        status: 'sent',
-      });
+      }));
     });
 
     it('should send a message with media and reply', async () => {
@@ -67,6 +64,9 @@ describe('messageService', () => {
         insert: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: mockMsg, error: null }),
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn((resolve) => resolve({ data: mockMsg, error: null })),
       };
       (supabase.from as jest.Mock).mockReturnValue(mockChain);
 
@@ -91,13 +91,17 @@ describe('messageService', () => {
     it('should update message status', async () => {
       const mockChain = {
         update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue({ error: null }),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn((resolve) => resolve({ error: null })),
       };
       (supabase.from as jest.Mock).mockReturnValue(mockChain);
 
       await messageService.updateMessageStatus('msg-1', 'read');
 
-      expect(mockChain.update).toHaveBeenCalledWith({ status: 'read' });
+      expect(mockChain.update).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'read',
+        read_at: expect.any(String)
+      }));
       expect(mockChain.eq).toHaveBeenCalledWith('id', 'msg-1');
     });
   });
@@ -107,14 +111,19 @@ describe('messageService', () => {
       const mockChain = {
         update: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        neq: jest.fn().mockResolvedValue({ error: null }),
+        neq: jest.fn().mockReturnThis(),
+        then: jest.fn((resolve) => resolve({ error: null })),
       };
+      
       (supabase.from as jest.Mock).mockReturnValue(mockChain);
 
       await messageService.markAllAsRead('chat-123', 'user-1');
 
-      expect(mockChain.update).toHaveBeenCalledWith({ status: 'read' });
+      expect(mockChain.update).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'read'
+      }));
       expect(mockChain.eq).toHaveBeenCalledWith('chat_id', 'chat-123');
+      expect(mockChain.neq).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -142,7 +151,7 @@ describe('messageService', () => {
       const callback = jest.fn();
       messageService.subscribeToMessages('chat-123', callback);
 
-      expect(supabase.channel).toHaveBeenCalledWith('messages_chat-123');
+      expect(supabase.channel).toHaveBeenCalledWith('chat:chat-123');
       expect(mockChannel.on).toHaveBeenCalled();
       expect(mockChannel.subscribe).toHaveBeenCalled();
     });

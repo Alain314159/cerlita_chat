@@ -2,9 +2,10 @@ module.exports = {
   preset: 'jest-expo',
   testEnvironment: 'node',
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|expo-modules-core|@react-navigation|@testing-library|date-fns|react-native-paper|@shopify)/)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo.*|@expo.*|react-native-reanimated|@react-navigation|@testing-library|date-fns|react-native-paper|@shopify)/)',
   ],
-  testPathIgnorePatterns: ['/node_modules/', '/e2e/'],
+  testPathIgnorePatterns: ['/node_modules/', '/e2e/', '/setup/'],
+  setupFilesAfterEnv: ['<rootDir>/__tests__/setup/jest.setup.ts'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
