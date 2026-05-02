@@ -38,7 +38,7 @@ Thumbs.db
 google-services.json
 
 # Supabase
-supabase/
+/supabase/
 
 # Firebase
 google-services.json

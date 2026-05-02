@@ -28,8 +28,8 @@ export function useChat(chatId?: string) {
 
   useEffect(() => {
     if (chatId) {
-      chatService.getChatById(chatId).then((chat) => {
-        setActiveChat(chat as any);
+      chatService.getChatById(chatId).then((chat: any) => {
+        setActiveChat(chat);
       }).catch(console.error);
     }
   }, [chatId]);
