@@ -3,10 +3,10 @@ import { Platform } from 'react-native';
 // Environment variables from app.json or .env
 const { EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY } = process.env;
 
-export const SUPABASE_URL = EXPO_PUBLIC_SUPABASE_URL || '';
-export const SUPABASE_ANON_KEY = EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+export const SUPABASE_URL = EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+export const SUPABASE_ANON_KEY = EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+if (!EXPO_PUBLIC_SUPABASE_URL || !EXPO_PUBLIC_SUPABASE_ANON_KEY) {
   console.warn(
     '⚠️ Supabase credentials not configured. Copy .env.example to .env and add your credentials.'
   );
@@ -14,8 +14,8 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 
 export const config = {
   supabase: {
-    url: EXPO_PUBLIC_SUPABASE_URL || '',
-    anonKey: EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
+    url: SUPABASE_URL,
+    anonKey: SUPABASE_ANON_KEY,
   },
   
   app: {
