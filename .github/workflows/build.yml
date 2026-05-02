@@ -12,6 +12,10 @@ jobs:
       run:
         working-directory: cerlita_chat
     
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    
     steps:
       - uses: actions/checkout@v4
 
@@ -43,8 +47,6 @@ jobs:
         with:
           expo-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android (APK)
         if: env.EXPO_TOKEN != null && env.EXPO_TOKEN != ''
@@ -52,5 +54,3 @@ jobs:
           npm install -g eas-cli
           # npx eas build --platform android --profile preview --local --non-interactive
           echo "Build Android step reached"
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
