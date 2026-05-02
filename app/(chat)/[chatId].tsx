@@ -58,7 +58,7 @@ export default function ChatConversationScreen() {
     try {
       const textToSend = messageText.trim();
       setMessageText('');
-      await sendMessage(chatId as string, user.id, textToSend);
+      await sendMessage(textToSend);
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -80,7 +80,7 @@ export default function ChatConversationScreen() {
         <MessageBubble
           message={item}
           isMyMessage={isMyMessage}
-          onReactionPress={(emoji) => addReaction(item.id, emoji, user?.id || '')}
+          onReactionPress={(emoji) => addReaction(item.id, emoji)}
         />
       </View>
     );

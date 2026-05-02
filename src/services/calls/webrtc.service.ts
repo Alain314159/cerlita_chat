@@ -136,6 +136,7 @@ export class WebRTCService {
 
   private listenForSignals(callId: string) {
     this.channel = supabase.channel(`call:${callId}`);
+    if (!this.channel) return;
     this.channel.on(
       'postgres_changes',
       {

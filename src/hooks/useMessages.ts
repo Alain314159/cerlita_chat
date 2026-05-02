@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useMessageStore } from '@/store/messageStore';
 import { useAuthStore } from '@/store/authStore';
-import type { ReplyContext } from '@/types/message.types';
+import type { ReplyContext } from '@/types';
 
 export function useMessages(chatId: string) {
   const {
@@ -23,32 +23,22 @@ export function useMessages(chatId: string) {
 
   const { user } = useAuthStore();
   const [isTyping, setIsTyping] = useState(false);
-
-  // Load messages
-  useEffect(() => {
-    if (chatId) {
-      loadMessages(chatId);
-      subscribeToMessages(chatId);
-    }
-    return () => { if (chatId) unsubscribeFromMessages(chatId); };
-  }, [chatId, loadMessages, subscribeToMessages, unsubscribeFromMessages]);
-
-  // Mark all as read when opening chat
-  useEffect(() => {
-    if (chatId && user) {
-      markAllAsRead(chatId, user.id);
-    }
-  }, [chatId, user, markAllAsRead]);
+  const [sending, setSending] = useState(false);
 
   // Send message
-  const handleSendMessage = useCallback(async (text: string) => {
+  const handleSendMessage = useCallback(async (text: string, options?: any) => {
     if (!user || !chatId) return;
-    await sendMessage(chatId, user.id, text);
+    try {
+      setSending(true);
+      await sendMessage(chatId, user.id, text, options);
+    } finally {
+      setSending(false);
+    }
   }, [user, chatId, sendMessage]);
 
   const handleAddReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!user) return;
-    await addReaction(messageId, user.id, emoji);
+    await addReaction(messageId, emoji, user.id);
   }, [user, addReaction]);
 
   const handleMarkAsRead = useCallback(async (messageId: string) => {
@@ -64,15 +54,19 @@ export function useMessages(chatId: string) {
   return {
     messages,
     loading,
+    sending,
     error,
     isTyping,
     setIsTyping,
     isOtherUserTyping,
+    loadMessages,
+    subscribeToMessages,
+    unsubscribeFromMessages,
     sendMessage: handleSendMessage,
     addReaction: handleAddReaction,
     markAsRead: handleMarkAsRead,
     setError,
     replyContext,
-    setReplyContext: setReplyContext as (context: ReplyContext | null) => void,
+    setReplyContext,
   };
 }
