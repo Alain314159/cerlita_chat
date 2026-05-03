@@ -46,7 +46,8 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.WAKE_LOCK"
       ],
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "bundler": "metro",
