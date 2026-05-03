@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { User, AuthState, AvatarOption } from '@/types';
 import { authService } from '@/services/supabase/auth.service';
 import { supabase } from '@/services/supabase/config';
+import { pushNotificationService } from '@/services/pushNotifications';
 
 interface AuthStore extends AuthState {
   // Actions
@@ -77,8 +78,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       set({ loading: true, error: null });
 
-      await authService.signIn(email, password);
-      // Auth state change will handle the rest
+      const user = await authService.signIn(email, password);
+      
+      set({
+        user,
+        isAuthenticated: true,
+        loading: false,
+        error: null,
+      });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to sign in';
       set({
@@ -94,8 +101,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       set({ loading: true, error: null });
 
-      await authService.signUp(email, password, displayName);
-      // Auth state change will handle the rest
+      const user = await authService.signUp(email, password, displayName);
+      
+      set({
+        user,
+        isAuthenticated: true,
+        loading: false,
+        error: null,
+      });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to sign up';
       set({
@@ -111,9 +124,21 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       set({ loading: true });
       await authService.signOut();
+      
+      // Cleanup notifications
+      pushNotificationService.cleanup();
+      
+      set({
+        user: null,
+        isAuthenticated: false,
+        loading: false,
+      });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to sign out';
-      set({ error: message });
+      set({ 
+        loading: false,
+        error: message 
+      });
       throw error;
     }
   },

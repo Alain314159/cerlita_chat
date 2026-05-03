@@ -4,6 +4,7 @@ import { supabase } from '@/services/supabase/config';
 import type { Message, MessageType, ReplyContext } from '@/types';
 import { messageService } from '@/services/supabase/message.service';
 import { e2eEncryptionService } from '@/services/crypto/e2e.service';
+import { pushNotificationService } from '@/services/pushNotifications';
 
 interface MessageStore {
   messages: Message[];
@@ -120,8 +121,9 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
             .eq('id', chatId)
             .single();
 
-          if (chatData) {
-            const recipientId = chatData.participant_ids.find((id: string) => id !== senderId);
+          const participantIds = (chatData as any)?.participant_ids;
+          if (participantIds) {
+            const recipientId = participantIds.find((id: string) => id !== senderId);
             
             if (recipientId) {
               // Obtener el token y el nombre del destinatario y el nombre del remitente
@@ -138,7 +140,6 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
                 .single();
 
               if (userData?.push_token) {
-                const { pushNotificationService } = await import('@/services/pushNotifications');
                 await pushNotificationService.sendPushNotification(
                   userData.push_token,
                   `Mensaje de ${senderData?.display_name || 'Alguien'}`,

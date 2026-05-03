@@ -22,7 +22,10 @@
         "NSPhotoLibraryUsageDescription": "Cerlita Chat needs access to your photos to share them in chats.",
         "NSPhotoLibraryAddUsageDescription": "Cerlita Chat needs to save shared media to your library.",
         "NSMicrophoneUsageDescription": "Cerlita Chat needs access to your microphone to record audio messages and make calls.",
-        "UIBackgroundModes": ["remote-notification", "voip"]
+        "UIBackgroundModes": [
+          "remote-notification",
+          "voip"
+        ]
       },
       "usesAppleSignIn": true
     },
@@ -81,7 +84,8 @@
           "savePhotosPermission": "Cerlita Chat needs to save media to your library.",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      "sentry-expo"
     ],
     "experiments": {
       "typedRoutes": true
