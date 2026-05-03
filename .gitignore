@@ -34,15 +34,8 @@ Thumbs.db
 *.swp
 *.swo
 
-# Firebase
-google-services.json
-
 # Supabase
 /supabase/
-
-# Firebase
-google-services.json
-google-service-account.json
 
 # Debug logs
 npm-debug.log*
