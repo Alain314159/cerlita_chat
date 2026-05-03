@@ -55,6 +55,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/withAndroidResolution.js",
       "expo-router",
       "expo-font",
       "expo-secure-store",
