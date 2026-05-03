@@ -90,6 +90,32 @@ class PushNotificationService {
     });
   }
 
+  public async sendPushNotification(targetToken: string, title: string, body: string, data: NotificationData = {}) {
+    if (!targetToken) return;
+
+    const message = {
+      to: targetToken,
+      sound: 'default',
+      title: title,
+      body: body,
+      data: data,
+    };
+
+    try {
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(message),
+      });
+    } catch (error) {
+      console.error('[PushNotifications] Error sending notification:', error);
+    }
+  }
+
   public cleanup() {
     if (this.receivedListener) Notifications.removeNotificationSubscription(this.receivedListener);
     if (this.responseListener) Notifications.removeNotificationSubscription(this.responseListener);

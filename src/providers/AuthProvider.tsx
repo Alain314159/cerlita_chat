@@ -2,10 +2,8 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useRouter, useSegments } from 'expo-router';
 import { AppState, type AppStateStatus } from 'react-native';
 import { useAuthStore } from '@/store/authStore';
-import { notificationService } from '@/services/notifications/notification.service';
-import { MockNotificationProvider } from '@/services/notifications/providers/MockProvider';
+import { pushNotificationService } from '@/services/pushNotifications';
 import { SplashScreen } from '@/components/ui/SplashScreen';
-import { authService } from '@/services/supabase/auth.service';
 
 interface AuthContextType {
   user: any;
@@ -28,8 +26,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Inicializar notificaciones con el proveedor mock (cambiar por OneSignal/etc después)
-        notificationService.setProvider(new MockNotificationProvider());
         await initialize();
       } catch (error) {
         console.error('Failed to initialize auth:', error);
@@ -41,10 +37,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
   }, []);
 
+  // Inicializar notificaciones cuando está autenticado
+  useEffect(() => {
+    if (isAuthenticated && !loading && user?.id) {
+      pushNotificationService.initialize(user.id).catch(console.error);
+    }
+    
+    return () => {
+      pushNotificationService.cleanup();
+    };
+  }, [isAuthenticated, loading, user?.id]);
+
   // Manejar cambios de estado de la app (background/foreground)
   useEffect(() => {
-    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      // Presence tracking would need Supabase presence - skip for now
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
       console.log('App state changed:', nextAppState);
     };
 
@@ -52,30 +58,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { subscription.remove(); };
   }, [user]);
 
-  // Inicializar notificaciones cuando está autenticado
-  useEffect(() => {
-    if (isAuthenticated && !loading && user?.id) {
-      notificationService.initialize().catch(console.error);
-    }
-  }, [isAuthenticated, loading, user?.id]);
-
   // Proteger rutas
   useEffect(() => {
     if (isInitializing || loading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
-    const inChatGroup = segments[0] === '(chat)';
 
     if (!isAuthenticated && !inAuthGroup) {
-      // No autenticado, redirigir a login
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      // Autenticado pero en rutas de auth, redirigir a chats
       router.replace('/(chat)');
     }
   }, [isAuthenticated, loading, isInitializing, segments]);
 
-  // Función de signOut
   const signOut = useCallback(async () => {
     try {
       await storeSignOut();
@@ -85,7 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [storeSignOut, router]);
 
-  // Mostrar pantalla de carga mientras inicializa
   if (isInitializing || loading) {
     return <SplashScreen />;
   }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { List, Switch, Button, Divider } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,15 +9,37 @@ import { Avatar } from '@/components/ui/Avatar';
 import { AvatarSelector } from '@/components/ui/AvatarSelector';
 import type { AvatarOption } from '@/types';
 import { haptics } from '@/services/haptics';
+import { backgroundTaskService } from '@/services/backgroundTasks';
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const { updateAvatar } = useAuthLogic();
   const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = React.useState(true);
+  const [backgroundPolling, setBackgroundPolling] = React.useState(false);
   const [sound, setSound] = React.useState(true);
   const [darkMode, setDarkMode] = React.useState(false);
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
+
+  // Cargar estado inicial del polling
+  useEffect(() => {
+    backgroundTaskService.isPollingEnabled().then(setBackgroundPolling);
+  }, []);
+
+  const handleBackgroundPollingToggle = async (value: boolean) => {
+    try {
+      await backgroundTaskService.setPollingEnabled(value);
+      setBackgroundPolling(value);
+      if (value) {
+        Alert.alert(
+          'Modo Respaldo Activado',
+          'La app revisará si hay mensajes nuevos cada 20 minutos de forma automática.'
+        );
+      }
+    } catch (error) {
+      console.error('Failed to toggle background polling:', error);
+    }
+  };
 
   const handleAvatarSelect = useCallback(
     async (avatar: AvatarOption) => {
@@ -115,6 +137,20 @@ export default function SettingsScreen() {
               />
             )}
             testID="notifications-switch"
+          />
+
+          <List.Item
+            title="Modo Respaldo (20m)"
+            description="Revisar mensajes cada 20 min"
+            left={(props) => <List.Icon {...props} icon="sync" />}
+            right={() => (
+              <Switch
+                value={backgroundPolling}
+                onValueChange={handleBackgroundPollingToggle}
+                color={theme.colors.primary}
+              />
+            )}
+            testID="background-polling-switch"
           />
 
           <List.Item

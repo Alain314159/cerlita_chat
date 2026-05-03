@@ -90,13 +90,16 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       set({ loading: true, error: null });
       const messageType = options?.messageType || 'text';
       let content = text;
+      
       if (messageType === 'text') {
         const { ciphertext } = await e2eEncryptionService.encrypt(text, chatId);
         content = ciphertext;
       }
+      
       const { replyContext } = get();
       const replyToId = options?.replyToId || replyContext?.messageId || null;
 
+      // 1. Enviar el mensaje a la DB
       await messageService.sendMessage({
         chatId,
         senderId,
@@ -106,6 +109,49 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         thumbnailUrl: options?.thumbnailUrl || null,
         replyToId,
       });
+
+      // 2. Intentar enviar notificación Push (fuera del await principal para no bloquear)
+      (async () => {
+        try {
+          // Obtener datos del chat para encontrar al destinatario
+          const { data: chatData } = await supabase
+            .from('chats')
+            .select('participant_ids')
+            .eq('id', chatId)
+            .single();
+
+          if (chatData) {
+            const recipientId = chatData.participant_ids.find((id: string) => id !== senderId);
+            
+            if (recipientId) {
+              // Obtener el token y el nombre del destinatario y el nombre del remitente
+              const { data: userData } = await supabase
+                .from('users')
+                .select('push_token, display_name')
+                .eq('id', recipientId)
+                .single();
+
+              const { data: senderData } = await supabase
+                .from('users')
+                .select('display_name')
+                .eq('id', senderId)
+                .single();
+
+              if (userData?.push_token) {
+                const { pushNotificationService } = await import('@/services/pushNotifications');
+                await pushNotificationService.sendPushNotification(
+                  userData.push_token,
+                  `Mensaje de ${senderData?.display_name || 'Alguien'}`,
+                  messageType === 'text' ? text : `Te ha enviado un ${messageType}`,
+                  { chatId, type: 'new_message' }
+                );
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[PushNotification] Error sending notification:', err);
+        }
+      })();
 
       set({ replyContext: null, loading: false });
     } catch (error: unknown) {
