@@ -66,6 +66,14 @@ export const MessageBubble = React.memo(function MessageBubble({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const renderContent = () => {
+    if (message.isViewOnce && message.readAt && !isMyMessage) {
+      return (
+        <View style={{ flexDirection: 'row', alignItems: 'center', opacity: 0.7 }}>
+          <IconButton icon="eye-off-outline" size={20} iconColor={theme.colors.textSecondary} />
+          <Text style={{ fontSize: 14, fontStyle: 'italic', color: theme.colors.textSecondary }}>Mensaje visto</Text>
+        </View>
+      );
+    }
     if (message.type === 'image' && message.mediaURL) {
       return (
         <Image 
@@ -122,6 +130,12 @@ export const MessageBubble = React.memo(function MessageBubble({
           />
         )}
         <View style={styles.meta}>
+          {message.isEphemeral && (
+            <IconButton icon="timer-outline" size={12} iconColor="rgba(255,255,255,0.5)" style={{ margin: 0, padding: 0, width: 14, height: 14 }} />
+          )}
+          {message.isViewOnce && (
+            <IconButton icon="lightning-bolt" size={12} iconColor="rgba(255,255,255,0.5)" style={{ margin: 0, padding: 0, width: 14, height: 14 }} />
+          )}
           <Text style={styles.time}>
             {format(new Date(message.createdAt), 'HH:mm', { locale: es })}
           </Text>

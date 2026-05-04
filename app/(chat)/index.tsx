@@ -105,9 +105,14 @@ export default function ChatListScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Chats</Text>
-        <TouchableOpacity onPress={() => useRouter().push('/(chat)/new')}>
-          <Ionicons name="add-circle-outline" size={28} color={theme.colors.primary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <TouchableOpacity onPress={() => useRouter().push('/(chat)/requests')}>
+            <Ionicons name="heart-outline" size={26} color={theme.colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => useRouter().push('/(chat)/new')}>
+            <Ionicons name="add-circle-outline" size={28} color={theme.colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.searchContainer}>
