@@ -30,6 +30,22 @@ export const authService = {
     return data;
   },
 
+  // Create user profile
+  async createProfile(params: { id: string; email: string; display_name: string }) {
+    const { error } = await supabase
+      .from('users')
+      .upsert({
+        id: params.id,
+        email: params.email,
+        display_name: params.display_name,
+        updated_at: new Date().toISOString(),
+      } as any);
+
+    if (error && !error.message.includes('duplicate key')) {
+      throw new Error(error.message);
+    }
+  },
+
   // Sign out
   async signOut() {
     const { error } = await supabase.auth.signOut();

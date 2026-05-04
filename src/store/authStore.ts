@@ -100,14 +100,25 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       set({ loading: true, error: null });
 
-      const user = await authService.signUp(email, password, displayName);
+      const data = await authService.signUp(email, password, displayName);
       
-      set({
-        user,
-        isAuthenticated: true,
-        loading: false,
-        error: null,
-      });
+      if (data.user) {
+        // Manually create user profile if trigger is missing
+        await authService.createProfile({
+          id: data.user.id,
+          email: data.user.email || email,
+          display_name: displayName,
+        });
+        
+        const userProfile = await authService.getUserProfile(data.user.id);
+
+        set({
+          user: userProfile,
+          isAuthenticated: true,
+          loading: false,
+          error: null,
+        });
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to sign up';
       set({

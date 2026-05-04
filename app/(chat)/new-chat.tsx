@@ -28,6 +28,7 @@ export default function NewChatScreen() {
 
     try {
       setSearching(true);
+      console.log(`[NewChat] Buscando: "${query}"`);
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -36,6 +37,7 @@ export default function NewChatScreen() {
 
       if (error) throw error;
 
+      console.log(`[NewChat] Usuarios encontrados: ${data?.length || 0}`);
       setUsers(data || []);
     } catch (error) {
       console.error('Failed to search users:', error);

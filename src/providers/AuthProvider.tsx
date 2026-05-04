@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter, useSegments } from 'expo-router';
-import { AppState, type AppStateStatus } from 'react-native';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
 import { useAuthStore } from '@/store/authStore';
 import { pushNotificationService } from '@/services/pushNotifications';
 import { SplashScreen } from '@/components/ui/SplashScreen';

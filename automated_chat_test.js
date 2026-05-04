@@ -10,14 +10,24 @@ const { chromium } = require('playwright');
     const context = await browser.newContext({ viewport: { width: 400, height: 800 } });
     const page = await context.newPage();
     
+    page.on('console', msg => console.log(`[BROWSER ${name}] ${msg.type()}: ${msg.text()}`));
+    page.on('pageerror', err => console.error(`[BROWSER ERROR ${name}] ${err.message}`));
+    
     page.on('dialog', async dialog => {
       console.log(`[${name} DIALOG] ${dialog.message()}`);
       await dialog.accept();
     });
 
     console.log(`🔗 Navegando directamente a /register para ${name}...`);
-    await page.goto('http://localhost:8082/register');
-    await page.waitForSelector('input');
+    await page.goto('http://localhost:8082/register', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    try {
+      await page.waitForSelector('input', { timeout: 60000 });
+    } catch (e) {
+      const content = await page.content();
+      console.log('HTML al fallar:', content.substring(0, 1000));
+      await page.screenshot({ path: `error_register_${name}.png` });
+      throw e;
+    }
 
     const inputs = await page.$$('input');
     if (inputs.length >= 4) {
@@ -66,7 +76,9 @@ const { chromium } = require('playwright');
     
     // Clic en el resultado de búsqueda
     console.log('🖱️ Clic en el usuario encontrado...');
-    await userB.page.click(`text="${userA_data.name}"`);
+    const userItem = userB.page.locator(`text=${userA_data.name}`).first();
+    await userItem.waitFor({ state: 'visible', timeout: 10000 });
+    await userItem.click();
     
     await userB.page.waitForTimeout(3000);
     await userB.page.screenshot({ path: 'chat_02_inside_room.png' });
