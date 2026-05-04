@@ -56,7 +56,6 @@ export default function RequestsScreen() {
             <Card.Content style={styles.cardContent}>
               <UserAvatar 
                 photoURL={item.sender?.photo_url} 
-                displayName={item.sender?.display_name || 'Alguien'} 
                 size={50} 
               />
               <View style={styles.info}>

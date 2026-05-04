@@ -1,12 +1,11 @@
 import { Platform } from 'react-native';
 
 // Environment variables from app.json or .env
-const { EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY } = process.env;
+// Usamos acceso estático directo para que Metro las inyecte correctamente en web
+export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 
-export const SUPABASE_URL = EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-export const SUPABASE_ANON_KEY = EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
-
-if (!EXPO_PUBLIC_SUPABASE_URL || !EXPO_PUBLIC_SUPABASE_ANON_KEY) {
+if (SUPABASE_URL.includes('placeholder') || SUPABASE_ANON_KEY.includes('placeholder')) {
   console.warn(
     '⚠️ Supabase credentials not configured. Copy .env.example to .env and add your credentials.'
   );

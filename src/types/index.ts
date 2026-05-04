@@ -59,6 +59,8 @@ export interface Message {
   isEdited: boolean;
   editedAt?: Date | null;
   replyToId: string | null;
+  isEphemeral?: boolean;
+  isViewOnce?: boolean;
 }
 
 export interface MessageReaction {

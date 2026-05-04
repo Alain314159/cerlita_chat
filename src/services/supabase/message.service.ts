@@ -42,6 +42,7 @@ export const messageService = {
     isEphemeral?: boolean;
     expiresAt?: string | null;
     isViewOnce?: boolean;
+    replyToId?: string | null;
     }) {
     const { data, error } = await (supabase.from('messages') as any).insert({
       chat_id: params.chatId,
@@ -58,11 +59,20 @@ export const messageService = {
     }).select().single();
 
     if (error) throw new Error(error.message);
-    return data;
-    },
 
-    // Mark a view-once message as viewed (burn after reading)
-    async markAsViewed(messageId: string) {
+    // Update the last message in the chat
+    await supabase.from('chats')
+      .update({ 
+        last_message_id: data.id,
+        updated_at: new Date().toISOString()
+      } as any)
+      .eq('id', params.chatId);
+
+    return data;
+  },
+
+  // Mark a view-once message as viewed (burn after reading)
+  async markAsViewed(messageId: string) {
     const { error } = await supabase
       .from('messages')
       .update({ 
@@ -73,16 +83,6 @@ export const messageService = {
       .eq('is_view_once', true);
 
     if (error) throw new Error(error.message);
-    },
-    ...
-    await supabase.from('chats')
-      .update({ 
-        last_message_id: data.id,
-        updated_at: new Date().toISOString()
-      } as any)
-      .eq('id', params.chatId);
-
-    return data;
   },
 
   // Update a message (edit)

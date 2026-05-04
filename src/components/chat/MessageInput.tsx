@@ -36,16 +36,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     setIsViewOnce(false);
   };
 
-  const toggleEphemeral = () => {
-    setIsEphemeral(!isEphemeral);
-    if (!isEphemeral) setIsViewOnce(false);
-  };
-
-  const toggleViewOnce = () => {
-    setIsViewOnce(!isViewOnce);
-    if (!isViewOnce) setIsEphemeral(false);
-  };
-
   const handleTermuxKeyPress = (key: TermuxKey) => {
     switch (key) {
       case 'TAB': {
@@ -137,7 +127,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
         />
         {hasText ? (
-          <TouchableOpacity style={styles.sendButton} onPress={onSend} disabled={!hasText || disabled}>
+          <TouchableOpacity style={styles.sendButton} onPress={handleSend} disabled={!hasText || disabled}>
             <IconButton icon="send" size={22} iconColor={theme.colors.primary} />
           </TouchableOpacity>
         ) : (
@@ -158,15 +148,6 @@ const styles = StyleSheet.create({
   input: { flex: 1, backgroundColor: theme.colors.surface, maxHeight: 120 },
   inputContent: { minHeight: 40 },
   privacyControls: { flexDirection: 'row', alignItems: 'center' },
-  sendButton: { justifyContent: 'center', alignItems: 'center' },
-  alternateButtons: { flexDirection: 'row' },
-});
-Sheet.create({
-  container: { backgroundColor: theme.colors.background, borderTopWidth: 1, borderTopColor: theme.colors.border },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, padding: 8 },
-  attachButton: { justifyContent: 'center', alignItems: 'center' },
-  input: { flex: 1, backgroundColor: theme.colors.surface, maxHeight: 120 },
-  inputContent: { minHeight: 40 },
   sendButton: { justifyContent: 'center', alignItems: 'center' },
   alternateButtons: { flexDirection: 'row' },
 });

@@ -7,7 +7,18 @@ jest.mock('@/services/supabase/auth.service');
 jest.mock('@/services/pushNotifications');
 
 describe('authStore', () => {
-  const mockUser = { id: 'user-123', email: 'test@example.com', displayName: 'Test User' };
+  const mockUser = { 
+    id: 'user-123', 
+    email: 'test@example.com', 
+    displayName: 'Test User',
+    photoURL: null,
+    isOnline: false,
+    lastSeen: null,
+    isTyping: false,
+    pushToken: null,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();

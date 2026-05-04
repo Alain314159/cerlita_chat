@@ -88,54 +88,60 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
 
   sendMessage: async (chatId, senderId, text, options) => {
     return safeStoreAction('sendMessage', async () => {
-      set({ loading: true, error: null });
-      const messageType = options?.messageType || 'text';
-      let content = text;
-      
-      if (messageType === 'text') {
-        const { ciphertext } = await e2eEncryptionService.encrypt(text, chatId);
-        content = ciphertext;
-      }
-      
-      const { replyContext } = get();
-      const replyToId = options?.replyToId || replyContext?.messageId || null;
-
-      // 1. Enviar el mensaje a la DB
-      await messageService.sendMessage({
-        chatId,
-        senderId,
-        content,
-        messageType,
-        mediaUrl: options?.mediaUrl || null,
-        thumbnailUrl: options?.thumbnailUrl || null,
-        replyToId,
-      });
-
-      // 2. Intentar enviar notificación Push
-      (async () => {
-        try {
-          const participantIds = await messageService.getChatParticipants(chatId);
-          const recipientId = participantIds?.find((id: string) => id !== senderId);
-            
-          if (recipientId) {
-            const userData = await userService.getUserById(recipientId);
-            const senderData = await userService.getUserById(senderId);
-
-            if (userData?.push_token) {
-              await pushNotificationService.sendPushNotification(
-                userData.push_token,
-                `Mensaje de ${senderData?.display_name || 'Alguien'}`,
-                messageType === 'text' ? text : `Te ha enviado un ${messageType}`,
-                { chatId, type: 'new_message' }
-              );
-            }
-          }
-        } catch (err) {
-          console.error('[PushNotification] Error sending notification:', err);
+      try {
+        set({ loading: true, error: null });
+        const messageType = options?.messageType || 'text';
+        let content = text;
+        
+        if (messageType === 'text') {
+          const { ciphertext } = await e2eEncryptionService.encrypt(text, chatId);
+          content = ciphertext;
         }
-      })();
+        
+        const { replyContext } = get();
+        const replyToId = options?.replyToId || replyContext?.messageId || null;
 
-      set({ replyContext: null, loading: false });
+        // 1. Enviar el mensaje a la DB
+        await messageService.sendMessage({
+          chatId,
+          senderId,
+          content,
+          messageType,
+          mediaUrl: options?.mediaUrl || null,
+          thumbnailUrl: options?.thumbnailUrl || null,
+          replyToId,
+        });
+
+        // 2. Intentar enviar notificación Push
+        (async () => {
+          try {
+            const participantIds = await messageService.getChatParticipants(chatId);
+            const recipientId = participantIds?.find((id: string) => id !== senderId);
+              
+            if (recipientId) {
+              const userData = await userService.getUserById(recipientId);
+              const senderData = await userService.getUserById(senderId);
+
+              if (userData?.pushToken) {
+                await pushNotificationService.sendPushNotification(
+                  userData.pushToken,
+                  `Mensaje de ${senderData?.displayName || 'Alguien'}`,
+                  messageType === 'text' ? text : `Te ha enviado un ${messageType}`,
+                  { chatId, type: 'new_message' }
+                );
+              }
+
+            }
+          } catch (err) {
+            console.error('[PushNotification] Error sending notification:', err);
+          }
+        })();
+
+        set({ replyContext: null, loading: false });
+      } catch (error: any) {
+        set({ loading: false, error: error.message });
+        throw error;
+      }
     }, { chatId, senderId });
   },
 

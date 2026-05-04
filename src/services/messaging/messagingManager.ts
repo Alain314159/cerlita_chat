@@ -14,7 +14,7 @@ export const messagingManager = {
     text: string,
     options: any = {},
     retryCount = 0
-  ) {
+  ): Promise<any> {
     try {
       const messageType = options?.messageType || 'text';
       let content = text;

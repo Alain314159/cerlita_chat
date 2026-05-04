@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { theme } from '@/config/theme';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { QueryProvider } from '@/providers/QueryProvider';
@@ -12,12 +12,14 @@ import { backgroundTaskService } from '@/services/backgroundTasks';
 
 export default function RootLayout() {
   useEffect(() => {
-    // Re-register task if enabled on startup
-    backgroundTaskService.isPollingEnabled().then(enabled => {
-      if (enabled) {
-        backgroundTaskService.register().catch(console.error);
-      }
-    });
+    // Re-register task if enabled on startup (Native only)
+    if (Platform.OS !== 'web') {
+      backgroundTaskService.isPollingEnabled().then(enabled => {
+        if (enabled) {
+          backgroundTaskService.register().catch(console.error);
+        }
+      });
+    }
   }, []);
 
   return (

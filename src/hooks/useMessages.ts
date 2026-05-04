@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useMessageStore } from '@/store/messageStore';
 import { useAuthStore } from '@/store/authStore';
 import { useMessagesQuery } from './useMessagesQuery';
@@ -12,14 +12,15 @@ export function useMessages(chatId: string) {
     replyContext,
     sendMessage,
     markAsRead,
-    markAllAsRead,
     addReaction,
     subscribeToMessages,
     unsubscribeFromMessages,
     setError,
     setReplyContext,
+    loadMessages,
+    error: storeError,
   } = useMessageStore();
-...
+
   const { user } = useAuthStore();
   const [isTyping, setIsTyping] = useState(false);
   const [sending, setSending] = useState(false);
@@ -54,7 +55,7 @@ export function useMessages(chatId: string) {
     messages,
     loading,
     sending,
-    error,
+    error: queryError || storeError,
     isTyping,
     setIsTyping,
     isOtherUserTyping,

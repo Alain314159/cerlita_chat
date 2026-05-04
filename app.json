@@ -52,6 +52,7 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+    "baseUrl": "/cerlita_chat",
     "plugins": [
       "./plugins/withAndroidResolution.js",
       "expo-router",

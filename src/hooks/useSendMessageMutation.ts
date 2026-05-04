@@ -59,10 +59,9 @@ export function useSendMessageMutation(chatId: string) {
           } as any,
         ]);
       }
-  ...
       return { previousMessages };
     },
-...
+
     onError: (err, newMessage, context) => {
       if (context?.previousMessages) {
         queryClient.setQueryData(['messages', chatId], context.previousMessages);
@@ -73,7 +72,7 @@ export function useSendMessageMutation(chatId: string) {
       queryClient.invalidateQueries({ queryKey: ['messages', chatId] });
     },
     
-    // Configuración 2026: Reintentos infinitos si falla por red
+    // Configuración 2026: Reintentos si falla por red
     retry: 3,
   });
 }
