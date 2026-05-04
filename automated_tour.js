@@ -24,13 +24,15 @@ const path = require('path');
     await page.screenshot({ path: 'tour_02_register_form.png' });
 
     console.log(`✍️ Registrando usuario: ${testEmail}`);
-    // En Expo Web con React Native Paper, los placeholders son labels o inputs
-    await page.fill('input[type="text"] >> nth=0', testName); // Nombre
-    await page.fill('input[type="text"] >> nth=1', testEmail); // Email
-    await page.fill('input[type="password"]', 'Password123!'); // Contraseña
+    await page.waitForSelector('input');
+    const inputs = await page.$$('input');
+    await inputs[0].fill(testName);
+    await inputs[1].fill(testEmail);
+    await inputs[2].fill('Password123!');
+    await inputs[3].fill('Password123!');
     
     await page.screenshot({ path: 'tour_03_form_filled.png' });
-    await page.click('text="Registrarse"');
+    await page.click('button:has-text("Crear Cuenta")');
 
     console.log('⏳ Esperando redirección al Dashboard...');
     await page.waitForTimeout(5000); // Esperar carga de Supabase y redirección

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Avatar, Searchbar, ActivityIndicator } from 'react-native-paper';
@@ -12,11 +12,43 @@ import type { User } from '@/types';
 export default function NewChatScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<User[]>([]);
+  const [contacts, setContacts] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const { user } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  // Cargar contactos (conexiones aceptadas)
+  const loadContacts = async () => {
+    if (!user?.id) return;
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('connection_requests')
+        .select(`
+          sender:sender_id (*),
+          receiver:receiver_id (*)
+        `)
+        .eq('status', 'accepted')
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+
+      if (error) throw error;
+
+      const contactList = data.map((conn: any) => 
+        conn.sender.id === user.id ? conn.receiver : conn.sender
+      );
+      setContacts(contactList);
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadContacts();
+  }, [user?.id]);
 
   const searchUsers = async (query: string) => {
     setSearchQuery(query);
@@ -28,7 +60,6 @@ export default function NewChatScreen() {
 
     try {
       setSearching(true);
-      console.log(`[NewChat] Buscando: "${query}"`);
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -36,8 +67,6 @@ export default function NewChatScreen() {
         .limit(20);
 
       if (error) throw error;
-
-      console.log(`[NewChat] Usuarios encontrados: ${data?.length || 0}`);
       setUsers(data || []);
     } catch (error) {
       console.error('Failed to search users:', error);
@@ -85,7 +114,7 @@ export default function NewChatScreen() {
       {/* Search */}
       <View style={styles.searchContainer}>
         <Searchbar
-          placeholder="Buscar por email o nombre..."
+          placeholder="Buscar nuevos usuarios..."
           onChangeText={searchUsers}
           value={searchQuery}
           style={styles.searchbar}
@@ -94,35 +123,32 @@ export default function NewChatScreen() {
         />
       </View>
 
-      {/* Results */}
-      {searching ? (
+      {/* List */}
+      {searching || loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       ) : (
         <FlatList
-          data={users}
+          data={searchQuery ? users : contacts}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          ListHeaderComponent={!searchQuery && contacts.length > 0 ? (
+            <Text style={styles.sectionTitle}>Mis Contactos</Text>
+          ) : null}
           ListEmptyComponent={
-            searchQuery && !searching ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>🔍</Text>
-                <Text style={styles.emptyTitle}>No se encontraron usuarios</Text>
-                <Text style={styles.emptySubtitle}>
-                  Intenta con otro email o nombre
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>👥</Text>
-                <Text style={styles.emptyTitle}>Busca a alguien</Text>
-                <Text style={styles.emptySubtitle}>
-                  Escribe el email o nombre de la persona
-                </Text>
-              </View>
-            )
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>{searchQuery ? '🔍' : '👥'}</Text>
+              <Text style={styles.emptyTitle}>
+                {searchQuery ? 'Sin resultados' : 'No tienes contactos'}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {searchQuery 
+                  ? 'Intenta con otro nombre' 
+                  : 'Busca a alguien para enviarle una solicitud'}
+              </Text>
+            </View>
           }
         />
       )}
@@ -152,6 +178,14 @@ const styles = StyleSheet.create({
     elevation: 0,
     borderWidth: 1,
     borderColor: theme.colors.border,
+  },
+  sectionTitle: {
+    padding: theme.spacing.md,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: theme.colors.secondary,
+    backgroundColor: theme.colors.backgroundSecondary,
+    textTransform: 'uppercase',
   },
   listContent: {
     flexGrow: 1,
