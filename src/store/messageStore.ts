@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { supabase } from '@/services/supabase/config';
 import type { Message, MessageType, ReplyContext } from '@/types';
 import { messageService } from '@/services/supabase/message.service';
 import { e2eEncryptionService } from '@/services/crypto/e2e.service';
 import { pushNotificationService } from '@/services/pushNotifications';
+import { userService } from '@/services/supabase/user.service';
+import { safeStoreAction } from '@/utils/safeAction';
 
 interface MessageStore {
   messages: Message[];
@@ -68,7 +69,6 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       const decryptedMessages = await Promise.all(
         messages.map(async (msg: any) => {
           if (msg.content && msg.message_type === 'text') {
-
             try {
               const decrypted = await e2eEncryptionService.decrypt(msg.content, '', chatId);
               return { ...msg, text: decrypted };
@@ -87,7 +87,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   },
 
   sendMessage: async (chatId, senderId, text, options) => {
-    try {
+    return safeStoreAction('sendMessage', async () => {
       set({ loading: true, error: null });
       const messageType = options?.messageType || 'text';
       let content = text;
@@ -111,42 +111,23 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         replyToId,
       });
 
-      // 2. Intentar enviar notificación Push (fuera del await principal para no bloquear)
+      // 2. Intentar enviar notificación Push
       (async () => {
         try {
-          // Obtener datos del chat para encontrar al destinatario
-          const { data: chatData } = await supabase
-            .from('chats')
-            .select('participant_ids')
-            .eq('id', chatId)
-            .single();
-
-          const participantIds = (chatData as any)?.participant_ids;
-          if (participantIds) {
-            const recipientId = participantIds.find((id: string) => id !== senderId);
+          const participantIds = await messageService.getChatParticipants(chatId);
+          const recipientId = participantIds?.find((id: string) => id !== senderId);
             
-            if (recipientId) {
-              // Obtener el token y el nombre del destinatario y el nombre del remitente
-              const { data: userData } = await supabase
-                .from('users')
-                .select('push_token, display_name')
-                .eq('id', recipientId)
-                .single();
+          if (recipientId) {
+            const userData = await userService.getUserById(recipientId);
+            const senderData = await userService.getUserById(senderId);
 
-              const { data: senderData } = await supabase
-                .from('users')
-                .select('display_name')
-                .eq('id', senderId)
-                .single();
-
-              if (userData?.push_token) {
-                await pushNotificationService.sendPushNotification(
-                  userData.push_token,
-                  `Mensaje de ${senderData?.display_name || 'Alguien'}`,
-                  messageType === 'text' ? text : `Te ha enviado un ${messageType}`,
-                  { chatId, type: 'new_message' }
-                );
-              }
+            if (userData?.push_token) {
+              await pushNotificationService.sendPushNotification(
+                userData.push_token,
+                `Mensaje de ${senderData?.display_name || 'Alguien'}`,
+                messageType === 'text' ? text : `Te ha enviado un ${messageType}`,
+                { chatId, type: 'new_message' }
+              );
             }
           }
         } catch (err) {
@@ -155,11 +136,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       })();
 
       set({ replyContext: null, loading: false });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to send message';
-      set({ loading: false, error: message });
-      throw error;
-    }
+    }, { chatId, senderId });
   },
 
   editMessage: async (messageId, newText, chatId) => {
@@ -288,11 +265,8 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
 
   getReplyContext: async (messageId) => {
     try {
-      const { data, error } = await (supabase.from('messages') as any)
-        .select('id, sender_id, message_type, content')
-        .eq('id', messageId)
-        .single();
-      if (error) return null;
+      const data = await messageService.getMessageById(messageId);
+      if (!data) return null;
       return {
         messageId: data.id,
         senderName: 'User',
@@ -337,9 +311,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
 
   addReaction: async (messageId, emoji, userId) => {
     try {
-      const { error } = await (supabase.from('message_reactions') as any)
-        .insert({ message_id: messageId, emoji, user_id: userId });
-      if (error) { console.error('Reaction error:', error.message); return; }
+      await messageService.addReaction(messageId, emoji, userId);
       const msgReactions = get().reactions.get(messageId) || new Map();
       const users = msgReactions.get(emoji) || [];
       if (!users.includes(userId)) {
@@ -351,9 +323,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
 
   removeReaction: async (messageId, emoji, userId) => {
     try {
-      await (supabase.from('message_reactions') as any)
-        .delete()
-        .match({ message_id: messageId, emoji, user_id: userId });
+      await messageService.removeReaction(messageId, emoji, userId);
       const msgReactions = get().reactions.get(messageId);
       if (msgReactions) {
         const users = msgReactions.get(emoji) || [];
@@ -371,3 +341,4 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     return result;
   },
 }));
+

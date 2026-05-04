@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { User, AuthState, AvatarOption } from '@/types';
 import { authService } from '@/services/supabase/auth.service';
-import { supabase } from '@/services/supabase/config';
 import { pushNotificationService } from '@/services/pushNotifications';
 
 interface AuthStore extends AuthState {
@@ -27,7 +26,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       set({ loading: true, error: null });
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await authService.getSession();
 
       if (session?.user) {
         const userProfile = await authService.getUserProfile(session.user.id);

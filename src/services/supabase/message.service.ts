@@ -39,8 +39,10 @@ export const messageService = {
     messageType: string;
     mediaUrl?: string | null;
     thumbnailUrl?: string | null;
-    replyToId?: string | null;
-  }) {
+    isEphemeral?: boolean;
+    expiresAt?: string | null;
+    isViewOnce?: boolean;
+    }) {
     const { data, error } = await (supabase.from('messages') as any).insert({
       chat_id: params.chatId,
       sender_id: params.senderId,
@@ -50,11 +52,29 @@ export const messageService = {
       thumbnail_url: params.thumbnailUrl,
       reply_to_id: params.replyToId,
       status: 'sent',
+      is_ephemeral: params.isEphemeral || false,
+      expires_at: params.expiresAt || null,
+      is_view_once: params.isViewOnce || false,
     }).select().single();
 
     if (error) throw new Error(error.message);
+    return data;
+    },
 
-    // Update the last_message_id in the chat
+    // Mark a view-once message as viewed (burn after reading)
+    async markAsViewed(messageId: string) {
+    const { error } = await supabase
+      .from('messages')
+      .update({ 
+        viewed_at: new Date().toISOString(),
+        content: '[Mensaje de visualización única ya visto]', // Sobrescribir contenido por seguridad
+      } as any)
+      .eq('id', messageId)
+      .eq('is_view_once', true);
+
+    if (error) throw new Error(error.message);
+    },
+    ...
     await supabase.from('chats')
       .update({ 
         last_message_id: data.id,
@@ -112,6 +132,49 @@ export const messageService = {
       .eq('chat_id', chatId)
       .neq('sender_id', userId)
       .neq('status', 'read');
+
+    if (error) throw new Error(error.message);
+  },
+
+  // Get a single message by ID
+  async getMessageById(messageId: string) {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('id, sender_id, message_type, content, chat_id')
+      .eq('id', messageId)
+      .single();
+
+    if (error) return null;
+    return data;
+  },
+
+  // Get chat participants for push notifications
+  async getChatParticipants(chatId: string) {
+    const { data, error } = await supabase
+      .from('chats')
+      .select('participant_ids')
+      .eq('id', chatId)
+      .single();
+
+    if (error) throw new Error(error.message);
+    return (data as any)?.participant_ids as string[];
+  },
+
+  // Reaction management
+  async addReaction(messageId: string, emoji: string, userId: string) {
+    const { error } = await (supabase.from('message_reactions') as any).insert({
+      message_id: messageId,
+      emoji,
+      user_id: userId,
+    });
+
+    if (error) throw new Error(error.message);
+  },
+
+  async removeReaction(messageId: string, emoji: string, userId: string) {
+    const { error } = await (supabase.from('message_reactions') as any)
+      .delete()
+      .match({ message_id: messageId, emoji, user_id: userId });
 
     if (error) throw new Error(error.message);
   },

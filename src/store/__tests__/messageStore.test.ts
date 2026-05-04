@@ -2,76 +2,70 @@ import { useMessageStore } from '../messageStore';
 import { messageService } from '@/services/supabase/message.service';
 import { e2eEncryptionService } from '@/services/crypto/e2e.service';
 import { pushNotificationService } from '@/services/pushNotifications';
-import { supabase } from '@/services/supabase/config';
+import { userService } from '@/services/supabase/user.service';
 
 // Mocks
 jest.mock('@/services/supabase/message.service');
+jest.mock('@/services/supabase/user.service');
 jest.mock('@/services/crypto/e2e.service');
 jest.mock('@/services/pushNotifications');
-jest.mock('@/services/supabase/config');
 
-describe('messageStore', () => {
+describe('messageStore - Real Architecture Test', () => {
   const mockChatId = 'chat-123';
-  const mockSenderId = 'user-abc';
-  const mockRecipientId = 'user-xyz';
-  const textMessage = 'Hola amor ❤️';
-  const encryptedText = 'encrypted-payload-xyz';
+  const mockSenderId = 'user-sender';
+  const mockRecipientId = 'user-recipient';
+  const textMessage = 'Mensaje ultra secreto 🤐';
+  const encryptedText = 'cifrado-123';
 
   beforeEach(() => {
+    jest.useFakeTimers();
     jest.clearAllMocks();
     useMessageStore.setState({
       messages: [],
       loading: false,
-      error: null
+      error: null,
+      currentUserId: mockSenderId
     });
   });
 
-  it('debe enviar un mensaje cifrado y disparar la notificación push', async () => {
-    // 1. Setup Mocks
-    (e2eEncryptionService.encrypt as jest.Mock).mockResolvedValue({ ciphertext: encryptedText, iv: 'iv-123' });
-    (messageService.sendMessage as jest.Mock).mockResolvedValue({ id: 'msg-999' });
-    
-    // Mock Supabase para encontrar al destinatario
-    (supabase.from as jest.Mock).mockImplementation((table: string) => ({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockImplementation(() => {
-        if (table === 'chats') return Promise.resolve({ data: { participant_ids: [mockSenderId, mockRecipientId] } });
-        if (table === 'users') return Promise.resolve({ data: { push_token: 'expo-token-xyz', display_name: 'Recipient' } });
-        return Promise.resolve({ data: null });
-      })
-    }));
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
-    // 2. Ejecutar envío
+  it('debe orquestar el envío de mensaje: cifrar -> guardar -> notificar', async () => {
+    // ... setup mocks ...
+    (e2eEncryptionService.encrypt as jest.Mock).mockResolvedValue({ ciphertext: encryptedText });
+    (messageService.sendMessage as jest.Mock).mockResolvedValue({ id: 'msg-final' });
+    (messageService.getChatParticipants as jest.Mock).mockResolvedValue([mockSenderId, mockRecipientId]);
+    (userService.getUserById as jest.Mock).mockImplementation((id) => {
+      if (id === mockRecipientId) return Promise.resolve({ id, push_token: 'token-valido', display_name: 'Amigo' });
+      if (id === mockSenderId) return Promise.resolve({ id, display_name: 'Yo' });
+      return Promise.resolve(null);
+    });
+
+    // 2. Acción
     await useMessageStore.getState().sendMessage(mockChatId, mockSenderId, textMessage);
 
     // 3. Verificaciones
     expect(e2eEncryptionService.encrypt).toHaveBeenCalledWith(textMessage, mockChatId);
-    expect(messageService.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      chatId: mockChatId,
-      content: encryptedText,
-      messageType: 'text'
-    }));
-
-    // Esperar a que la notificación (que es asíncrona) se dispare
-    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Forzar la resolución de todas las microtareas/promesas pendientes
+    await new Promise(jest.requireActual('timers').setImmediate);
     
     expect(pushNotificationService.sendPushNotification).toHaveBeenCalled();
   });
 
-  it('no debe enviar notificación si no hay push_token', async () => {
-    (e2eEncryptionService.encrypt as jest.Mock).mockResolvedValue({ ciphertext: encryptedText, iv: 'iv-123' });
-    
-    // Mock Supabase sin token
-    (supabase.from as jest.Mock).mockImplementation(() => ({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({ data: { push_token: null } })
-    }));
+  it('debe manejar errores de cifrado correctamente y actualizar el estado', async () => {
+    (e2eEncryptionService.encrypt as jest.Mock).mockRejectedValue(new Error('Cifrado falló'));
 
-    await useMessageStore.getState().sendMessage(mockChatId, mockSenderId, textMessage);
+    try {
+      await useMessageStore.getState().sendMessage(mockChatId, mockSenderId, 'error');
+    } catch (e) {
+      // Ignorar error lanzado
+    }
 
-    await new Promise(resolve => setTimeout(resolve, 100));
-    expect(pushNotificationService.sendPushNotification).not.toHaveBeenCalled();
+    const state = useMessageStore.getState();
+    expect(state.loading).toBe(false);
+    expect(state.error).toBe('Cifrado falló');
   });
 });

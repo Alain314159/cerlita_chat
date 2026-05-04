@@ -2,6 +2,10 @@
 import { jest } from '@jest/globals';
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock';
 
+// Set dummy env vars for tests to suppress warnings
+process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://test-project.supabase.co';
+process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
+
 // Mock de AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
 

@@ -8,7 +8,7 @@ import { TermuxKeyBar, TermuxKey } from './TermuxKeyBar';
 interface MessageInputProps {
   value: string;
   onChangeText: (text: string) => void;
-  onSend: () => void;
+  onSend: (options?: { isEphemeral?: boolean; isViewOnce?: boolean }) => void;
   onAttachmentPress?: () => void;
   onCameraPress?: () => void;
   onVoicePress?: () => void;
@@ -23,10 +23,28 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   disabled = false, placeholder = 'Escribe un mensaje...',
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const [isEphemeral, setIsEphemeral] = useState(false);
+  const [isViewOnce, setIsViewOnce] = useState(false);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const inputRef = useRef<any>(null);
 
   const hasText = value.trim().length > 0;
+
+  const handleSend = () => {
+    onSend({ isEphemeral, isViewOnce });
+    setIsEphemeral(false);
+    setIsViewOnce(false);
+  };
+
+  const toggleEphemeral = () => {
+    setIsEphemeral(!isEphemeral);
+    if (!isEphemeral) setIsViewOnce(false);
+  };
+
+  const toggleViewOnce = () => {
+    setIsViewOnce(!isViewOnce);
+    if (!isViewOnce) setIsEphemeral(false);
+  };
 
   const handleTermuxKeyPress = (key: TermuxKey) => {
     switch (key) {
@@ -134,6 +152,16 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 };
 
 const styles = StyleSheet.create({
+  container: { backgroundColor: theme.colors.background, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, padding: 8 },
+  attachButton: { justifyContent: 'center', alignItems: 'center' },
+  input: { flex: 1, backgroundColor: theme.colors.surface, maxHeight: 120 },
+  inputContent: { minHeight: 40 },
+  privacyControls: { flexDirection: 'row', alignItems: 'center' },
+  sendButton: { justifyContent: 'center', alignItems: 'center' },
+  alternateButtons: { flexDirection: 'row' },
+});
+Sheet.create({
   container: { backgroundColor: theme.colors.background, borderTopWidth: 1, borderTopColor: theme.colors.border },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, padding: 8 },
   attachButton: { justifyContent: 'center', alignItems: 'center' },

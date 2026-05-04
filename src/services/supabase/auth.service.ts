@@ -96,6 +96,11 @@ export const authService = {
     if (error) throw new Error(error.message);
   },
 
+  // Get current session
+  async getSession() {
+    return await supabase.auth.getSession();
+  },
+
   // On auth state change
   onAuthStateChange(callback: (event: string, session: any) => void) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
