@@ -18,6 +18,8 @@ interface MessageInputProps {
   placeholder?: string;
 }
 
+import { Paperclip, Send, Camera, Mic } from 'lucide-react-native';
+
 export const MessageInput: React.FC<MessageInputProps> = ({
   value, onChangeText, onSend, onAttachmentPress, onCameraPress, onVoicePress,
   disabled = false, placeholder = 'Escribe un mensaje...',
@@ -60,7 +62,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       case 'UP': {
         const lines = value.slice(0, selection.start).split('\n');
         if (lines.length > 1) {
-          // Simplified up: find last newline before selection
           const lastNewline = value.lastIndexOf('\n', selection.start - 1);
           if (lastNewline !== -1) {
             const secondLastNewline = value.lastIndexOf('\n', lastNewline - 1);
@@ -96,8 +97,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       case 'ESC':
       case 'CTRL':
       case 'ALT':
-        // These are often used as modifiers or special signals. 
-        // In a chat app, we can just treat them as symbolic for now.
         break;
     }
   };
@@ -107,7 +106,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       {isFocused && <TermuxKeyBar onKeyPress={handleTermuxKeyPress} />}
       <View style={styles.inputRow}>
         <TouchableOpacity style={styles.attachButton} onPress={onAttachmentPress}>
-          <IconButton icon="paperclip" size={22} iconColor={theme.colors.textSecondary} />
+          <IconButton icon={() => <Paperclip size={22} color={theme.colors.secondary} />} />
         </TouchableOpacity>
         <TextInput
           ref={inputRef}
@@ -128,12 +127,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         />
         {hasText ? (
           <TouchableOpacity style={styles.sendButton} onPress={handleSend} disabled={!hasText || disabled}>
-            <IconButton icon="send" size={22} iconColor={theme.colors.primary} />
+            <IconButton icon={() => <Send size={22} color={theme.colors.primary} />} />
           </TouchableOpacity>
         ) : (
           <View style={styles.alternateButtons}>
-            <IconButton icon="camera" size={22} iconColor={theme.colors.textSecondary} onPress={onCameraPress} />
-            <IconButton icon="microphone" size={22} iconColor={theme.colors.textSecondary} onPress={onVoicePress} />
+            <IconButton icon={() => <Camera size={22} color={theme.colors.secondary} />} onPress={onCameraPress} />
+            <IconButton icon={() => <Mic size={22} color={theme.colors.secondary} />} onPress={onVoicePress} />
           </View>
         )}
       </View>

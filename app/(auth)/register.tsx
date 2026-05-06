@@ -12,6 +12,7 @@ import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { theme } from '@/config/theme';
+import { User, Mail, Lock } from 'lucide-react-native';
 
 export default function RegisterScreen() {
   const [displayName, setDisplayName] = useState('');
@@ -74,7 +75,7 @@ export default function RegisterScreen() {
             mode="outlined"
             autoCapitalize="words"
             style={styles.input}
-            left={<TextInput.Icon icon="account" />}
+            left={<TextInput.Icon icon={() => <User size={20} color={theme.colors.textSecondary} />} />}
           />
 
           <TextInput
@@ -86,7 +87,7 @@ export default function RegisterScreen() {
             autoCapitalize="none"
             autoComplete="email"
             style={styles.input}
-            left={<TextInput.Icon icon="email" />}
+            left={<TextInput.Icon icon={() => <Mail size={20} color={theme.colors.textSecondary} />} />}
           />
 
           <TextInput
@@ -97,7 +98,7 @@ export default function RegisterScreen() {
             secureTextEntry
             autoCapitalize="none"
             style={styles.input}
-            left={<TextInput.Icon icon="lock" />}
+            left={<TextInput.Icon icon={() => <Lock size={20} color={theme.colors.textSecondary} />} />}
           />
 
           <TextInput
@@ -108,7 +109,7 @@ export default function RegisterScreen() {
             secureTextEntry
             autoCapitalize="none"
             style={styles.input}
-            left={<TextInput.Icon icon="lock-check" />}
+            left={<TextInput.Icon icon={() => <Lock size={20} color={theme.colors.textSecondary} />} />}
           />
 
           <Button

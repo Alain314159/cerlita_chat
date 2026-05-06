@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Avatar, Searchbar, ActivityIndicator } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { supabase } from '@/services/supabase/config';
 import { useAuthStore } from '@/store/authStore';
 import { chatService } from '@/services/supabase/chat.service';
 import type { User } from '@/types';
+import { Search, UserPlus, Users } from 'lucide-react-native';
 
 export default function NewChatScreen() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,7 +20,6 @@ export default function NewChatScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Cargar contactos (conexiones aceptadas)
   const loadContacts = async () => {
     if (!user?.id) return;
     try {
@@ -34,7 +34,6 @@ export default function NewChatScreen() {
         .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
 
       if (error) throw error;
-
       const contactList = data.map((conn: any) => 
         conn.sender.id === user.id ? conn.receiver : conn.sender
       );
@@ -52,7 +51,6 @@ export default function NewChatScreen() {
 
   const searchUsers = async (query: string) => {
     setSearchQuery(query);
-    
     if (!query.trim()) {
       setUsers([]);
       return;
@@ -64,6 +62,7 @@ export default function NewChatScreen() {
         .from('users')
         .select('*')
         .ilike('display_name', `%${query}%`)
+        .neq('id', user?.id)
         .limit(20);
 
       if (error) throw error;
@@ -78,10 +77,15 @@ export default function NewChatScreen() {
   const handleSelectUser = async (selectedUser: User) => {
     if (!user?.id) return;
     try {
+      setLoading(true);
       const chatId = await chatService.getOrCreateDirectChat(user.id, selectedUser.id);
-      router.replace(`/(chat)/${chatId}` as any);
-    } catch (error) {
+      if (!chatId) throw new Error('No se pudo crear la conexión');
+      router.push(`/(chat)/${chatId}` as any);
+    } catch (error: any) {
       console.error('Failed to create chat:', error);
+      Alert.alert('Error', error.message || 'No se pudo crear el chat');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -89,9 +93,6 @@ export default function NewChatScreen() {
     <TouchableOpacity
       style={styles.userItem}
       onPress={() => handleSelectUser(item)}
-      accessibilityRole="button"
-      accessibilityLabel={`Iniciar chat con ${item.displayName}`}
-      testID={`user-${item.id}`}
     >
       <Avatar.Image
         size={56}
@@ -101,30 +102,28 @@ export default function NewChatScreen() {
         <Text style={styles.userName}>{item.displayName}</Text>
         <Text style={styles.userEmail}>{item.email}</Text>
       </View>
+      <UserPlus size={20} color={theme.colors.primary} />
     </TouchableOpacity>
   );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Nuevo Chat</Text>
       </View>
 
-      {/* Search */}
       <View style={styles.searchContainer}>
         <Searchbar
-          placeholder="Buscar nuevos usuarios..."
+          placeholder="Buscar usuarios..."
           onChangeText={searchUsers}
           value={searchQuery}
           style={styles.searchbar}
-          accessibilityLabel="Buscar usuarios"
-          testID="user-search"
+          icon={() => <Search size={20} color={theme.colors.secondary} />}
+          inputStyle={{ fontSize: 16 }}
         />
       </View>
 
-      {/* List */}
-      {searching || loading ? (
+      {searching || (loading && !searchQuery) ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
@@ -139,14 +138,14 @@ export default function NewChatScreen() {
           ) : null}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>{searchQuery ? '🔍' : '👥'}</Text>
+              <View style={styles.emptyIconContainer}>
+                {searchQuery ? <Search size={64} color={theme.colors.secondary} /> : <Users size={64} color={theme.colors.secondary} />}
+              </View>
               <Text style={styles.emptyTitle}>
                 {searchQuery ? 'Sin resultados' : 'No tienes contactos'}
               </Text>
               <Text style={styles.emptySubtitle}>
-                {searchQuery 
-                  ? 'Intenta con otro nombre' 
-                  : 'Busca a alguien para enviarle una solicitud'}
+                {searchQuery ? 'Prueba con otro nombre' : 'Busca a alguien para chatear'}
               </Text>
             </View>
           }
@@ -157,84 +156,20 @@ export default function NewChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.background,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.colors.primary,
-  },
-  searchContainer: {
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
-  },
-  searchbar: {
-    elevation: 0,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  sectionTitle: {
-    padding: theme.spacing.md,
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: theme.colors.secondary,
-    backgroundColor: theme.colors.backgroundSecondary,
-    textTransform: 'uppercase',
-  },
-  listContent: {
-    flexGrow: 1,
-  },
-  userItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderLight,
-  },
-  userInfo: {
-    marginLeft: theme.spacing.md,
-    flex: 1,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-  },
-  userEmail: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: theme.spacing.xl,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: theme.spacing.md,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.sm,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
+  header: { padding: 16 },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#FF69B4' },
+  searchContainer: { paddingHorizontal: 16, marginBottom: 8 },
+  searchbar: { elevation: 0, borderWidth: 1, borderColor: '#eee', backgroundColor: '#fafafa' },
+  sectionTitle: { padding: 16, fontSize: 12, fontWeight: 'bold', color: '#888', backgroundColor: '#f9f9f9', textTransform: 'uppercase' },
+  listContent: { flexGrow: 1 },
+  userItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  userInfo: { marginLeft: 16, flex: 1 },
+  userName: { fontSize: 16, fontWeight: '600' },
+  userEmail: { fontSize: 14, color: '#888' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 80 },
+  emptyIconContainer: { marginBottom: 16, opacity: 0.3 },
+  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#444' },
+  emptySubtitle: { fontSize: 14, color: '#888', textAlign: 'center', marginTop: 4 },
 });

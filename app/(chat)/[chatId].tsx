@@ -41,50 +41,21 @@ export default function ChatConversationScreen() {
     setReplyContext,
   } = useMessages(chatId as string);
 
-  const { activeChat } = useChat();
-  const [messageText, setMessageText] = useState('');
-  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const { activeChat, chats } = useChat();
+  const [recipient, setRecipient] = useState<{displayName: string, photoURL?: string} | null>(null);
 
+  // Buscar el destinatario real para la cabecera
   useEffect(() => {
-    if (chatId) {
-      loadMessages(chatId as string);
-      subscribeToMessages(chatId as string);
+    const currentChat = activeChat || chats.find(c => c.id === chatId);
+    if (currentChat && user) {
+      // En chats directos, el nombre suele ser el del otro participante
+      // Aquí podrías implementar una búsqueda en Supabase si el nombre no viene en el chat
+      setRecipient({
+        displayName: currentChat.name || 'Usuario',
+        photoURL: undefined // TODO: Mapear foto real
+      });
     }
-    return () => unsubscribeFromMessages();
-  }, [chatId, loadMessages, subscribeToMessages, unsubscribeFromMessages]);
-
-  const handleSendMessage = useCallback(async () => {
-    if (!messageText.trim() || !user || !chatId) return;
-    try {
-      const textToSend = messageText.trim();
-      setMessageText('');
-      await sendMessage(textToSend);
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  }, [messageText, user, chatId, sendMessage]);
-
-  const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
-    const isMyMessage = item.senderId === user?.id;
-    const prevMessage = index > 0 ? messages[index - 1] : null;
-    const showDateHeader = !prevMessage || 
-      new Date(item.createdAt).toDateString() !== new Date(prevMessage.createdAt).toDateString();
-
-    return (
-      <View>
-        {showDateHeader && (
-          <View style={styles.dateHeader}>
-            <ActivityIndicator size="small" style={{ opacity: 0 }} />
-          </View>
-        )}
-        <MessageBubble
-          message={item}
-          isMyMessage={isMyMessage}
-          onReactionPress={(emoji) => addReaction(item.id, emoji)}
-        />
-      </View>
-    );
-  }, [messages, user?.id, addReaction]);
+  }, [chatId, activeChat, chats, user]);
 
   return (
     <KeyboardAvoidingView
@@ -93,8 +64,8 @@ export default function ChatConversationScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <ChatHeader
-        name={activeChat?.name || 'Chat'}
-        photoUrl={undefined}
+        name={recipient?.displayName || activeChat?.name || 'Cargando...'}
+        photoUrl={recipient?.photoURL}
         onOpenOptions={() => setShowOptionsMenu(true)}
       />
 

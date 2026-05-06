@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Ionicons } from '@expo/vector-icons';
+import { Heart, PlusCircle, Search } from 'lucide-react-native';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
@@ -107,16 +107,16 @@ export default function ChatListScreen() {
         <Text style={styles.title}>Chats</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <TouchableOpacity onPress={() => useRouter().push('/(chat)/requests')}>
-            <Ionicons name="heart-outline" size={26} color={theme.colors.primary} />
+            <Heart size={26} color={theme.colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => useRouter().push('/(chat)/new')}>
-            <Ionicons name="add-circle-outline" size={28} color={theme.colors.primary} />
+            <PlusCircle size={28} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color={theme.colors.textSecondary} />
+        <Search size={20} color={theme.colors.textSecondary} />
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar chats..."

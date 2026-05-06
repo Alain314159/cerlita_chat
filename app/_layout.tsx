@@ -18,7 +18,18 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   const style = document.createElement('style');
   style.type = 'text/css';
   style.appendChild(document.createTextNode(`
-    html, body, #root { height: 100%; width: 100%; margin: 0; padding: 0; background-color: #000; }
+    html, body, #root { 
+      height: 100% !important; 
+      width: 100% !important; 
+      margin: 0 !important; 
+      padding: 0 !important; 
+      overflow: hidden;
+      position: fixed;
+    }
+    * { 
+      box-sizing: border-box; 
+      -webkit-tap-highlight-color: transparent;
+    }
   `));
   document.head.appendChild(style);
 
@@ -66,9 +77,9 @@ const styles = StyleSheet.create({
   webWrapper: {
     flex: 1,
     width: '100%',
-    maxWidth: Platform.OS === 'web' ? 500 : '100%',
+    // Eliminamos el maxWidth restrictivo para que se adapte al móvil
     alignSelf: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
     overflow: 'hidden',
   },
 });

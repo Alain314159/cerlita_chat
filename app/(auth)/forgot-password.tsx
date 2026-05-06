@@ -12,6 +12,7 @@ import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { theme } from '@/config/theme';
 import { supabase } from '@/services/supabase/config';
+import { Mail } from 'lucide-react-native';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -88,7 +89,7 @@ export default function ForgotPasswordScreen() {
             autoCapitalize="none"
             autoComplete="email"
             style={styles.input}
-            left={<TextInput.Icon icon="email" />}
+            left={<TextInput.Icon icon={() => <Mail size={20} color={theme.colors.textSecondary} />} />}
           />
 
           <Button

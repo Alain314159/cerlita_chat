@@ -13,6 +13,8 @@ interface ChatHeaderProps {
   onOpenOptions: () => void;
 }
 
+import { ArrowLeft, MoreVertical } from 'lucide-react-native';
+
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
   name, 
   isTyping, 
@@ -24,7 +26,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   return (
     <View style={styles.header}>
-      <IconButton icon="arrow-left" onPress={() => router.back()} size={24} />
+      <IconButton 
+        icon={() => <ArrowLeft size={24} color={theme.colors.textPrimary} />} 
+        onPress={() => router.back()} 
+      />
       <View>
         {photoUrl ? (
           <Avatar.Image size={40} source={{ uri: photoUrl }} />
@@ -37,7 +42,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
         {isTyping && <Text style={styles.typingText}>escribiendo...</Text>}
       </View>
-      <IconButton icon="dots-vertical" onPress={onOpenOptions} />
+      <IconButton 
+        icon={() => <MoreVertical size={24} color={theme.colors.textPrimary} />} 
+        onPress={onOpenOptions} 
+      />
     </View>
   );
 };
