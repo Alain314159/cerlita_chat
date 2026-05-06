@@ -1,4 +1,5 @@
 import { supabase } from './config';
+import { mapDatabaseMessageToDomain, mapDomainMessageToDatabase } from './mappers/message.mapper';
 
 export const messageService = {
   // Get messages for a chat with pagination support
@@ -17,7 +18,7 @@ export const messageService = {
       .from('messages')
       .select('*')
       .eq('chat_id', chatId)
-      .order('created_at', { ascending: false }) // Order by newest first for better paging
+      .order('created_at', { ascending: false })
       .limit(limit);
 
     if (before) {
@@ -27,36 +28,17 @@ export const messageService = {
     const { data, error } = await query;
 
     if (error) throw new Error(error.message);
-    // Return in ascending order for the UI
-    return (data || []).reverse();
+    
+    // Domain Mapping
+    const messages = (data || []).map(mapDatabaseMessageToDomain);
+    return messages.reverse();
   },
 
   // Send a message
-  async sendMessage(params: {
-    chatId: string;
-    senderId: string;
-    content: string;
-    messageType: string;
-    mediaUrl?: string | null;
-    thumbnailUrl?: string | null;
-    isEphemeral?: boolean;
-    expiresAt?: string | null;
-    isViewOnce?: boolean;
-    replyToId?: string | null;
-    }) {
-    const { data, error } = await (supabase.from('messages') as any).insert({
-      chat_id: params.chatId,
-      sender_id: params.senderId,
-      content: params.content,
-      message_type: params.messageType,
-      media_url: params.mediaUrl,
-      thumbnail_url: params.thumbnailUrl,
-      reply_to_id: params.replyToId,
-      status: 'sent',
-      is_ephemeral: params.isEphemeral || false,
-      expires_at: params.expiresAt || null,
-      is_view_once: params.isViewOnce || false,
-    }).select().single();
+  async sendMessage(params: any) {
+    const dbPayload = mapDomainMessageToDatabase(params);
+    
+    const { data, error } = await (supabase.from('messages') as any).insert(dbPayload).select().single();
 
     if (error) throw new Error(error.message);
 
@@ -68,7 +50,7 @@ export const messageService = {
       } as any)
       .eq('id', params.chatId);
 
-    return data;
+    return mapDatabaseMessageToDomain(data);
   },
 
   // Mark a view-once message as viewed (burn after reading)
@@ -140,12 +122,12 @@ export const messageService = {
   async getMessageById(messageId: string) {
     const { data, error } = await supabase
       .from('messages')
-      .select('id, sender_id, message_type, content, chat_id')
+      .select('*')
       .eq('id', messageId)
       .single();
 
     if (error) return null;
-    return data;
+    return mapDatabaseMessageToDomain(data);
   },
 
   // Get chat participants for push notifications

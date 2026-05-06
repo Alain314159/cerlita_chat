@@ -42,6 +42,21 @@ jest.mock('expo-notifications', () => ({
   setNotificationChannelAsync: jest.fn(),
 }));
 
+jest.mock('react-native-paper', () => {
+  return {
+    IconButton: () => null,
+    MD3LightTheme: {
+      colors: {
+        primary: '#6750A4',
+        error: '#B3261E',
+        surface: '#FFFFFF',
+        onSurface: '#000000',
+        elevation: { level0: 'transparent' }
+      },
+    },
+  };
+});
+
 // Mock de React Native nativo
 jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter');
 jest.mock('react-native-url-polyfill/auto', () => ({}));

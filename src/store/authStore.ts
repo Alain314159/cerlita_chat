@@ -2,95 +2,57 @@ import { create } from 'zustand';
 import type { User, AuthState, AvatarOption } from '@/types';
 import { authService } from '@/services/supabase/auth.service';
 import { pushNotificationService } from '@/services/pushNotifications';
+import { SignInUseCase } from '@/use-cases/auth/SignIn';
+import { SignUpUseCase } from '@/use-cases/auth/SignUp';
+import { SignOutUseCase } from '@/use-cases/auth/SignOut';
+import { InitializeAuthUseCase } from '@/use-cases/auth/InitializeAuth';
 
 interface AuthStore extends AuthState {
-  // Actions
-  initialize: () => Promise<void>;
+  selectedAvatar: AvatarOption | null;
+  setUser: (user: User | null) => void;
+  initialize: () => Promise<any>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: { displayName?: string; photoURL?: string }) => Promise<void>;
-  updateAvatar: (avatar: AvatarOption) => Promise<void>;
+  updateAvatar: (photoURL: string) => Promise<void>;
+  setAvatar: (avatar: AvatarOption) => void;
   setError: (error: string | null) => void;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
-  // Initial state
   user: null,
   isAuthenticated: false,
   loading: true,
   error: null,
+  selectedAvatar: null,
+
+  setUser: (user) => set({ user, isAuthenticated: !!user }),
+  setError: (error) => set({ error }),
+  setAvatar: (avatar) => set({ selectedAvatar: avatar }),
 
   // Initialize auth state
   initialize: async () => {
-    try {
-      set({ loading: true, error: null });
-
-      const { data: { session } } = await authService.getSession();
-
-      if (session?.user) {
-        const userProfile = await authService.getUserProfile(session.user.id);
-
-        // Set online status
-        await authService.updatePresence(true, session.user.id);
-
-        set({
-          user: userProfile,
-          isAuthenticated: true,
-          loading: false,
-        });
-      } else {
-        set({ loading: false });
-      }
-
-      // Subscribe to auth changes
-      authService.onAuthStateChange(async (event: any, session: any) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          const userProfile = await authService.getUserProfile(session.user.id);
-          await authService.updatePresence(true, session.user.id);
-
-          set({
-            user: userProfile,
-            isAuthenticated: true,
-            loading: false,
-            error: null,
-          });
-        } else if (event === 'SIGNED_OUT') {
-          set({
-            user: null,
-            isAuthenticated: false,
-            loading: false,
-          });
-        }
-      });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to initialize';
-      set({
-        loading: false,
-        error: message,
-      });
-    }
+    return await InitializeAuthUseCase(
+      {
+        getSession: authService.getSession,
+        getUserProfile: authService.getUserProfile,
+        updatePresence: authService.updatePresence,
+        onAuthStateChange: authService.onAuthStateChange,
+      },
+      (user) => set({ user, isAuthenticated: !!user, loading: false })
+    );
   },
 
   // Sign in
   signIn: async (email: string, password: string) => {
     try {
       set({ loading: true, error: null });
-
-      const user = await authService.signIn(email, password);
-      
-      set({
-        user,
-        isAuthenticated: true,
-        loading: false,
-        error: null,
-      });
+      const user = await SignInUseCase(authService, email, password);
+      set({ user, isAuthenticated: true, loading: false });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to sign in';
-      set({
-        loading: false,
-        error: message,
-      });
+      set({ loading: false, error: message });
       throw error;
     }
   },
@@ -99,32 +61,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   signUp: async (email: string, password: string, displayName: string) => {
     try {
       set({ loading: true, error: null });
-
-      const data = await authService.signUp(email, password, displayName);
-      
-      if (data.user) {
-        // Manually create user profile if trigger is missing
-        await authService.createProfile({
-          id: data.user.id,
-          email: data.user.email || email,
-          display_name: displayName,
-        });
-        
-        const userProfile = await authService.getUserProfile(data.user.id);
-
-        set({
-          user: userProfile,
-          isAuthenticated: true,
-          loading: false,
-          error: null,
-        });
+      const user = await SignUpUseCase(authService, email, password, displayName);
+      if (user) {
+        set({ user, isAuthenticated: true, loading: false });
+      } else {
+        set({ loading: false });
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to sign up';
-      set({
-        loading: false,
-        error: message,
-      });
+      set({ loading: false, error: message });
       throw error;
     }
   },
@@ -133,89 +78,44 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   signOut: async () => {
     try {
       set({ loading: true });
-      await authService.signOut();
-      
-      // Cleanup notifications
-      pushNotificationService.cleanup();
-      
-      set({
-        user: null,
-        isAuthenticated: false,
-        loading: false,
+      await SignOutUseCase({
+        signOut: authService.signOut,
+        cleanupNotifications: pushNotificationService.cleanup
       });
+      set({ user: null, isAuthenticated: false, loading: false });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to sign out';
-      set({ 
-        loading: false,
-        error: message 
-      });
+      set({ loading: false, error: message });
       throw error;
     }
   },
 
   // Update profile
-  updateProfile: async (updates: { displayName?: string; photoURL?: string }) => {
+  updateProfile: async (updates) => {
+    const { user } = get();
+    if (!user) return;
     try {
-      const { user } = get();
-      if (!user) throw new Error('Not authenticated');
-
       set({ loading: true });
-
       await authService.updateProfile(user.id, updates);
-
-      // Refresh user data
-      const updatedUser = await authService.getUserProfile(user.id);
-
       set({
-        user: updatedUser,
+        user: { ...user, ...updates },
         loading: false,
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to update profile';
-      set({
-        loading: false,
-        error: message,
-      });
+      set({ loading: false, error: message });
       throw error;
     }
   },
 
-  // Update avatar
-  updateAvatar: async (avatar: AvatarOption) => {
+  updateAvatar: async (photoURL: string) => {
+    const { user } = get();
+    if (!user) return;
     try {
-      const { user } = get();
-      if (!user) throw new Error('Not authenticated');
-
-      set({ loading: true });
-
-      // Update user profile with avatar option
-      const updatedUser = {
-        ...user,
-        avatar,
-        photoURL: (avatar.type === 'custom' ? avatar.uri : null) as string | null,
-      };
-
-      await authService.updateProfile(user.id, {
-        displayName: updatedUser.displayName,
-        photoURL: updatedUser.photoURL ?? undefined,
-      });
-
-      set({
-        user: updatedUser,
-        loading: false,
-      });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to update avatar';
-      set({
-        loading: false,
-        error: message,
-      });
-      throw error;
+      await authService.updateProfile(user.id, { photoURL });
+      set({ user: { ...user, photoURL } });
+    } catch (error) {
+      console.error('Failed to update avatar:', error);
     }
-  },
-
-  // Set error
-  setError: (error: string | null) => {
-    set({ error });
   },
 }));

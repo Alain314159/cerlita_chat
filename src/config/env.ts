@@ -5,7 +5,9 @@ import { Platform } from 'react-native';
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 
-if (SUPABASE_URL.includes('placeholder') || SUPABASE_ANON_KEY.includes('placeholder')) {
+const isTest = typeof jest !== 'undefined' || process.env.NODE_ENV === 'test';
+
+if ((SUPABASE_URL.includes('placeholder') || SUPABASE_ANON_KEY.includes('placeholder')) && !isTest) {
   console.warn(
     '⚠️ Supabase credentials not configured. Copy .env.example to .env and add your credentials.'
   );

@@ -1,8 +1,6 @@
 import { supabase } from './config';
 import type { User } from '@/types';
-import type { Database } from '@/types/database.types';
-
-type UserRow = Database['public']['Tables']['users']['Row'];
+import { mapDatabaseUserToDomain, mapDomainUserToDatabase } from './mappers/user.mapper';
 
 export const authService = {
   // Sign in
@@ -12,7 +10,9 @@ export const authService = {
       password,
     });
     if (error) throw new Error(error.message);
-    return data;
+    
+    // Al hacer login, devolvemos el perfil completo
+    return await this.getUserProfile(data.user.id);
   },
 
   // Sign up
@@ -61,29 +61,17 @@ export const authService = {
       .single();
 
     if (error) throw new Error(error.message);
-    
-    const row = data as UserRow;
-    return {
-      id: row.id,
-      email: row.email,
-      displayName: row.display_name,
-      photoURL: row.photo_url,
-      isOnline: row.is_online,
-      lastSeen: row.last_seen_at ? new Date(row.last_seen_at) : null,
-      isTyping: row.is_typing,
-      pushToken: row.push_token,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at),
-    };
+    return mapDatabaseUserToDomain(data);
   },
 
   // Update profile
   async updateProfile(userId: string, updates: { displayName?: string; photoURL?: string }) {
+    const dbUpdates = mapDomainUserToDatabase(updates);
+    
     const { error } = await supabase
       .from('users')
       .update({
-        display_name: updates.displayName,
-        photo_url: updates.photoURL,
+        ...dbUpdates,
         updated_at: new Date().toISOString(),
       } as any)
       .eq('id', userId);

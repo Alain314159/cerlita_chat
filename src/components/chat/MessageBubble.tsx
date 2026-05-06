@@ -47,7 +47,7 @@ function StatusIcon({ status, readAt }: { status: string; readAt?: Date | string
     <IconButton
       icon={config.icon}
       size={14}
-      iconColor={theme.colors[config.colorKey as keyof typeof theme.colors]}
+      iconColor={theme.colors[config.colorKey as keyof typeof theme.colors] as string}
       style={styles.statusIcon}
     />
   );

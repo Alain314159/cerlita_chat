@@ -1,5 +1,6 @@
 import { supabase } from './config';
 import type { User } from '@/types';
+import { mapDatabaseUserToDomain } from './mappers/user.mapper';
 
 export const userService = {
   async getUserById(userId: string): Promise<User | null> {
@@ -11,18 +12,7 @@ export const userService = {
 
     if (error || !data) return null;
 
-    return {
-      id: data.id,
-      email: data.email,
-      displayName: data.display_name,
-      photoURL: data.photo_url,
-      isOnline: data.is_online,
-      lastSeen: data.last_seen_at ? new Date(data.last_seen_at) : null,
-      isTyping: data.is_typing,
-      pushToken: data.push_token,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-    };
+    return mapDatabaseUserToDomain(data);
   },
 
   async updatePushToken(userId: string, token: string) {

@@ -38,17 +38,17 @@ export function useMessages(chatId: string) {
 
   const handleAddReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!user) return;
-    await addReaction(messageId, emoji, user.id);
-  }, [user, addReaction]);
+    await addReaction(messageId, emoji);
+  }, [addReaction, user]);
 
-  const handleMarkAsRead = useCallback(async (messageId: string) => {
-    if (!user) return;
-    await markAsRead(messageId);
-  }, [user, markAsRead]);
+  const handleMarkAsRead = useCallback(async () => {
+    if (!user || !chatId) return;
+    await markAsRead(chatId, user.id);
+  }, [user, chatId, markAsRead]);
 
   const isOtherUserTyping = useCallback(() => {
     if (!user) return false;
-    return Array.from(typingUsers).some((id) => id !== user.id);
+    return Object.keys(typingUsers).some((id) => id !== user.id);
   }, [typingUsers, user]);
 
   return {

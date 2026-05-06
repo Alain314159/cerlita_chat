@@ -4,10 +4,10 @@
     "slug": "cerlita-chat",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/app-icon.jpg",
+    "icon": "./assets/images/icon.png",
     "scheme": "cerlitachat",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash.png",
       "backgroundColor": "#FF69B4",
@@ -52,7 +52,6 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "baseUrl": "/cerlita_chat",
     "plugins": [
       "./plugins/withAndroidResolution.js",
       "expo-router",
@@ -84,7 +83,8 @@
       "sentry-expo"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "baseUrl": "/cerlita_chat"
     },
     "extra": {
       "router": {

@@ -1,10 +1,13 @@
 import { MD3LightTheme } from 'react-native-paper';
 
+const baseTheme = MD3LightTheme || {};
+const baseColors = (baseTheme as any).colors || {};
+
 // Theme configuration - Romantic theme
 export const theme = {
-  ...MD3LightTheme,
+  ...baseTheme,
   colors: {
-    ...MD3LightTheme.colors,
+    ...baseColors,
     // Fix for Material Design 3 elevation colors
     elevation: {
       level0: 'transparent',

@@ -30,7 +30,7 @@ export function useAuthLogic() {
     signUp,
     signOut,
     updateProfile,
-    updateAvatar: (avatar: AvatarOption) => updateAvatar(avatar),
+    updateAvatar: (avatar: AvatarOption) => updateAvatar(avatar.uri || ''),
     setError,
   };
 }

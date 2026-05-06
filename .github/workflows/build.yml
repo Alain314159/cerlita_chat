@@ -1,58 +1,119 @@
-name: Master Build Workflow
+name: Production Pipeline 2026
 
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-    
-    steps:
-      - uses: actions/checkout@v4
+# Cancelar ejecuciones previas si se hace un nuevo push en la misma rama/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
-      - name: Setup Node.js
+jobs:
+  quality-gate:
+    name: 🛡️ Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: cerlita_chat/package-lock.json
 
-      - name: Install dependencies
-        run: npm install
+      - name: 📦 Install Dependencies
+        working-directory: cerlita_chat
+        run: npm ci
 
-      - name: Type Check (Informative)
-        run: npx tsc --noEmit || echo "Typescript errors ignored for build"
+      - name: 🔎 Expo Doctor
+        working-directory: cerlita_chat
+        run: npx expo-doctor
 
-      - name: Build Web
-        run: npx expo export --platform web
+      - name: 🧹 Lint
+        working-directory: cerlita_chat
+        run: npm run lint
 
-      - name: Upload Web Build
-        uses: actions/upload-artifact@v4
+      - name: ⌨️ Type Check
+        working-directory: cerlita_chat
+        run: npm run typecheck
+
+      - name: 🧪 Unit Tests
+        working-directory: cerlita_chat
+        run: npm test
+
+  deploy-web:
+    name: 🌐 Deploy Web
+    needs: quality-gate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: web-build
-          path: dist
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: cerlita_chat/package-lock.json
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: 📦 Install Dependencies
+        working-directory: cerlita_chat
+        run: npm ci
+
+      - name: 🏗️ Build Web
+        working-directory: cerlita_chat
+        run: npm run build:web
+
+      - name: 🔧 Post Build Patch
+        run: node post-build.js
+
+      - name: 🚀 Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./cerlita_chat/dist
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Setup Expo/EAS
-        if: env.EXPO_TOKEN != null && env.EXPO_TOKEN != ''
+  build-mobile:
+    name: 📱 EAS Build Preview
+    needs: quality-gate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: cerlita_chat/package-lock.json
+
+      - name: 📦 Install Dependencies
+        working-directory: cerlita_chat
+        run: npm ci
+
+      - name: 🏗️ Setup Expo/EAS
+        if: env.EXPO_TOKEN != null
         uses: expo/expo-github-action@v8
         with:
           expo-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build Android (APK)
-        if: env.EXPO_TOKEN != null && env.EXPO_TOKEN != ''
-        run: |
-          npx eas build --platform android --profile preview --non-interactive --no-wait
+      - name: 🚀 Trigger EAS Build
+        if: env.EXPO_TOKEN != null
+        working-directory: cerlita_chat
+        run: npx eas build --platform android --profile preview --non-interactive --no-wait

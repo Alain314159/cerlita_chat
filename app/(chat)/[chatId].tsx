@@ -50,7 +50,7 @@ export default function ChatConversationScreen() {
       loadMessages(chatId as string);
       subscribeToMessages(chatId as string);
     }
-    return () => unsubscribeFromMessages(chatId as string);
+    return () => unsubscribeFromMessages();
   }, [chatId, loadMessages, subscribeToMessages, unsubscribeFromMessages]);
 
   const handleSendMessage = useCallback(async () => {

@@ -6,18 +6,25 @@ import { e2eEncryptionService } from '@/services/crypto/e2e.service';
 import { pushNotificationService } from '@/services/pushNotifications';
 import { userService } from '@/services/supabase/user.service';
 import { safeStoreAction } from '@/utils/safeAction';
+import { SendMessageUseCase } from '@/use-cases/chat/SendMessage';
+import { LoadMessagesUseCase } from '@/use-cases/chat/LoadMessages';
+import { EditMessageUseCase } from '@/use-cases/chat/EditMessage';
+import { DeleteMessageUseCase } from '@/use-cases/chat/DeleteMessage';
+import { ForwardMessageUseCase } from '@/use-cases/chat/ForwardMessage';
+import { HandleRealtimeMessageUseCase } from '@/use-cases/chat/HandleRealtimeMessage';
 
 interface MessageStore {
   messages: Message[];
   loading: boolean;
   error: string | null;
-  typingUsers: Set<string>;
-  channels: Map<string, RealtimeChannel>;
-  replyContext: ReplyContext | null;
-  starredMessages: Set<string>;
-  reactions: Map<string, Map<string, string[]>>;
   currentUserId: string | null;
-
+  replyContext: ReplyContext | null;
+  subscription: RealtimeChannel | null;
+  typingUsers: Record<string, boolean>;
+  setMessages: (messages: Message[]) => void;
+  addMessage: (message: Message) => void;
+  setError: (error: string | null) => void;
+  setCurrentUserId: (userId: string) => void;
   loadMessages: (chatId: string) => Promise<void>;
   sendMessage: (
     chatId: string,
@@ -32,54 +39,43 @@ interface MessageStore {
   ) => Promise<void>;
   editMessage: (messageId: string, newText: string, chatId: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
-  markAsRead: (messageId: string) => Promise<void>;
-  markAllAsRead: (chatId: string, userId: string) => Promise<void>;
+  addReaction: (messageId: string, emoji: string) => Promise<void>;
+  markAsRead: (chatId: string, userId: string) => Promise<void>;
   subscribeToMessages: (chatId: string) => void;
-  unsubscribeFromMessages: (chatId?: string) => void;
-  setTyping: (userId: string, isTyping: boolean) => void;
-  setError: (error: string | null) => void;
+  unsubscribeFromMessages: () => void;
   setReplyContext: (context: ReplyContext | null) => void;
   getReplyContext: (messageId: string) => Promise<ReplyContext | null>;
   forwardMessage: (messageId: string, targetChatIds: string[]) => Promise<void>;
-  starMessage: (messageId: string) => void;
-  unstarMessage: (messageId: string) => void;
-  addReaction: (messageId: string, emoji: string, userId: string) => Promise<void>;
-  removeReaction: (messageId: string, emoji: string, userId: string) => Promise<void>;
-  getReactionCounts: (messageId: string, currentUserId: string) => Record<string, { count: number; userReacted: boolean }>;
-  setCurrentUserId: (userId: string) => void;
 }
 
 export const useMessageStore = create<MessageStore>((set, get) => ({
   messages: [],
   loading: false,
   error: null,
-  typingUsers: new Set(),
-  channels: new Map(),
-  replyContext: null,
-  starredMessages: new Set<string>(),
-  reactions: new Map<string, Map<string, string[]>>(),
   currentUserId: null,
+  replyContext: null,
+  subscription: null,
+  typingUsers: {},
 
+  setMessages: (messages) => set({ messages }),
+  addMessage: (message) => set((state) => {
+    if (state.messages.some((m) => m.id === message.id)) return state;
+    return { messages: [...state.messages, message] };
+  }),
+  setError: (error) => set({ error }),
   setCurrentUserId: (userId: string) => set({ currentUserId: userId }),
 
   loadMessages: async (chatId: string) => {
     try {
       set({ loading: true, error: null });
-      const messages = await messageService.getMessages(chatId);
-      const decryptedMessages = await Promise.all(
-        messages.map(async (msg: any) => {
-          if (msg.content && msg.message_type === 'text') {
-            try {
-              const decrypted = await e2eEncryptionService.decrypt(msg.content, '', chatId);
-              return { ...msg, text: decrypted };
-            } catch {
-              return { ...msg, text: '[Unable to decrypt]' };
-            }
-          }
-          return { ...msg, text: msg.content };
-        })
+      const messages = await LoadMessagesUseCase(
+        {
+          getMessages: messageService.getMessages,
+          decrypt: e2eEncryptionService.decrypt
+        },
+        chatId
       );
-      set({ messages: decryptedMessages as unknown as Message[], loading: false });
+      set({ messages, loading: false });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to load messages';
       set({ loading: false, error: message });
@@ -90,52 +86,25 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     return safeStoreAction('sendMessage', async () => {
       try {
         set({ loading: true, error: null });
-        const messageType = options?.messageType || 'text';
-        let content = text;
-        
-        if (messageType === 'text') {
-          const { ciphertext } = await e2eEncryptionService.encrypt(text, chatId);
-          content = ciphertext;
-        }
         
         const { replyContext } = get();
-        const replyToId = options?.replyToId || replyContext?.messageId || null;
+        const replyToId = options?.replyToId || replyContext?.messageId || undefined;
 
-        // 1. Enviar el mensaje a la DB
-        await messageService.sendMessage({
-          chatId,
-          senderId,
-          content,
-          messageType,
-          mediaUrl: options?.mediaUrl || null,
-          thumbnailUrl: options?.thumbnailUrl || null,
-          replyToId,
-        });
-
-        // 2. Intentar enviar notificación Push
-        (async () => {
-          try {
-            const participantIds = await messageService.getChatParticipants(chatId);
-            const recipientId = participantIds?.find((id: string) => id !== senderId);
-              
-            if (recipientId) {
-              const userData = await userService.getUserById(recipientId);
-              const senderData = await userService.getUserById(senderId);
-
-              if (userData?.pushToken) {
-                await pushNotificationService.sendPushNotification(
-                  userData.pushToken,
-                  `Mensaje de ${senderData?.displayName || 'Alguien'}`,
-                  messageType === 'text' ? text : `Te ha enviado un ${messageType}`,
-                  { chatId, type: 'new_message' }
-                );
-              }
-
-            }
-          } catch (err) {
-            console.error('[PushNotification] Error sending notification:', err);
+        await SendMessageUseCase(
+          {
+            encrypt: e2eEncryptionService.encrypt,
+            sendMessage: messageService.sendMessage,
+            getChatParticipants: messageService.getChatParticipants,
+            getUserById: userService.getUserById,
+            sendPushNotification: pushNotificationService.sendPushNotification,
+          },
+          {
+            chatId,
+            senderId,
+            text,
+            options: { ...options, replyToId }
           }
-        })();
+        );
 
         set({ replyContext: null, loading: false });
       } catch (error: any) {
@@ -147,11 +116,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
 
   editMessage: async (messageId, newText, chatId) => {
     try {
-      const { ciphertext } = await e2eEncryptionService.encrypt(newText, chatId);
-      await messageService.updateMessage(messageId, {
-        content: ciphertext,
-        is_edited: true,
-      });
+      await EditMessageUseCase(messageId, newText, chatId);
       const currentMessages = get().messages;
       set({
         messages: currentMessages.map((m) =>
@@ -167,7 +132,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
 
   deleteMessage: async (messageId) => {
     try {
-      await messageService.deleteMessage(messageId);
+      await DeleteMessageUseCase(messageId);
       set({ messages: get().messages.filter((m) => m.id !== messageId) });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to delete message';
@@ -176,96 +141,66 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     }
   },
 
-  markAsRead: async (messageId) => {
+  addReaction: async (messageId, emoji) => {
     try {
-      await messageService.updateMessageStatus(messageId, 'read');
+      const { currentUserId } = get();
+      if (!currentUserId) return;
+      await messageService.addReaction(messageId, emoji, currentUserId);
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+    }
+  },
+
+  markAsRead: async (chatId, userId) => {
+    try {
+      await messageService.markAllAsRead(chatId, userId);
     } catch (error: unknown) {
       console.error('Failed to mark as read:', error);
     }
   },
 
-  markAllAsRead: async (chatId, userId) => {
-    try {
-      await messageService.markAllAsRead(chatId, userId);
-    } catch (error: unknown) {
-      console.error('Failed to mark all as read:', error);
-    }
-  },
+  subscribeToMessages: (chatId: string) => {
+    get().unsubscribeFromMessages();
 
-  subscribeToMessages: async (chatId) => {
-    const { channels } = get();
-    const existingChannel = channels.get(chatId);
-    if (existingChannel) {
-      existingChannel.unsubscribe();
-      channels.delete(chatId);
-    }
+    const sub = messageService.subscribeToMessages(chatId, async (payload: any) => {
+      const processedMsg = await HandleRealtimeMessageUseCase(
+        { decrypt: e2eEncryptionService.decrypt },
+        payload,
+        chatId
+      );
 
-    const channel = messageService.subscribeToMessages(chatId, async (payload: any) => {
-      const raw = payload.new as any;
-      if (!raw) return;
+      if (!processedMsg) return;
 
-      const msg: Message = {
-        id: raw.id,
-        chatId: raw.chat_id,
-        senderId: raw.sender_id,
-        type: raw.message_type as MessageType,
-        text: raw.content,
-        mediaURL: raw.media_url,
-        thumbnailURL: raw.thumbnail_url,
-        status: raw.status as Message['status'],
-        deliveredAt: raw.delivered_at ? new Date(raw.delivered_at) : null,
-        readAt: raw.read_at ? new Date(raw.read_at) : null,
-        createdAt: new Date(raw.created_at),
-        updatedAt: new Date(raw.updated_at),
-        isEdited: raw.is_edited,
-        editedAt: raw.is_edited ? new Date(raw.updated_at) : null,
-        replyToId: raw.reply_to_id,
-      };
-
-      if (msg.type === 'text' && msg.text) {
-        try {
-          const decrypted = await e2eEncryptionService.decrypt(msg.text, '', chatId);
-          msg.text = decrypted;
-        } catch {
-          msg.text = '[Unable to decrypt]';
-        }
-      }
-
+      const { eventType } = payload;
       const currentMessages = get().messages;
-      const existingIndex = currentMessages.findIndex((m) => m.id === msg.id);
-      if (existingIndex >= 0) {
-        const updated = [...currentMessages];
-        updated[existingIndex] = msg;
-        set({ messages: updated });
-      } else {
-        set({ messages: [...currentMessages, msg] });
+
+      if (eventType === 'INSERT') {
+        if (!currentMessages.find((m) => m.id === processedMsg.id)) {
+          set({ messages: [...currentMessages, processedMsg] });
+        }
+      } else if (eventType === 'UPDATE') {
+        set({
+          messages: currentMessages.map((m) =>
+            m.id === processedMsg.id ? { ...m, ...processedMsg } : m
+          ),
+        });
+      } else if (eventType === 'DELETE') {
+        set({
+          messages: currentMessages.filter((m) => m.id !== processedMsg.id),
+        });
       }
     });
 
-    channels.set(chatId, channel);
-    set({ channels });
+    set({ subscription: sub });
   },
 
-  unsubscribeFromMessages: (chatId?: string) => {
-    const { channels } = get();
-    if (chatId) {
-      const channel = channels.get(chatId);
-      if (channel) { channel.unsubscribe(); channels.delete(chatId); }
-    } else {
-      channels.forEach((ch) => ch.unsubscribe());
-      channels.clear();
+  unsubscribeFromMessages: () => {
+    const { subscription } = get();
+    if (subscription) {
+      subscription.unsubscribe();
+      set({ subscription: null });
     }
-    set({ channels });
   },
-
-  setTyping: (userId, isTyping) => {
-    const { typingUsers } = get();
-    const newTyping = new Set(typingUsers);
-    if (isTyping) newTyping.add(userId); else newTyping.delete(userId);
-    set({ typingUsers: newTyping });
-  },
-
-  setError: (error) => set({ error }),
 
   setReplyContext: (context) => set({ replyContext: context }),
 
@@ -276,8 +211,8 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       return {
         messageId: data.id,
         senderName: 'User',
-        text: data.message_type === 'text' ? data.content : data.message_type,
-        type: data.message_type as MessageType,
+        text: data.type === 'text' ? data.text || '' : data.type,
+        type: data.type as MessageType,
       };
     } catch {
       return null;
@@ -289,62 +224,11 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       const original = get().messages.find((m) => m.id === messageId);
       if (!original) throw new Error('Message not found');
       const currentUserId = get().currentUserId || '';
-      for (const chatId of targetChatIds) {
-        if (original.text) {
-          const { ciphertext } = await e2eEncryptionService.encrypt(original.text, chatId);
-          await messageService.sendMessage({
-            chatId, senderId: currentUserId, content: ciphertext, messageType: 'text',
-          });
-        }
-      }
+      
+      await ForwardMessageUseCase(original, targetChatIds, currentUserId);
     } catch (error: unknown) {
       console.error('Failed to forward:', error);
       throw error;
     }
   },
-
-  starMessage: (messageId) => {
-    const starred = new Set(get().starredMessages);
-    starred.add(messageId);
-    set({ starredMessages: starred });
-  },
-
-  unstarMessage: (messageId) => {
-    const starred = new Set(get().starredMessages);
-    starred.delete(messageId);
-    set({ starredMessages: starred });
-  },
-
-  addReaction: async (messageId, emoji, userId) => {
-    try {
-      await messageService.addReaction(messageId, emoji, userId);
-      const msgReactions = get().reactions.get(messageId) || new Map();
-      const users = msgReactions.get(emoji) || [];
-      if (!users.includes(userId)) {
-        msgReactions.set(emoji, [...users, userId]);
-        get().reactions.set(messageId, msgReactions);
-      }
-    } catch (e) { console.error('Reaction error:', e); }
-  },
-
-  removeReaction: async (messageId, emoji, userId) => {
-    try {
-      await messageService.removeReaction(messageId, emoji, userId);
-      const msgReactions = get().reactions.get(messageId);
-      if (msgReactions) {
-        const users = msgReactions.get(emoji) || [];
-        msgReactions.set(emoji, users.filter((u) => u !== userId));
-      }
-    } catch (e) { console.error('Remove reaction error:', e); }
-  },
-
-  getReactionCounts: (messageId, currentUserId) => {
-    const msgReactions = get().reactions.get(messageId) || new Map();
-    const result: Record<string, { count: number; userReacted: boolean }> = {};
-    msgReactions.forEach((users, emoji) => {
-      result[emoji] = { count: users.length, userReacted: users.includes(currentUserId) };
-    });
-    return result;
-  },
 }));
-

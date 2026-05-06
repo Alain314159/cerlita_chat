@@ -58,7 +58,8 @@ describe('authStore', () => {
   });
 
   it('debe registrar un nuevo usuario correctamente', async () => {
-    (authService.signUp as jest.Mock).mockResolvedValue(mockUser);
+    (authService.signUp as jest.Mock).mockResolvedValue({ user: mockUser });
+    (authService.getUserProfile as jest.Mock).mockResolvedValue(mockUser);
 
     await useAuthStore.getState().signUp('test@example.com', 'pass', 'Test User');
 
