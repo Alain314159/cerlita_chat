@@ -84,7 +84,7 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "baseUrl": "/cerlita_chat"
+      "baseUrl": ""
     },
     "extra": {
       "router": {

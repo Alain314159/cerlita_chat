@@ -23,19 +23,29 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const router = useRouter();
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const handleLogin = async () => {
+    setErrorMsg(null);
     if (!email.trim() || !password) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      setErrorMsg('Por favor completa todos los campos');
       return;
     }
 
     try {
       setLoading(true);
       await signIn(email, password);
-      // Auth state change will navigate automatically
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Error desconocido';
-      Alert.alert('Error de inicio de sesión', message);
+    } catch (error: any) {
+      console.error('Login error:', error);
+      let message = 'Error al iniciar sesión';
+      if (error.message === 'Invalid login credentials') {
+        message = 'Email o contraseña incorrectos';
+      } else if (error.message?.includes('Network')) {
+        message = 'Error de conexión. Revisa tu internet';
+      } else {
+        message = error.message || message;
+      }
+      setErrorMsg(message);
     } finally {
       setLoading(false);
     }
@@ -57,6 +67,12 @@ export default function LoginScreen() {
 
         {/* Form */}
         <View style={styles.form}>
+          {errorMsg && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            </View>
+          )}
+          
           <TextInput
             label="Email"
             value={email}
@@ -152,6 +168,20 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: theme.spacing.md,
+  },
+  errorContainer: {
+    backgroundColor: '#FFEBEE',
+    padding: theme.spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+    marginBottom: theme.spacing.sm,
+  },
+  errorText: {
+    color: '#D32F2F',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   input: {
     marginBottom: theme.spacing.sm,

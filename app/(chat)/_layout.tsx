@@ -1,9 +1,11 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { theme } from '@/config/theme';
+import { MessageCircle, Settings } from 'lucide-react-native';
+import { useTheme } from 'react-native-paper';
 
 export default function ChatLayout() {
+  const theme = useTheme();
+  
   return (
     <Tabs
       screenOptions={{
@@ -12,10 +14,11 @@ export default function ChatLayout() {
         tabBarInactiveTintColor: theme.colors.secondary,
         tabBarStyle: {
           borderTopWidth: 1,
-          borderTopColor: theme.colors.border,
+          borderTopColor: (theme.colors as any).border || '#e0e0e0',
           paddingBottom: 8,
           paddingTop: 8,
           height: 60,
+          backgroundColor: theme.colors.surface,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -28,7 +31,7 @@ export default function ChatLayout() {
         options={{
           title: 'Chats',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
+            <MessageCircle size={size} color={color} />
           ),
         }}
       />
@@ -37,7 +40,7 @@ export default function ChatLayout() {
         options={{
           title: 'Ajustes',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings" size={size} color={color} />
+            <Settings size={size} color={color} />
           ),
         }}
       />
