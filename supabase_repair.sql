@@ -35,16 +35,16 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 -- 2. ÍNDICES OBLIGATORIOS (Rendimiento + RLS eficiente)
 -- ========================================================
 
--- Índice GIN para consultas de array (evita scans completos)
+-- Índice GIN para consultas de array (array_ops es el default nativo)
 CREATE INDEX IF NOT EXISTS idx_chats_participant_ids_gin 
-    ON chats USING gin(participant_ids uuid_array_ops);
+    ON chats USING gin(participant_ids);
 
 -- Índices para joins frecuentes y ordenamiento
 CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_participants_user_id ON chat_participants(user_id);
 
--- Trigger para mantener updated_at sincronizado (evita staleness en Realtime)
+-- Trigger para mantener updated_at sincronizado
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
