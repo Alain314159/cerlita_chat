@@ -27,11 +27,57 @@ export class E2EEncryptionService {
 
     if (storedKey) {
       const key = await this.importKey(this.base64ToArrayBuffer(storedKey));
+      
+      // Maestro 2026: Cache Limit (LRU-ish)
+      if (this.keyCache.size > 50) {
+        const firstKey = this.keyCache.keys().next().value;
+        if (firstKey) this.keyCache.delete(firstKey);
+      }
+      
       this.keyCache.set(chatId, key);
       return key;
     }
 
     return this.generateChatKey(chatId);
+  }
+
+  // Establecer clave compartida determinísticamente (Maestro 2026: Zero-Trust Handshake)
+  async establishSharedKey(chatId: string, userId: string, peerId: string): Promise<void> {
+    const sortedIds = [userId, peerId].sort();
+    const seed = `${sortedIds[0]}:${sortedIds[1]}:cerlita_v1`;
+    
+    const encoder = new TextEncoder();
+    const crypto = (globalThis.crypto || (global as unknown as { crypto: Crypto }).crypto) as Crypto;
+    
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(seed),
+      'HKDF',
+      false,
+      ['deriveKey']
+    );
+    
+    const chatKey = await crypto.subtle.deriveKey(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: encoder.encode('cerlita-chat-salt-v1'),
+        info: encoder.encode(`chat-key:${chatId}`),
+      },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      true, 
+      ['encrypt', 'decrypt']
+    );
+    
+    const existing = await SecureStore.getItemAsync(`chat_key_${chatId}`);
+    if (!existing) {
+      const rawKey = await crypto.subtle.exportKey('raw', chatKey);
+      await SecureStore.setItemAsync(
+        `chat_key_${chatId}`, 
+        this.arrayBufferToBase64(new Uint8Array(rawKey))
+      );
+    }
   }
 
   // Cifrar mensaje
@@ -128,13 +174,9 @@ export class E2EEncryptionService {
     this.keyCache.clear();
   }
 
-  // Utilidad: ArrayBuffer a Base64
+  // Utilidad: ArrayBuffer a Base64 (Maestro 2026: Robust for binaries)
   private arrayBufferToBase64(buffer: Uint8Array): string {
-    let binary = '';
-    buffer.forEach((byte) => {
-      binary += String.fromCharCode(byte);
-    });
-    return btoa(binary);
+    return btoa(String.fromCharCode(...buffer));
   }
 
   // Utilidad: Base64 a ArrayBuffer

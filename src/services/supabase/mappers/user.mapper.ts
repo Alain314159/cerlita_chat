@@ -8,11 +8,11 @@ export const mapDatabaseUserToDomain = (dbUser: any): User => {
     displayName: dbUser.display_name,
     photoURL: dbUser.photo_url,
     isOnline: dbUser.is_online,
-    lastSeen: dbUser.last_seen_at ? new Date(dbUser.last_seen_at) : null,
+    lastSeen: dbUser.last_seen_at,
     isTyping: dbUser.is_typing,
     pushToken: dbUser.push_token,
-    createdAt: new Date(dbUser.created_at),
-    updatedAt: new Date(dbUser.updated_at),
+    createdAt: dbUser.created_at,
+    updatedAt: dbUser.updated_at,
   };
 };
 

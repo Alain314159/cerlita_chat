@@ -1,9 +1,11 @@
 import { supabase } from './config';
 import { mapDatabaseMessageToDomain, mapDomainMessageToDatabase } from './mappers/message.mapper';
+import type { Message } from '@/types';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export const messageService = {
   // Get messages for a chat with pagination support
-  async getMessages(chatId: string, options: number | { limit?: number; before?: string } = 50) {
+  async getMessages(chatId: string, options: number | { limit?: number; before?: string } = 50): Promise<Message[]> {
     let limit = 50;
     let before: string | null = null;
 
@@ -34,33 +36,30 @@ export const messageService = {
     return messages.reverse();
   },
 
-  // Send a message
-  async sendMessage(params: any) {
+  // Send a message (pJ/bit Optimization: DB triggers handle chat updates)
+  async sendMessage(params: Partial<Message> & { chatId: string }): Promise<Message> {
     const dbPayload = mapDomainMessageToDatabase(params);
     
-    const { data, error } = await (supabase.from('messages') as any).insert(dbPayload).select().single();
+    const { data, error } = await supabase.from('messages').insert(dbPayload).select().single();
 
     if (error) throw new Error(error.message);
 
-    // Update the last message in the chat
-    await supabase.from('chats')
-      .update({ 
-        last_message_id: data.id,
-        updated_at: new Date().toISOString()
-      } as any)
-      .eq('id', params.chatId);
+    // NOTE: last_message_id and updated_at in 'chats' are now handled 
+    // by the server-side trigger 'update_chat_on_new_message_trigger'.
+    // This reduces network roundtrips and ensures atomicity.
 
     return mapDatabaseMessageToDomain(data);
   },
 
-  // Mark a view-once message as viewed (burn after reading)
-  async markAsViewed(messageId: string) {
+  // Mark a view-once message as viewed (Nuclear Cleanup)
+  async markAsViewed(messageId: string): Promise<void> {
     const { error } = await supabase
       .from('messages')
       .update({ 
         viewed_at: new Date().toISOString(),
-        content: '[Mensaje de visualización única ya visto]', // Sobrescribir contenido por seguridad
-      } as any)
+        // Note: The trigger 'trigger_burn_view_once' will automatically 
+        // clear the content and media URLs in the database.
+      })
       .eq('id', messageId)
       .eq('is_view_once', true);
 
@@ -68,20 +67,20 @@ export const messageService = {
   },
 
   // Update a message (edit)
-  async updateMessage(messageId: string, updates: any) {
+  async updateMessage(messageId: string, updates: Partial<Message>): Promise<void> {
     const { error } = await supabase
       .from('messages')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
-      } as any)
+      })
       .eq('id', messageId);
 
     if (error) throw new Error(error.message);
   },
 
   // Delete a message
-  async deleteMessage(messageId: string) {
+  async deleteMessage(messageId: string): Promise<void> {
     const { error } = await supabase
       .from('messages')
       .delete()
@@ -91,26 +90,26 @@ export const messageService = {
   },
 
   // Update message status (delivered, read)
-  async updateMessageStatus(messageId: string, status: 'delivered' | 'read') {
+  async updateMessageStatus(messageId: string, status: 'delivered' | 'read'): Promise<void> {
     const { error } = await supabase
       .from('messages')
       .update({ 
         status,
         [status === 'read' ? 'read_at' : 'delivered_at']: new Date().toISOString()
-      } as any)
+      })
       .eq('id', messageId);
 
     if (error) throw new Error(error.message);
   },
 
   // Mark all messages in a chat as read
-  async markAllAsRead(chatId: string, userId: string) {
+  async markAllAsRead(chatId: string, userId: string): Promise<void> {
     const { error } = await supabase
       .from('messages')
       .update({ 
         status: 'read',
         read_at: new Date().toISOString()
-      } as any)
+      })
       .eq('chat_id', chatId)
       .neq('sender_id', userId)
       .neq('status', 'read');
@@ -119,7 +118,7 @@ export const messageService = {
   },
 
   // Get a single message by ID
-  async getMessageById(messageId: string) {
+  async getMessageById(messageId: string): Promise<Message | null> {
     const { data, error } = await supabase
       .from('messages')
       .select('*')
@@ -130,8 +129,8 @@ export const messageService = {
     return mapDatabaseMessageToDomain(data);
   },
 
-  // Get chat participants for push notifications
-  async getChatParticipants(chatId: string) {
+  // Get chat participants for push notifications (Maestro 2026: Type Safety)
+  async getChatParticipants(chatId: string): Promise<string[]> {
     const { data, error } = await supabase
       .from('chats')
       .select('participant_ids')
@@ -139,12 +138,12 @@ export const messageService = {
       .single();
 
     if (error) throw new Error(error.message);
-    return (data as any)?.participant_ids as string[];
+    return (data as { participant_ids: string[] })?.participant_ids || [];
   },
 
   // Reaction management
-  async addReaction(messageId: string, emoji: string, userId: string) {
-    const { error } = await (supabase.from('message_reactions') as any).insert({
+  async addReaction(messageId: string, emoji: string, userId: string): Promise<void> {
+    const { error } = await supabase.from('message_reactions').insert({
       message_id: messageId,
       emoji,
       user_id: userId,
@@ -153,30 +152,40 @@ export const messageService = {
     if (error) throw new Error(error.message);
   },
 
-  async removeReaction(messageId: string, emoji: string, userId: string) {
-    const { error } = await (supabase.from('message_reactions') as any)
+  async removeReaction(messageId: string, emoji: string, userId: string): Promise<void> {
+    const { error } = await supabase.from('message_reactions')
       .delete()
       .match({ message_id: messageId, emoji, user_id: userId });
 
     if (error) throw new Error(error.message);
   },
 
-  // Subscribe to new messages in a chat
-  subscribeToMessages(chatId: string, onMessage: (payload: any) => void) {
-    return supabase
+  // Subscribe to new messages in a chat (Maestro 2026: INSERT Filtering & Retry)
+  subscribeToMessages(chatId: string, onMessage: (payload: any) => void): RealtimeChannel {
+    const channel = supabase
       .channel(`chat:${chatId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT', // Solo nuevos mensajes para eficiencia
           schema: 'public',
           table: 'messages',
           filter: `chat_id=eq.${chatId}`,
         },
         (payload: any) => {
-          onMessage(payload);
+          if (payload.new?.id) {
+            onMessage(payload);
+          }
         }
-      )
-      .subscribe();
+      );
+
+    channel.subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') {
+        console.warn(`[Realtime] Subscription error for chat:${chatId}, retrying...`);
+        setTimeout(() => channel.subscribe(), 2000);
+      }
+    });
+
+    return channel;
   },
 };
