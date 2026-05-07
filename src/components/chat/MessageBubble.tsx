@@ -10,6 +10,7 @@ import { ReplyThread } from './ReplyThread';
 import { MessageReactions } from './MessageReactions';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Lock } from 'lucide-react-native';
 
 interface MessageBubbleProps {
   message: Message;
@@ -17,7 +18,7 @@ interface MessageBubbleProps {
   reactions?: Record<string, { count: number; userReacted: boolean }>;
   replyContext?: ReplyContext | null;
   onLongPress?: () => void;
-  onReaction?: (emoji: any) => void;
+  onReaction?: (emoji: string) => void;
   onReply?: () => void;
   isStarred?: boolean;
 }
@@ -62,12 +63,21 @@ export const MessageBubble = React.memo(function MessageBubble({
   const renderContent = () => {
     if (message.isViewOnce && message.readAt && !isMe) {
       return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', opacity: 0.7 }}>
+        <View style={styles.viewOnceInfo}>
           <IconButton icon="eye-off-outline" size={20} iconColor={theme.colors.onSurfaceVariant} />
-          <Text style={{ fontSize: 14, fontStyle: 'italic', color: theme.colors.onSurfaceVariant }}>Mensaje visto</Text>
+          <Text style={[styles.italicText, { color: theme.colors.onSurfaceVariant }]}>Mensaje visto</Text>
         </View>
       );
     }
+    
+    if (message.text === '[Error de descifrado]' || message.status === 'failed') {
+      return (
+        <Text style={[styles.errorText, { color: isMe ? '#FFCDD2' : theme.colors.error }]}>
+          ⚠️ No se pudo descifrar este mensaje
+        </Text>
+      );
+    }
+
     if (message.type === 'image' && message.mediaURL) {
       return (
         <Image 
@@ -78,14 +88,22 @@ export const MessageBubble = React.memo(function MessageBubble({
         />
       );
     }
+
     return (
-      <Text style={[
-        styles.text, 
-        { color: isMe ? '#FFFFFF' : theme.colors.onSurface }
-      ]}>
-        {message.text}
-        {message.isEdited && <Text style={styles.editedLabel}> (editado)</Text>}
-      </Text>
+      <View>
+        <Text style={[
+          styles.text, 
+          { color: isMe ? '#FFFFFF' : theme.colors.onSurface }
+        ]}>
+          {message.text}
+          {message.isEdited && <Text style={styles.editedLabel}> (editado)</Text>}
+        </Text>
+        {message.encryptedPayload && (
+          <View style={styles.encryptionBadge}>
+            <Lock size={10} color={isMe ? 'rgba(255,255,255,0.7)' : theme.colors.onSurfaceVariant} />
+          </View>
+        )}
+      </View>
     );
   };
 
@@ -132,10 +150,10 @@ export const MessageBubble = React.memo(function MessageBubble({
         )}
         <View style={styles.meta}>
           {message.isEphemeral && (
-            <IconButton icon="timer-outline" size={12} iconColor="rgba(255,255,255,0.5)" style={{ margin: 0, padding: 0, width: 14, height: 14 }} />
+            <IconButton icon="timer-outline" size={12} iconColor="rgba(255,255,255,0.5)" style={styles.metaIcon} />
           )}
           {message.isViewOnce && (
-            <IconButton icon="lightning-bolt" size={12} iconColor="rgba(255,255,255,0.5)" style={{ margin: 0, padding: 0, width: 14, height: 14 }} />
+            <IconButton icon="lightning-bolt" size={12} iconColor="rgba(255,255,255,0.5)" style={styles.metaIcon} />
           )}
           <Text style={[styles.time, { color: isMe ? 'rgba(255,255,255,0.7)' : theme.colors.onSurfaceVariant }]}>
             {format(new Date(message.createdAt), 'HH:mm', { locale: es })}
@@ -192,10 +210,15 @@ const styles = StyleSheet.create({
   theirBubble: { borderBottomLeftRadius: 4 },
   mediaImage: { width: 250, height: 250, borderRadius: 12, marginBottom: 4 },
   text: { fontSize: 15, lineHeight: 20 },
+  errorText: { fontSize: 14, fontStyle: 'italic', fontWeight: '500' },
+  italicText: { fontSize: 14, fontStyle: 'italic' },
+  viewOnceInfo: { flexDirection: 'row', alignItems: 'center', opacity: 0.7 },
+  encryptionBadge: { position: 'absolute', right: -18, bottom: -2, opacity: 0.6 },
   editedLabel: { fontSize: 11, fontStyle: 'italic', opacity: 0.6 },
   meta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, justifyContent: 'flex-end' },
   time: { fontSize: 10 },
   statusIcon: { margin: 0, padding: 0, width: 18, height: 18, marginLeft: 2 },
+  metaIcon: { margin: 0, padding: 0, width: 14, height: 14 },
   starIndicator: { position: 'absolute', top: -8, right: -8 },
   starIcon: { margin: 0 },
   modalOverlay: {
@@ -209,6 +232,7 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 24,
     gap: 8,
+    backgroundColor: '#FFFFFF', // Fallback
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

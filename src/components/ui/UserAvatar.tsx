@@ -1,25 +1,40 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Avatar } from 'react-native-paper';
-import { theme } from '@/config/theme';
-import type { ImageSourcePropType } from 'react-native';
+import { Avatar, useTheme } from 'react-native-paper';
 
 interface UserAvatarProps {
   photoURL?: string | null;
   isOnline?: boolean;
   size?: number;
   style?: any;
+  accessibilityLabel?: string;
 }
 
-export function UserAvatar({ photoURL, isOnline = false, size = 56, style }: UserAvatarProps) {
-  const source: ImageSourcePropType = photoURL
-    ? { uri: photoURL }
-    : require('@/assets/images/default-avatar.png');
+export function UserAvatar({ photoURL, isOnline = false, size = 56, style, accessibilityLabel }: UserAvatarProps) {
+  const theme = useTheme();
+  
+  const source = photoURL 
+    ? { uri: photoURL } 
+    : undefined;
 
   return (
-    <View style={[styles.container, style]}>
-      <Avatar.Image size={size} source={source} />
-      {isOnline && <View style={[styles.indicator, { width: size * 0.25, height: size * 0.25 }]} />}
+    <View style={[styles.container, style]} accessibilityLabel={accessibilityLabel}>
+      <Avatar.Image 
+        size={size} 
+        source={source as any}
+        onError={() => console.warn('[UserAvatar] Failed to load:', photoURL)}
+      />
+      {isOnline && (
+        <View 
+          style={[styles.indicator, { 
+            width: size * 0.25, 
+            height: size * 0.25, 
+            backgroundColor: theme.colors.primary,
+            borderColor: theme.colors.surface 
+          }]} 
+          accessibilityLabel="Usuario en línea"
+        />
+      )}
     </View>
   );
 }
@@ -33,8 +48,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     borderRadius: 999,
-    backgroundColor: theme.colors.online,
     borderWidth: 2,
-    borderColor: theme.colors.background,
   },
 });

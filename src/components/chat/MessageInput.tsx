@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { TextInput, IconButton } from 'react-native-paper';
 import { theme } from '@/config/theme';
 import type { ReplyContext } from '@/types/message.types';
 import { TermuxKeyBar, TermuxKey } from './TermuxKeyBar';
+import { Paperclip, Send, Camera, Mic, Clock, EyeOff } from 'lucide-react-native';
 
 interface MessageInputProps {
   value: string;
@@ -16,13 +17,13 @@ interface MessageInputProps {
   onReplyClose?: () => void;
   disabled?: boolean;
   placeholder?: string;
+  isLoading?: boolean;
 }
-
-import { Paperclip, Send, Camera, Mic } from 'lucide-react-native';
 
 export const MessageInput: React.FC<MessageInputProps> = ({
   value, onChangeText, onSend, onAttachmentPress, onCameraPress, onVoicePress,
   disabled = false, placeholder = 'Escribe un mensaje...',
+  isLoading = false
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isEphemeral, setIsEphemeral] = useState(false);
@@ -33,6 +34,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const hasText = value.trim().length > 0;
 
   const handleSend = () => {
+    if (!hasText || isLoading) return;
     onSend({ isEphemeral, isViewOnce });
     setIsEphemeral(false);
     setIsViewOnce(false);
@@ -108,31 +110,47 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         <IconButton
           icon={() => <Paperclip size={22} color={theme.colors.secondary} />}
           onPress={onAttachmentPress}
-          disabled={disabled}
+          disabled={disabled || isLoading}
           testID="attachment-button"
         />
-        <TextInput
-          ref={inputRef}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          mode="outlined"
-          multiline
-          maxLength={5000}
-          style={styles.input}
-          contentStyle={styles.inputContent}
-          disabled={disabled}
-          testID="message-input"
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          selection={selection}
-          onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
-        />
+        <View style={styles.inputWrapper}>
+          <TextInput
+            ref={inputRef}
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            mode="outlined"
+            multiline
+            maxLength={2000}
+            style={styles.input}
+            contentStyle={styles.inputContent}
+            disabled={disabled || isLoading}
+            testID="message-input"
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            selection={selection}
+            onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+          />
+          <View style={styles.privacyToggles}>
+            <TouchableOpacity 
+              style={[styles.toggle, isEphemeral && styles.toggleActive]}
+              onPress={() => setIsEphemeral(!isEphemeral)}
+            >
+              <Clock size={16} color={isEphemeral ? theme.colors.primary : theme.colors.secondary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.toggle, isViewOnce && styles.toggleActive]}
+              onPress={() => setIsViewOnce(!isViewOnce)}
+            >
+              <EyeOff size={16} color={isViewOnce ? theme.colors.primary : theme.colors.secondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
         {hasText ? (
           <IconButton
             icon={() => <Send size={22} color={theme.colors.primary} />}
             onPress={handleSend}
-            disabled={!hasText || disabled}
+            disabled={!hasText || disabled || isLoading}
             testID="send-button"
           />
         ) : (
@@ -140,13 +158,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             <IconButton 
               icon={() => <Camera size={22} color={theme.colors.secondary} />} 
               onPress={onCameraPress} 
-              disabled={disabled}
+              disabled={disabled || isLoading}
               testID="camera-button"
             />
             <IconButton 
               icon={() => <Mic size={22} color={theme.colors.secondary} />} 
               onPress={onVoicePress} 
-              disabled={disabled}
+              disabled={disabled || isLoading}
               testID="voice-button"
             />
           </View>
@@ -159,10 +177,23 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 const styles = StyleSheet.create({
   container: { backgroundColor: theme.colors.background, borderTopWidth: 1, borderTopColor: theme.colors.border },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, padding: 8 },
-  attachButton: { justifyContent: 'center', alignItems: 'center' },
-  input: { flex: 1, backgroundColor: theme.colors.surface, maxHeight: 120 },
-  inputContent: { minHeight: 40 },
-  privacyControls: { flexDirection: 'row', alignItems: 'center' },
-  sendButton: { justifyContent: 'center', alignItems: 'center' },
+  inputWrapper: { flex: 1 },
+  input: { backgroundColor: theme.colors.surface, maxHeight: 120 },
+  inputContent: { minHeight: 40, paddingRight: 60 },
+  privacyToggles: { 
+    flexDirection: 'row', 
+    position: 'absolute', 
+    right: 8, 
+    bottom: 12,
+    gap: 8,
+    alignItems: 'center'
+  },
+  toggle: {
+    padding: 4,
+    borderRadius: 12,
+  },
+  toggleActive: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
   alternateButtons: { flexDirection: 'row' },
 });

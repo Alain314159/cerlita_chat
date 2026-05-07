@@ -1,86 +1,103 @@
--- ============================================
--- CONNECTION REQUESTS SYSTEM (2026 UPDATE)
--- ============================================
+-- 1. Crear columnas faltantes para E2E
+ALTER TABLE messages 
+ADD COLUMN IF NOT EXISTS auth_tag TEXT,
+ADD COLUMN IF NOT EXISTS key_version TEXT DEFAULT 'v1',
+ADD COLUMN IF NOT EXISTS encrypted_payload JSONB;
 
-CREATE TYPE connection_status AS ENUM ('pending', 'accepted', 'rejected');
+-- 2. Índices para rendimiento
+CREATE INDEX IF NOT EXISTS idx_messages_chat_created 
+ON messages (chat_id, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS connection_requests (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    sender_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-    receiver_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-    initial_message_encrypted TEXT, -- Opcional: primer mensaje cifrado
-    status connection_status DEFAULT 'pending',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+CREATE INDEX IF NOT EXISTS idx_connection_requests_user_status 
+ON connection_requests (receiver_id, status) 
+WHERE status = 'pending';
+
+-- 3. Trigger de creación de chat con verificación de duplicados
+CREATE OR REPLACE FUNCTION handle_accepted_connection()
+RETURNS TRIGGER AS $$
+DECLARE
+  existing_chat_id UUID;
+  participant_array UUID[];
+BEGIN
+  IF NEW.status = 'accepted' AND OLD.status = 'pending' THEN
+    -- Ordenar IDs para consistencia en la búsqueda
+    participant_array := ARRAY[NEW.sender_id, NEW.receiver_id];
     
-    -- Unicidad: No permitir múltiples solicitudes pendientes entre los mismos dos usuarios
-    UNIQUE(sender_id, receiver_id)
-);
+    -- Verificar si ya existe un chat directo para esta pareja
+    SELECT id INTO existing_chat_id 
+    FROM chats 
+    WHERE type = 'direct'
+      AND participant_ids @> participant_array
+      AND array_length(participant_ids, 1) = 2
+    LIMIT 1;
+    
+    IF existing_chat_id IS NULL THEN
+      INSERT INTO chats (id, participant_ids, type, created_at, updated_at)
+      VALUES (
+        gen_random_uuid(),
+        participant_array,
+        'direct',
+        now(),
+        now()
+      );
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Habilitar RLS
+-- 4. Políticas RLS (Zero-Trust)
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE connection_requests ENABLE ROW LEVEL SECURITY;
 
--- POLÍTICAS RLS
-CREATE POLICY "Users can view their own sent/received requests" ON connection_requests
-    FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+-- Política para mensajes: solo participantes del chat pueden acceder
+DROP POLICY IF EXISTS messages_user_access ON messages;
+CREATE POLICY messages_user_access ON messages
+FOR ALL
+USING (
+  auth.uid() = sender_id OR 
+  EXISTS (
+    SELECT 1 FROM chats 
+    WHERE chats.id = messages.chat_id 
+    AND auth.uid() = ANY(chats.participant_ids)
+  )
+);
 
-CREATE POLICY "Users can send requests" ON connection_requests
-    FOR INSERT WITH CHECK (auth.uid() = sender_id);
+-- Política para chats: solo participantes pueden ver el chat
+DROP POLICY IF EXISTS chats_user_access ON chats;
+CREATE POLICY chats_user_access ON chats
+FOR SELECT
+USING (auth.uid() = ANY(participant_ids));
 
-CREATE POLICY "Receivers can update request status" ON connection_requests
-    FOR UPDATE USING (auth.uid() = receiver_id)
-    WITH CHECK (auth.uid() = receiver_id);
+-- Política para connection_requests: solo involucrados pueden acceder
+DROP POLICY IF EXISTS connection_requests_user_access ON connection_requests;
+CREATE POLICY connection_requests_user_access ON connection_requests
+FOR ALL
+USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 
--- TRIGGER PARA ACTUALIZACIÓN DE TIMESTAMP
-CREATE TRIGGER update_connection_requests_updated_at
-    BEFORE UPDATE ON connection_requests
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- AUTOMATIC CHAT CREATION ON ACCEPTANCE
-CREATE OR REPLACE FUNCTION handle_accepted_connection()
+-- 5. Trigger de view-once mejorado (solo para mensajes NO E2E)
+CREATE OR REPLACE FUNCTION trigger_burn_view_once()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.status = 'accepted' AND OLD.status = 'pending' THEN
-        -- Crear el chat 1-on-1 automáticamente
-        INSERT INTO chats (participant_ids, created_at, updated_at)
-        VALUES (
-            ARRAY[NEW.sender_id, NEW.receiver_id],
-            now(),
-            now()
-        );
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plv68; -- Usando V8 (JS) si está disponible, o PLPGSQL
-
--- Si no hay v68, fallback a PLPGSQL
-CREATE OR REPLACE FUNCTION handle_accepted_connection()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.status = 'accepted' AND OLD.status = 'pending' THEN
-        INSERT INTO chats (participant_ids, created_at, updated_at)
-        VALUES (
-            ARRAY[NEW.sender_id, NEW.receiver_id],
-            now(),
-            now()
-        );
-    END IF;
-    RETURN NEW;
+  -- Solo aplicar si el mensaje NO está cifrado E2E (para evitar falsa sensación de seguridad)
+  IF NEW.is_view_once = true 
+     AND NEW.viewed_at IS NOT NULL 
+     AND OLD.viewed_at IS NULL
+     AND (NEW.encrypted_payload IS NULL OR NEW.encrypted_payload = '{}'::jsonb) THEN
+    -- Nullificar todos los campos sensibles
+    NEW.content := NULL;
+    NEW.media_url := NULL;
+    NEW.thumbnail_url := NULL;
+    NEW.iv := NULL;
+    NEW.auth_tag := NULL;
+  END IF;
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER on_connection_accepted
-    AFTER UPDATE ON connection_requests
+DROP TRIGGER IF EXISTS trigger_burn_view_once_messages ON messages;
+CREATE TRIGGER trigger_burn_view_once_messages
+    BEFORE UPDATE ON messages
     FOR EACH ROW
-    EXECUTE FUNCTION handle_accepted_connection();
-
--- EPHEMERAL MESSAGES SUPPORT
-ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_ephemeral BOOLEAN DEFAULT false;
-ALTER TABLE messages ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
-
--- INDEX FOR EPHEMERAL CLEANUP
-CREATE INDEX IF NOT EXISTS idx_messages_expires_at ON messages(expires_at) WHERE is_ephemeral = true;
-
--- VIEW ONCE MESSAGES SUPPORT
-ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_view_once BOOLEAN DEFAULT false;
-ALTER TABLE messages ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMP WITH TIME ZONE;
+    EXECUTE FUNCTION trigger_burn_view_once();
