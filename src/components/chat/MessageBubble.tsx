@@ -40,7 +40,7 @@ function StatusIcon({ status, readAt }: { status: string; readAt?: Date | string
     <IconButton
       icon={config.icon}
       size={14}
-      iconColor={(theme.colors as Record<string, string>)[config.colorKey] || theme.colors.primary}
+      iconColor={(theme.colors as any)[config.colorKey] || theme.colors.primary}
       style={styles.statusIcon}
     />
   );

@@ -21,6 +21,7 @@ interface MessageStore {
   replyContext: ReplyContext | null;
   subscription: RealtimeChannel | null;
   typingUsers: Record<string, boolean>;
+  processedMessageIds: Set<string>;
   setMessages: (messages: Message[]) => void;
   addMessage: (message: Message) => void;
   setError: (error: string | null) => void;
@@ -57,11 +58,23 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   subscription: null,
   typingUsers: {},
 
-  setMessages: (messages) => set({ messages }),
+  processedMessageIds: new Set<string>(),
+
+  setMessages: (messages) => {
+    const ids = new Set(messages.map(m => m.id));
+    set({ messages, processedMessageIds: ids });
+  },
+
   addMessage: (message) => set((state) => {
     if (state.messages.some((m) => m.id === message.id)) return state;
-    return { messages: [...state.messages, message] };
+    const newProcessed = new Set(state.processedMessageIds);
+    newProcessed.add(message.id);
+    return { 
+      messages: [...state.messages, message],
+      processedMessageIds: newProcessed
+    };
   }),
+
   setError: (error) => set({ error }),
   setCurrentUserId: (userId: string) => set({ currentUserId: userId }),
 
@@ -71,11 +84,13 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       const messages = await LoadMessagesUseCase(
         {
           getMessages: messageService.getMessages,
-          decrypt: e2eEncryptionService.decrypt
+          decrypt: e2eEncryptionService.decrypt.bind(e2eEncryptionService)
         },
         chatId
       );
-      set({ messages, loading: false });
+      
+      const ids = new Set(messages.map(m => m.id));
+      set({ messages, processedMessageIds: ids, loading: false });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to load messages';
       set({ loading: false, error: message });
@@ -90,9 +105,9 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         const { replyContext } = get();
         const replyToId = options?.replyToId || replyContext?.messageId || undefined;
 
-        await SendMessageUseCase(
+        const { messageId, notificationPromise } = await SendMessageUseCase(
           {
-            encrypt: e2eEncryptionService.encrypt,
+            encrypt: e2eEncryptionService.encrypt.bind(e2eEncryptionService),
             sendMessage: messageService.sendMessage,
             getChatParticipants: messageService.getChatParticipants,
             getUserById: userService.getUserById,
@@ -105,6 +120,11 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
             options: { ...options, replyToId }
           }
         );
+
+        // La notificación push se maneja en segundo plano
+        if (notificationPromise) {
+          notificationPromise.catch(err => console.error('[Store] Push Error:', err));
+        }
 
         set({ replyContext: null, loading: false });
       } catch (error: any) {
@@ -120,7 +140,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       const currentMessages = get().messages;
       set({
         messages: currentMessages.map((m) =>
-          m.id === messageId ? { ...m, text: newText, editedAt: new Date() } : m
+          m.id === messageId ? { ...m, text: newText, editedAt: new Date().toISOString() } : m
         ),
       });
     } catch (error: unknown) {
@@ -164,7 +184,15 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
 
     const sub = messageService.subscribeToMessages(chatId, async (payload: any) => {
       const processedMsg = await HandleRealtimeMessageUseCase(
-        { decrypt: e2eEncryptionService.decrypt },
+        { 
+          decrypt: e2eEncryptionService.decrypt.bind(e2eEncryptionService),
+          isMessageProcessed: (id) => get().processedMessageIds.has(id),
+          markMessageProcessed: (id) => {
+            const newProcessed = new Set(get().processedMessageIds);
+            newProcessed.add(id);
+            set({ processedMessageIds: newProcessed });
+          }
+        },
         payload,
         chatId
       );

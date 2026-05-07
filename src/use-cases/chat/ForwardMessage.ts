@@ -7,15 +7,18 @@ export const ForwardMessageUseCase = async (
   targetChatIds: string[],
   currentUserId: string
 ) => {
-  if (!message.text) return;
+  const contentToForward = message.plaintext || message.text;
+  if (!contentToForward) return;
 
   for (const chatId of targetChatIds) {
-    const { ciphertext } = await e2eEncryptionService.encrypt(message.text, chatId);
+    const { ciphertext, iv, authTag, keyVersion } = await e2eEncryptionService.encrypt(contentToForward, chatId);
     await messageService.sendMessage({
       chatId,
       senderId: currentUserId,
-      content: ciphertext,
-      messageType: 'text',
-    });
+      text: ciphertext,
+      type: 'text',
+      iv,
+      encryptedPayload: { ciphertext, iv, authTag, keyVersion }
+    } as any);
   }
 };

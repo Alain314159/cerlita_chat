@@ -28,7 +28,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const [isEphemeral, setIsEphemeral] = useState(false);
   const [isViewOnce, setIsViewOnce] = useState(false);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
-  const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
+  const inputRef = useRef<any>(null);
 
   const hasText = value.trim().length > 0;
 

@@ -16,25 +16,32 @@ export const messagingManager = {
     retryCount = 0
   ): Promise<any> {
     try {
-      const messageType = options?.messageType || 'text';
-      let content = text;
-      
       // 1. Cifrado E2E
+      let content = text;
+      let iv = null;
+      let authTag = null;
+      let keyVersion = 'v1';
+
       if (messageType === 'text') {
-        const { ciphertext } = await e2eEncryptionService.encrypt(text, chatId);
-        content = ciphertext;
+        const encrypted = await e2eEncryptionService.encrypt(text, chatId);
+        content = encrypted.ciphertext;
+        iv = encrypted.iv;
+        authTag = encrypted.authTag;
+        keyVersion = encrypted.keyVersion;
       }
       
       // 2. Persistencia en Supabase
       const messageData = await messageService.sendMessage({
         chatId,
         senderId,
-        content,
-        messageType,
-        mediaUrl: options?.mediaUrl || null,
-        thumbnailUrl: options?.thumbnailUrl || null,
+        text: content,
+        type: messageType as any,
+        mediaURL: options?.mediaUrl || null,
+        thumbnailURL: options?.thumbnailUrl || null,
         replyToId: options?.replyToId || null,
-      });
+        iv,
+        encryptedPayload: iv ? { ciphertext: content, iv, authTag: authTag!, keyVersion } : undefined
+      } as any);
 
       // 3. Notificación en segundo plano (No bloqueante)
       this.dispatchNotification(chatId, senderId, text, messageType);
@@ -81,7 +88,7 @@ export const messagingManager = {
         await pushNotificationService.sendPushNotification(
           userData.push_token,
           `Mensaje de ${senderData?.display_name || 'Alguien'}`,
-          messageType === 'text' ? text : `Te ha enviado un ${messageType}`,
+          'Tienes un mensaje nuevo', // Privacidad E2E
           { chatId, type: 'new_message' }
         );
       }
