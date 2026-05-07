@@ -1,16 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Avatar, Searchbar, ActivityIndicator, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '@/services/supabase/config';
 import { useAuthStore } from '@/store/authStore';
 import { chatService } from '@/services/supabase/chat.service';
+import { userService } from '@/services/supabase/user.service';
 import type { User } from '@/types';
 import { Search, UserPlus, Users } from 'lucide-react-native';
 
+// Simple debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function NewChatScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 500);
   const [users, setUsers] = useState<User[]>([]);
   const [contacts, setContacts] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -20,53 +31,37 @@ export default function NewChatScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
 
-  const loadContacts = async () => {
+  const loadContacts = useCallback(async () => {
     if (!user?.id) return;
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('connection_requests')
-        .select(`
-          sender:sender_id (*),
-          receiver:receiver_id (*)
-        `)
-        .eq('status', 'accepted')
-        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
-
-      if (error) throw error;
-      const contactList = data.map((conn: any) => 
-        conn.sender.id === user.id ? conn.receiver : conn.sender
-      );
+      const contactList = await userService.getContacts(user.id);
       setContacts(contactList);
     } catch (error) {
       console.error('Error loading contacts:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     loadContacts();
-  }, [user?.id]);
+  }, [loadContacts]);
 
-  const searchUsers = async (query: string) => {
-    setSearchQuery(query);
-    if (!query.trim()) {
+  useEffect(() => {
+    if (debouncedQuery.trim()) {
+      handleSearch(debouncedQuery);
+    } else {
       setUsers([]);
-      return;
     }
+  }, [debouncedQuery]);
 
+  const handleSearch = async (searchQuery: string) => {
+    if (!user?.id) return;
     try {
       setSearching(true);
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .ilike('display_name', `%${query}%`)
-        .neq('id', user?.id)
-        .limit(20);
-
-      if (error) throw error;
-      setUsers(data || []);
+      const results = await userService.searchUsers(user.id, searchQuery);
+      setUsers(results);
     } catch (error) {
       console.error('Failed to search users:', error);
     } finally {
@@ -76,17 +71,30 @@ export default function NewChatScreen() {
 
   const handleSelectUser = async (selectedUser: User) => {
     if (!user?.id) return;
-    try {
-      setLoading(true);
-      const chatId = await chatService.getOrCreateDirectChat(user.id, selectedUser.id);
-      if (!chatId) throw new Error('No se pudo crear la conexión');
-      router.push(`/(chat)/${chatId}` as any);
-    } catch (error: any) {
-      console.error('Failed to create chat:', error);
-      Alert.alert('Error', error.message || 'No se pudo crear el chat');
-    } finally {
-      setLoading(false);
-    }
+    
+    Alert.alert(
+      'Conectar',
+      `¿Quieres iniciar un chat con ${selectedUser.displayName}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Conectar', 
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const chatId = await chatService.getOrCreateDirectChat(user.id, selectedUser.id);
+              if (!chatId) throw new Error('No se pudo crear la conexión');
+              router.push(`/(chat)/${chatId}`);
+            } catch (error: any) {
+              console.error('Failed to create chat:', error);
+              Alert.alert('Error', error.message || 'No se pudo crear el chat');
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const renderItem = ({ item }: { item: User }) => (
@@ -115,8 +123,8 @@ export default function NewChatScreen() {
       <View style={styles.searchContainer}>
         <Searchbar
           placeholder="Buscar usuarios..."
-          onChangeText={searchUsers}
-          value={searchQuery}
+          onChangeText={setQuery}
+          value={query}
           style={[styles.searchbar, { backgroundColor: theme.colors.surfaceVariant, elevation: 0 }]}
           placeholderTextColor={theme.colors.onSurfaceVariant}
           iconColor={theme.colors.onSurfaceVariant}
@@ -125,29 +133,29 @@ export default function NewChatScreen() {
         />
       </View>
 
-      {searching || (loading && !searchQuery) ? (
+      {searching || (loading && !query) ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       ) : (
         <FlatList
-          data={searchQuery ? users : contacts}
+          data={query ? users : contacts}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
-          ListHeaderComponent={!searchQuery && contacts.length > 0 ? (
+          ListHeaderComponent={!query && contacts.length > 0 ? (
             <Text style={[styles.sectionTitle, { backgroundColor: theme.colors.surfaceVariant, color: theme.colors.onSurfaceVariant }]}>Mis Contactos</Text>
           ) : null}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconContainer}>
-                {searchQuery ? <Search size={64} color={theme.colors.onSurfaceVariant} /> : <Users size={64} color={theme.colors.onSurfaceVariant} />}
+                {query ? <Search size={64} color={theme.colors.onSurfaceVariant} /> : <Users size={64} color={theme.colors.onSurfaceVariant} />}
               </View>
               <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>
-                {searchQuery ? 'Sin resultados' : 'No tienes contactos'}
+                {query ? 'Sin resultados' : 'No tienes contactos'}
               </Text>
               <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                {searchQuery ? 'Prueba con otro nombre' : 'Busca a alguien para chatear'}
+                {query ? 'Prueba con otro nombre' : 'Busca a alguien para chatear'}
               </Text>
             </View>
           }

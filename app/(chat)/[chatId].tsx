@@ -11,7 +11,9 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
-import { useTheme } from 'react-native-paper';
+import { useTheme, Button } from 'react-native-paper';
+import { useQueryClient } from '@tanstack/react-query';
+import { messageService } from '@/services/supabase/message.service';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages } from '@/hooks/useMessages';
@@ -43,12 +45,35 @@ export default function ChatConversationScreen() {
     replyContext,
     setReplyContext,
     isOtherUserTyping,
+    queryResult,
   } = useMessages(chatId as string);
 
   const { activeChat, chats } = useChat(chatId as string);
   const [recipient, setRecipient] = useState<{displayName: string, photoURL?: string} | null>(null);
   const [messageText, setMessageText] = useState('');
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // Optimizar realtime: append a caché en lugar de refetch completo
+  useEffect(() => {
+    const subscription = messageService.subscribeToMessages(chatId as string, (payload) => {
+      if (payload.eventType === 'INSERT' && payload.newRecord) {
+        // Insertar nuevo mensaje al inicio de la primera página
+        queryClient.setQueryData(['messages', chatId], (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: [
+              [payload.newRecord, ...(old.pages[0] || [])],
+              ...old.pages.slice(1)
+            ]
+          };
+        });
+      }
+    });
+    return () => { subscription.unsubscribe(); };
+  }, [chatId, queryClient]);
 
   // Buscar el destinatario real para la cabecera
   useEffect(() => {
@@ -133,6 +158,17 @@ export default function ChatConversationScreen() {
     );
   }, [user?.id, messages, recipient, addReaction, setReplyContext, theme]);
 
+  if (queryResult.isError) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <Text style={{ color: theme.colors.error, marginBottom: 16 }}>Error al cargar mensajes</Text>
+        <Button mode="contained" onPress={() => queryResult.refetch()}>
+          Reintentar
+        </Button>
+      </View>
+    );
+  }
+
   if (loading && messages.length === 0) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
@@ -163,6 +199,17 @@ export default function ChatConversationScreen() {
         estimatedItemSize={70}
         contentContainerStyle={styles.listContent}
         inverted // Messages typically list from bottom to top
+        onEndReached={() => {
+          if (queryResult.hasNextPage && !queryResult.isFetchingNextPage) {
+            queryResult.fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() => 
+          queryResult.isFetchingNextPage ? (
+            <ActivityIndicator style={{ marginVertical: 10 }} color={theme.colors.primary} />
+          ) : null
+        }
       />
 
       {replyContext && (

@@ -14,13 +14,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Heart, PlusCircle, Search } from 'lucide-react-native';
-import { useTheme } from 'react-native-paper';
+import { useTheme, Text, Button } from 'react-native-paper';
+import { useQuery } from '@tanstack/react-query';
 
 import { useAuth } from '@/hooks/useAuth';
-import { useChat } from '@/hooks/useChat';
-import { Chat, AvatarOption } from '@/types';
+import { Chat } from '@/types';
 import { haptics } from '@/services/haptics';
 import { Avatar } from '@/components/ui/Avatar';
+import { chatService } from '@/services/supabase/chat.service';
 
 // Componente memoizado para cada item de chat
 const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: {
@@ -32,13 +33,13 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: 
   const recipientInfo = useMemo(() => {
     if (chat.name) return { name: chat.name, photo: undefined };
     
-    const other = chat.participants?.find(p => (p.user_id || p.id) !== currentUserId);
+    const other = chat.participant_ids?.find(id => id !== currentUserId);
     if (other) {
-      const u = other.users || other;
+      // En una implementación real, buscaríamos la info del usuario si no está en el objeto chat
       return { 
-        name: u.display_name || u.displayName || 'Usuario',
-        photo: u.photo_url || u.photoURL,
-        isOnline: u.is_online || u.isOnline
+        name: 'Usuario',
+        photo: undefined,
+        isOnline: false
       };
     }
     return { name: 'Chat', photo: undefined };
@@ -94,19 +95,22 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: 
 
 export default function ChatListScreen() {
   const { user } = useAuth();
-  const { chats, loading, loadChats } = useChat();
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [refreshing, setRefreshing] = React.useState(false);
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const router = useRouter();
+
+  const { data: chats = [], isLoading: loading, isError, refetch } = useQuery({
+    queryKey: ['chats', user?.id],
+    queryFn: () => chatService.getUserChats(user?.id || ''),
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5, // 5 min
+    gcTime: 1000 * 60 * 30,   // 30 min
+  });
 
   const onRefresh = useCallback(async () => {
-    if (user) {
-      setRefreshing(true);
-      await loadChats(user.id);
-      setRefreshing(false);
-    }
-  }, [user, loadChats]);
+    await refetch();
+  }, [refetch]);
 
   const filteredChats = useMemo(() =>
     chats.filter((chat) => {
@@ -119,10 +123,21 @@ export default function ChatListScreen() {
   const renderItem = useCallback(({ item }: { item: Chat }) => (
     <ChatItem 
       chat={item} 
-      onPress={(id) => useRouter().push(`/(chat)/${id}`)} 
+      onPress={(id) => router.push(`/(chat)/${id}`)} 
       currentUserId={user?.id}
     />
-  ), [user?.id]);
+  ), [user?.id, router]);
+
+  if (isError) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <Text style={{ color: theme.colors.error, marginBottom: 16 }}>Error al cargar chats</Text>
+        <Button mode="contained" onPress={() => refetch()}>
+          Reintentar
+        </Button>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
@@ -148,7 +163,7 @@ export default function ChatListScreen() {
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl 
-            refreshing={refreshing} 
+            refreshing={loading && chats.length > 0} 
             onRefresh={onRefresh} 
             tintColor={theme.colors.primary}
             colors={[theme.colors.primary]}
@@ -252,4 +267,9 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
   },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
 });

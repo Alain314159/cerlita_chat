@@ -1,33 +1,44 @@
 import React from 'react';
-import { View, FlatList, StyleSheet, Text } from 'react-native';
+import { View, FlatList, StyleSheet, Text, Alert } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { connectionService } from '@/services/supabase/connection.service';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { Button, Card, IconButton, ActivityIndicator, useTheme } from 'react-native-paper';
 import { Stack } from 'expo-router';
+import { useAuthStore } from '@/store/authStore';
 
 export default function RequestsScreen() {
   const queryClient = useQueryClient();
   const theme = useTheme();
+  const { user } = useAuthStore();
 
   const { data: requests = [], isLoading } = useQuery({
-    queryKey: ['connection-requests'],
+    queryKey: ['connection-requests', user?.id],
     queryFn: () => connectionService.getIncomingRequests(),
+    enabled: !!user?.id,
   });
 
   const acceptMutation = useMutation({
     mutationFn: (id: string) => connectionService.acceptRequest(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['chats'] }); // Recargar lista de chats
+      queryClient.invalidateQueries({ queryKey: ['connection-requests', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
     },
+    onError: (error) => {
+      Alert.alert('Error', 'No se pudo aceptar la solicitud. Verifica tu conexión.');
+      console.error('Accept error:', error);
+    }
   });
 
   const rejectMutation = useMutation({
     mutationFn: (id: string) => connectionService.rejectRequest(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests', user?.id] });
     },
+    onError: (error) => {
+      Alert.alert('Error', 'No se pudo rechazar la solicitud.');
+      console.error('Reject error:', error);
+    }
   });
 
   if (isLoading) {
@@ -55,11 +66,13 @@ export default function RequestsScreen() {
           <Card style={styles.card}>
             <Card.Content style={styles.cardContent}>
               <UserAvatar 
-                photoURL={item.sender?.photo_url} 
+                photoURL={item.sender?.photoURL || item.sender?.photo_url} 
                 size={50} 
               />
               <View style={styles.info}>
-                <Text style={[styles.name, { color: theme.colors.onSurface }]}>{item.sender?.display_name || 'Usuario desconocido'}</Text>
+                <Text style={[styles.name, { color: theme.colors.onSurface }]}>
+                  {item.sender?.displayName || item.sender?.display_name || 'Usuario desconocido'}
+                </Text>
                 <Text style={[styles.msg, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
                   {item.initial_message_encrypted ? 'Te envió un mensaje secreto...' : 'Quiere conectar contigo'}
                 </Text>

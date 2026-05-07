@@ -1,11 +1,16 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { useMessageStore } from '@/store/messageStore';
 import { useAuthStore } from '@/store/authStore';
 import { useMessagesQuery } from './useMessagesQuery';
-import type { ReplyContext } from '@/types';
+import type { ReplyContext, Message } from '@/types';
 
 export function useMessages(chatId: string) {
-  const { data: messages = [], isLoading: loading, error: queryError } = useMessagesQuery(chatId);
+  const queryResult = useMessagesQuery(chatId);
+  const { data, isLoading: loading, error: queryError } = queryResult;
+
+  const messages = useMemo(() => {
+    return data?.pages.flatMap(page => page) || [];
+  }, [data]);
 
   const {
     typingUsers,
@@ -56,6 +61,7 @@ export function useMessages(chatId: string) {
     loading,
     sending,
     error: queryError || storeError,
+    queryResult,
     isTyping,
     setIsTyping,
     isOtherUserTyping,
