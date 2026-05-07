@@ -35,7 +35,7 @@ export class E2EEncryptionService {
   }
 
   // Cifrar mensaje
-  async encrypt(plaintext: string, chatId: string): Promise<{ ciphertext: string; iv: string }> {
+  async encrypt(plaintext: string, chatId: string): Promise<{ ciphertext: string; iv: string; authTag: string; keyVersion: string }> {
     const key = await this.getChatKey(chatId);
     const crypto = (globalThis.crypto || (global as unknown as { crypto: Crypto }).crypto) as Crypto;
     const iv = crypto.getRandomValues(new Uint8Array(12)); // 96 bits para GCM
@@ -51,31 +51,58 @@ export class E2EEncryptionService {
       encoded
     );
 
+    const ciphertextArray = new Uint8Array(ciphertextBuffer);
+    // El authTag suele ser los últimos 16 bytes en la implementación de Web Crypto
+    const authTagLength = 16;
+    const ciphertext = ciphertextArray.slice(0, -authTagLength);
+    const authTag = ciphertextArray.slice(-authTagLength);
+
     return {
-      ciphertext: this.arrayBufferToBase64(new Uint8Array(ciphertextBuffer)),
+      ciphertext: this.arrayBufferToBase64(ciphertext),
       iv: this.arrayBufferToBase64(iv),
+      authTag: this.arrayBufferToBase64(authTag),
+      keyVersion: 'v1', // Versión inicial
     };
   }
 
   // Descifrar mensaje
   async decrypt(
     ciphertext: string,
-    iv: string,
-    chatId: string
-  ): Promise<string> {
-    const key = await this.getChatKey(chatId);
-    const crypto = (globalThis.crypto || (global as unknown as { crypto: Crypto }).crypto) as Crypto;
+    chatId: string,
+    iv?: string,
+    authTag?: string
+  ): Promise<{ text: string }> {
+    if (!iv || !authTag) {
+      // Si falta IV o Tag, no podemos verificar integridad
+      return { text: ciphertext };
+    }
 
-    const decrypted = await crypto.subtle.decrypt(
-      {
-        name: 'AES-GCM',
-        iv: this.base64ToArrayBuffer(iv),
-      },
-      key,
-      this.base64ToArrayBuffer(ciphertext)
-    );
+    try {
+      const key = await this.getChatKey(chatId);
+      const crypto = (globalThis.crypto || (global as unknown as { crypto: Crypto }).crypto) as Crypto;
 
-    return new TextDecoder().decode(decrypted);
+      const ciphertextArray = this.base64ToArrayBuffer(ciphertext);
+      const authTagArray = this.base64ToArrayBuffer(authTag);
+      
+      // Combinar ciphertext y authTag para Web Crypto Subtle
+      const combined = new Uint8Array(ciphertextArray.length + authTagArray.length);
+      combined.set(ciphertextArray);
+      combined.set(authTagArray, ciphertextArray.length);
+
+      const decrypted = await crypto.subtle.decrypt(
+        {
+          name: 'AES-GCM',
+          iv: this.base64ToArrayBuffer(iv),
+        },
+        key,
+        combined
+      );
+
+      return { text: new TextDecoder().decode(decrypted) };
+    } catch (err) {
+      console.error('[E2E] Decryption failed:', err);
+      return { text: '[Error de descifrado]' };
+    }
   }
 
   // Importar clave raw

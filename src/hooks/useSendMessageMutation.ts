@@ -2,6 +2,26 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { messageService } from '@/services/supabase/message.service';
 import { e2eEncryptionService } from '@/services/crypto/e2e.service';
 import type { Message } from '@/types';
+import * as SecureStore from 'expo-secure-store';
+
+const OFFLINE_QUEUE_KEY = 'cerlita_offline_messages';
+
+// Helper robusto para detectar errores de red
+const isNetworkError = (error: any): boolean => {
+  if (!error) return false;
+  const msg = (error.message || '').toLowerCase();
+  const code = error.code || error.status;
+  
+  return (
+    msg.includes('network') ||
+    msg.includes('fetch') ||
+    msg.includes('offline') ||
+    msg.includes('connection') ||
+    code === 'NETWORK_ERROR' ||
+    code === 0 ||
+    error?.name === 'TypeError' && msg.includes('fetch')
+  );
+};
 
 export function useSendMessageMutation(chatId: string) {
   const queryClient = useQueryClient();
@@ -18,61 +38,86 @@ export function useSendMessageMutation(chatId: string) {
       isEphemeral?: boolean;
       isViewOnce?: boolean;
     }) => {
-      // 1. Encrypt
-      const { ciphertext } = await e2eEncryptionService.encrypt(text, chatId);
+      // 1. Cifrado local con AES-GCM (authTag incluido)
+      const { ciphertext, iv, authTag, keyVersion } = await e2eEncryptionService.encrypt(text, chatId);
 
-      // 2. Calculate expiry (24 hours from now) if ephemeral
-      const expiresAt = isEphemeral 
-        ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() 
-        : null;
-
-      // 3. Send
+      // 2. Envío al servidor
       return await messageService.sendMessage({
         chatId,
         senderId,
-        content: ciphertext,
-        messageType: 'text',
+        text: ciphertext,
+        iv,
+        authTag,
+        keyVersion,
+        type: 'text',
         isEphemeral,
-        expiresAt,
         isViewOnce,
+        status: 'sent'
       });
     },
 
-    // Optimistic Update
     onMutate: async (newMessage) => {
       await queryClient.cancelQueries({ queryKey: ['messages', chatId] });
-      const previousMessages = queryClient.getQueryData<Message[]>(['messages', chatId]);
+      
+      const previousData = queryClient.getQueryData<Message[]>(['messages', chatId]);
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-      if (previousMessages) {
-        queryClient.setQueryData<Message[]>(['messages', chatId], [
-          ...previousMessages,
-          {
-            id: `temp-${Date.now()}`,
-            chatId,
-            senderId: newMessage.senderId,
-            text: newMessage.text,
-            type: 'text',
-            status: 'sending',
-            isEphemeral: newMessage.isEphemeral || false,
-            isViewOnce: newMessage.isViewOnce || false,
-            createdAt: new Date(),
-          } as any,
-        ]);
-      }
-      return { previousMessages };
+      const optimisticMsg: Message = {
+        id: tempId,
+        chatId,
+        senderId: newMessage.senderId,
+        text: newMessage.text, // Plaintext SOLO para caché local (UI inmediata)
+        type: 'text',
+        status: 'sending',
+        isEphemeral: newMessage.isEphemeral || false,
+        isViewOnce: newMessage.isViewOnce || false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        readAt: null,
+        deliveredAt: null,
+        mediaURL: null,
+        thumbnailURL: null,
+        replyToId: null,
+        isEdited: false,
+      };
+
+      queryClient.setQueryData<Message[]>(['messages', chatId], (old) => {
+        if (!old) return [optimisticMsg];
+        return [optimisticMsg, ...old];
+      });
+
+      return { previousData, tempId };
     },
 
     onError: (err, newMessage, context) => {
-      if (context?.previousMessages) {
-        queryClient.setQueryData(['messages', chatId], context.previousMessages);
-      }
+      // Marcar como fallido en UI
+      queryClient.setQueryData<Message[]>(['messages', chatId], (old) => {
+        return old?.map((m: Message) => 
+          m.id === context?.tempId ? { ...m, status: 'failed' as const } : m
+        );
+      });
+
+      // TODO: Implementar guardado en SecureStore para cola offline real
+      console.error('[Mutation Error]', err);
+    },
+
+    onSuccess: (data, variables, context) => {
+      // Reemplazar temporal con real
+      queryClient.setQueryData<Message[]>(['messages', chatId], (old) => {
+        return old?.map((m: Message) => 
+          m.id === context?.tempId ? data : m
+        );
+      });
     },
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['messages', chatId] });
     },
     
-    // Configuración 2026: Reintentos si falla por red
-    retry: 3,
+    retry: (failureCount, error: any) => {
+      if (failureCount >= 5) return false;
+      return isNetworkError(error);
+    },
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
   });
 }
