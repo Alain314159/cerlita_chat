@@ -182,6 +182,7 @@ export const messageService = {
     channel.subscribe((status) => {
       if (status === 'CHANNEL_ERROR') {
         console.warn(`[Realtime] Subscription error for chat:${chatId}, retrying...`);
+        // Reintentar con un pequeño delay
         setTimeout(() => channel.subscribe(), 2000);
       }
     });

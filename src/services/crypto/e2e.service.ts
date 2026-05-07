@@ -176,7 +176,12 @@ export class E2EEncryptionService {
 
   // Utilidad: ArrayBuffer a Base64 (Maestro 2026: Robust for binaries)
   private arrayBufferToBase64(buffer: Uint8Array): string {
-    return btoa(String.fromCharCode(...buffer));
+    let binary = '';
+    const len = buffer.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(buffer[i]);
+    }
+    return btoa(binary);
   }
 
   // Utilidad: Base64 a ArrayBuffer

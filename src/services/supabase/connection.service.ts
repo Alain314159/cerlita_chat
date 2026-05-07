@@ -11,8 +11,12 @@ export const connectionService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
+    // 🔐 CRÍTICO: Establecer clave compartida para el apretón de manos (Handshake)
+    const chatId = [user.id, receiverId].sort().join(':');
+    await e2eEncryptionService.establishSharedKey(chatId, user.id, receiverId);
+
     // Ciframos el mensaje inicial para el receptor (handshake)
-    const { ciphertext, iv, authTag } = await e2eEncryptionService.encrypt(initialMessage, receiverId);
+    const { ciphertext, iv, authTag } = await e2eEncryptionService.encrypt(initialMessage, chatId);
 
     const { data, error } = await supabase
       .from('connection_requests')
