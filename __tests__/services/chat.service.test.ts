@@ -24,7 +24,7 @@ describe('chatService', () => {
       const result = await chatService.getUserChats('user-123');
 
       expect(supabase.from).toHaveBeenCalledWith('chats');
-      expect(mockChain.select).toHaveBeenCalledWith('*');
+      expect(mockChain.select).toHaveBeenCalledWith('*, participants:chat_participants(user_id, users(*))');
       expect(mockChain.contains).toHaveBeenCalledWith('participant_ids', ['user-123']);
       expect(result).toEqual(mockChats);
     });

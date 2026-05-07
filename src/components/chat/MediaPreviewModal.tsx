@@ -11,10 +11,9 @@ interface MediaPreviewModalProps {
   onSend?: () => void;
 }
 
-export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
+export const MediaPreviewModal: React.FC<Omit<MediaPreviewModalProps, 'mediaType'>> = ({
   visible,
   mediaUri,
-  mediaType = 'image',
   onClose,
   onSend,
 }) => {

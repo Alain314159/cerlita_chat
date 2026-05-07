@@ -2,13 +2,13 @@ import React from 'react';
 import { View, FlatList, StyleSheet, Text } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { connectionService } from '@/services/supabase/connection.service';
-import { theme } from '@/config/theme';
 import { UserAvatar } from '@/components/ui/UserAvatar';
-import { Button, Card, IconButton, ActivityIndicator } from 'react-native-paper';
+import { Button, Card, IconButton, ActivityIndicator, useTheme } from 'react-native-paper';
 import { Stack } from 'expo-router';
 
 export default function RequestsScreen() {
   const queryClient = useQueryClient();
+  const theme = useTheme();
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['connection-requests'],
@@ -32,14 +32,14 @@ export default function RequestsScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{ title: 'Solicitudes de Chat', headerTitleAlign: 'center' }} />
       
       <FlatList
@@ -47,8 +47,8 @@ export default function RequestsScreen() {
         keyExtractor={(item) => item.id}
         ListEmptyComponent={
           <View style={styles.centered}>
-            <IconButton icon="heart-broken" size={48} iconColor={theme.colors.textSecondary} />
-            <Text style={styles.emptyText}>No tienes solicitudes pendientes por ahora.</Text>
+            <IconButton icon="heart-broken" size={48} iconColor={theme.colors.onSurfaceVariant} />
+            <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No tienes solicitudes pendientes por ahora.</Text>
           </View>
         }
         renderItem={({ item }) => (
@@ -59,8 +59,8 @@ export default function RequestsScreen() {
                 size={50} 
               />
               <View style={styles.info}>
-                <Text style={styles.name}>{item.sender?.display_name || 'Usuario desconocido'}</Text>
-                <Text style={styles.msg} numberOfLines={1}>
+                <Text style={[styles.name, { color: theme.colors.onSurface }]}>{item.sender?.display_name || 'Usuario desconocido'}</Text>
+                <Text style={[styles.msg, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
                   {item.initial_message_encrypted ? 'Te envió un mensaje secreto...' : 'Quiere conectar contigo'}
                 </Text>
               </View>
@@ -90,14 +90,14 @@ export default function RequestsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+  container: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   list: { padding: 16 },
-  card: { marginBottom: 12, backgroundColor: theme.colors.surface, elevation: 2 },
+  card: { marginBottom: 12, elevation: 2 },
   cardContent: { flexDirection: 'row', alignItems: 'center' },
   info: { flex: 1, marginLeft: 12 },
-  name: { fontSize: 16, fontWeight: 'bold', color: theme.colors.textPrimary },
-  msg: { fontSize: 13, color: theme.colors.textSecondary },
+  name: { fontSize: 16, fontWeight: 'bold' },
+  msg: { fontSize: 13 },
   actions: { flexDirection: 'row' },
-  emptyText: { textAlign: 'center', color: theme.colors.textSecondary, marginTop: 8 },
+  emptyText: { textAlign: 'center', marginTop: 8 },
 });

@@ -5,15 +5,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Text,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
+import { useTheme } from 'react-native-paper';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages } from '@/hooks/useMessages';
 import { useChat } from '@/hooks/useChat';
-import { theme } from '@/config/theme';
+import { theme as staticTheme } from '@/config/theme';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { ChatHeader } from '@/components/chat/ChatHeader';
@@ -26,46 +29,129 @@ export default function ChatConversationScreen() {
   const { chatId } = useLocalSearchParams();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const flatListRef = useRef<FlashList<any>>(null);
 
   const {
     messages,
     loading,
     sending,
-    loadMessages,
     sendMessage,
     subscribeToMessages,
     unsubscribeFromMessages,
     addReaction,
     replyContext,
     setReplyContext,
+    isOtherUserTyping,
   } = useMessages(chatId as string);
 
-  const { activeChat, chats } = useChat();
+  const { activeChat, chats } = useChat(chatId as string);
   const [recipient, setRecipient] = useState<{displayName: string, photoURL?: string} | null>(null);
+  const [messageText, setMessageText] = useState('');
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
 
   // Buscar el destinatario real para la cabecera
   useEffect(() => {
     const currentChat = activeChat || chats.find(c => c.id === chatId);
     if (currentChat && user) {
-      // En chats directos, el nombre suele ser el del otro participante
-      // Aquí podrías implementar una búsqueda en Supabase si el nombre no viene en el chat
-      setRecipient({
-        displayName: currentChat.name || 'Usuario',
-        photoURL: undefined // TODO: Mapear foto real
-      });
+      // Si el chat tiene participantes (formato de getChatById)
+      if (currentChat.participants && Array.isArray(currentChat.participants)) {
+        const otherParticipant = (currentChat.participants as any[]).find(
+          p => (p.user_id || p.id) !== user.id
+        );
+        
+        if (otherParticipant) {
+          // Si viene de chat_participants (nested users)
+          const userData = otherParticipant.users || otherParticipant;
+          setRecipient({
+            displayName: userData.display_name || userData.displayName || 'Usuario',
+            photoURL: userData.photo_url || userData.photoURL
+          });
+          return;
+        }
+      }
+      
+      // Fallback si es un chat con nombre (grupal o ya procesado)
+      if (currentChat.name) {
+        setRecipient({
+          displayName: currentChat.name,
+          photoURL: undefined
+        });
+      }
     }
   }, [chatId, activeChat, chats, user]);
+
+  useEffect(() => {
+    const subscription = subscribeToMessages(chatId as string);
+    return () => {
+      unsubscribeFromMessages();
+    };
+  }, [chatId]);
+
+  const handleSendMessage = useCallback(async (options?: { isEphemeral?: boolean; isViewOnce?: boolean }) => {
+    if (!messageText.trim()) return;
+    
+    const textToSend = messageText;
+    setMessageText('');
+    
+    try {
+      await sendMessage(textToSend, options);
+      // Scroll to top/bottom depending on list direction
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      setMessageText(textToSend); // Restore text on failure
+    }
+  }, [messageText, sendMessage]);
+
+  const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
+    const isMe = item.senderId === user?.id;
+    const prevMessage = messages[index + 1];
+    const showDateHeader = !prevMessage || formatDateHeader(item.createdAt) !== formatDateHeader(prevMessage.createdAt);
+
+    return (
+      <View>
+        {showDateHeader && (
+          <View style={styles.dateHeader}>
+            <Text style={[styles.dateHeaderText, { backgroundColor: theme.colors.surfaceVariant, color: theme.colors.onSurfaceVariant }]}>
+              {formatDateHeader(item.createdAt)}
+            </Text>
+          </View>
+        )}
+        <MessageBubble
+          message={item}
+          isMe={isMe}
+          onReaction={(emoji) => addReaction(item.id, emoji)}
+          onReply={() => setReplyContext({
+            messageId: item.id,
+            text: item.text,
+            senderName: isMe ? 'Tú' : (recipient?.displayName || 'Usuario'),
+            type: item.type
+          })}
+        />
+      </View>
+    );
+  }, [user?.id, messages, recipient, addReaction, setReplyContext, theme]);
+
+  if (loading && messages.length === 0) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { paddingBottom: insets.bottom }]}
+      style={[styles.container, { paddingBottom: insets.bottom, backgroundColor: theme.colors.background }]}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <ChatHeader
-        name={recipient?.displayName || activeChat?.name || 'Cargando...'}
+        name={recipient?.displayName || activeChat?.name || undefined}
         photoUrl={recipient?.photoURL}
+        isTyping={isOtherUserTyping()}
+        loading={!recipient && !activeChat?.name}
         onOpenOptions={() => setShowOptionsMenu(true)}
       />
 
@@ -76,11 +162,12 @@ export default function ChatConversationScreen() {
         renderItem={renderMessage}
         estimatedItemSize={70}
         contentContainerStyle={styles.listContent}
+        inverted // Messages typically list from bottom to top
       />
 
       {replyContext && (
         <ReplyPreview 
-          context={replyContext as any} 
+          context={replyContext} 
           onClose={() => setReplyContext(null)} 
         />
       )}
@@ -89,7 +176,10 @@ export default function ChatConversationScreen() {
         value={messageText}
         onChangeText={setMessageText}
         onSend={handleSendMessage}
-        replyContext={replyContext as any}
+        onAttachmentPress={() => Alert.alert('Próximamente', 'La función de adjuntar archivos estará disponible pronto.')}
+        onCameraPress={() => Alert.alert('Próximamente', 'La función de cámara estará disponible pronto.')}
+        onVoicePress={() => Alert.alert('Próximamente', 'La función de voz estará disponible pronto.')}
+        replyContext={replyContext}
         onReplyClose={() => setReplyContext(null)}
         disabled={sending}
       />
@@ -97,6 +187,7 @@ export default function ChatConversationScreen() {
       <ChatOptionsMenu
         visible={showOptionsMenu}
         onClose={() => setShowOptionsMenu(false)}
+        onClearChat={() => {}} // TODO
       />
     </KeyboardAvoidingView>
   );
@@ -105,7 +196,6 @@ export default function ChatConversationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   listContent: {
     paddingHorizontal: 15,
@@ -115,4 +205,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 20,
   },
+  dateHeaderText: {
+    fontSize: 12,
+    fontWeight: '600',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
 });

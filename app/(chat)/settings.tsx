@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
-import { List, Switch, Button, Divider, useTheme as usePaperTheme } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { List, Switch, Button, Divider, Text, useTheme as usePaperTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthLogic } from '@/hooks/useAuth';
@@ -75,14 +75,16 @@ export default function SettingsScreen() {
   return (
     <>
       <ScrollView
-        style={[styles.container, { paddingBottom: insets.bottom }]}
-        contentContainerStyle={styles.content}
+        style={[styles.container, { paddingBottom: insets.bottom, backgroundColor: theme.colors.background }]}
+        contentContainerStyle={[styles.content, { backgroundColor: theme.colors.background }]}
       >
         <List.Section>
-          <List.Subheader>Perfil</List.Subheader>
+          <List.Subheader style={{ color: theme.colors.primary }}>Perfil</List.Subheader>
           <List.Item
             title={user.displayName}
+            titleStyle={{ color: theme.colors.onSurface }}
             description={user.email}
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
             left={() => (
               <Avatar
                 uri={userAvatar?.type === 'custom' ? userAvatar.uri : undefined}
@@ -105,14 +107,16 @@ export default function SettingsScreen() {
           </Button>
         </List.Section>
 
-        <Divider />
+        <Divider style={{ backgroundColor: theme.colors.outlineVariant }} />
 
         <List.Section>
-          <List.Subheader>Preferencias</List.Subheader>
+          <List.Subheader style={{ color: theme.colors.primary }}>Preferencias</List.Subheader>
 
           <List.Item
             title="Notificaciones"
+            titleStyle={{ color: theme.colors.onSurface }}
             description="Recibir notificaciones push"
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
             left={() => <View style={styles.iconContainer}><Bell size={24} color={theme.colors.secondary} /></View>}
             right={() => (
               <Switch value={notifications} onValueChange={setNotifications} color={theme.colors.primary} />
@@ -121,7 +125,9 @@ export default function SettingsScreen() {
 
           <List.Item
             title="Modo Respaldo (20m)"
+            titleStyle={{ color: theme.colors.onSurface }}
             description="Revisar mensajes cada 20 min"
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
             left={() => <View style={styles.iconContainer}><RefreshCw size={24} color={theme.colors.secondary} /></View>}
             right={() => (
               <Switch value={backgroundPolling} onValueChange={handleBackgroundPollingToggle} color={theme.colors.primary} />
@@ -130,7 +136,9 @@ export default function SettingsScreen() {
 
           <List.Item
             title="Sonido"
+            titleStyle={{ color: theme.colors.onSurface }}
             description="Reproducir sonidos de mensajes"
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
             left={() => <View style={styles.iconContainer}><Volume2 size={24} color={theme.colors.secondary} /></View>}
             right={() => (
               <Switch value={sound} onValueChange={setSound} color={theme.colors.primary} />
@@ -139,7 +147,9 @@ export default function SettingsScreen() {
 
           <List.Item
             title="Modo oscuro"
+            titleStyle={{ color: theme.colors.onSurface }}
             description="Cambiar a tema oscuro"
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
             left={() => <View style={styles.iconContainer}><Moon size={24} color={theme.colors.secondary} /></View>}
             right={() => (
               <Switch value={isDarkMode} onValueChange={toggleDarkMode} color={theme.colors.primary} />
@@ -147,18 +157,20 @@ export default function SettingsScreen() {
           />
         </List.Section>
 
-        <Divider />
+        <Divider style={{ backgroundColor: theme.colors.outlineVariant }} />
 
         <List.Section>
-          <List.Subheader>Acerca de</List.Subheader>
+          <List.Subheader style={{ color: theme.colors.primary }}>Acerca de</List.Subheader>
           <List.Item
             title="Versión"
+            titleStyle={{ color: theme.colors.onSurface }}
             description="1.0.0"
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
             left={() => <View style={styles.iconContainer}><Info size={24} color={theme.colors.secondary} /></View>}
           />
         </List.Section>
 
-        <Divider />
+        <Divider style={{ backgroundColor: theme.colors.outlineVariant }} />
 
         <View style={styles.signOutContainer}>
           <Button

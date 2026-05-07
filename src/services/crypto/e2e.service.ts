@@ -37,11 +37,12 @@ export class E2EEncryptionService {
   // Cifrar mensaje
   async encrypt(plaintext: string, chatId: string): Promise<{ ciphertext: string; iv: string }> {
     const key = await this.getChatKey(chatId);
-    const iv = (globalThis.crypto || (global as any).crypto).getRandomValues(new Uint8Array(12)); // 96 bits para GCM
+    const crypto = (globalThis.crypto || (global as unknown as { crypto: Crypto }).crypto) as Crypto;
+    const iv = crypto.getRandomValues(new Uint8Array(12)); // 96 bits para GCM
 
     const encoded = new TextEncoder().encode(plaintext);
 
-    const ciphertextBuffer = await (globalThis.crypto || (global as any).crypto).subtle.encrypt(
+    const ciphertextBuffer = await crypto.subtle.encrypt(
       {
         name: 'AES-GCM',
         iv,
@@ -63,8 +64,9 @@ export class E2EEncryptionService {
     chatId: string
   ): Promise<string> {
     const key = await this.getChatKey(chatId);
+    const crypto = (globalThis.crypto || (global as unknown as { crypto: Crypto }).crypto) as Crypto;
 
-    const decrypted = await (globalThis.crypto || (global as any).crypto).subtle.decrypt(
+    const decrypted = await crypto.subtle.decrypt(
       {
         name: 'AES-GCM',
         iv: this.base64ToArrayBuffer(iv),
@@ -78,7 +80,8 @@ export class E2EEncryptionService {
 
   // Importar clave raw
   private async importKey(keyData: Uint8Array): Promise<CryptoKey> {
-    return await (globalThis.crypto || (global as any).crypto).subtle.importKey(
+    const crypto = (globalThis.crypto || (global as unknown as { crypto: Crypto }).crypto) as Crypto;
+    return await crypto.subtle.importKey(
       'raw',
       keyData,
       'AES-GCM',

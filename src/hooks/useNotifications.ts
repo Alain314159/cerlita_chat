@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 
 export function useNotifications(userId: string | null) {
   const router = useRouter();
-  const subscriptionRef = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -19,7 +18,7 @@ export function useNotifications(userId: string | null) {
       if (actionIdentifier === 'reply') {
         console.log('Quick reply:', response.userText, data?.chatId);
       } else if (data?.chatId) {
-        router.push(`/(chat)/${data.chatId}` as any);
+        router.push(`/(chat)/${data.chatId}`);
       }
     });
 

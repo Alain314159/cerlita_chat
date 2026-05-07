@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Avatar, Searchbar, ActivityIndicator } from 'react-native-paper';
+import { Avatar, Searchbar, ActivityIndicator, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '@/config/theme';
 import { supabase } from '@/services/supabase/config';
 import { useAuthStore } from '@/store/authStore';
 import { chatService } from '@/services/supabase/chat.service';
@@ -19,6 +18,7 @@ export default function NewChatScreen() {
   const { user } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
 
   const loadContacts = async () => {
     if (!user?.id) return;
@@ -91,7 +91,7 @@ export default function NewChatScreen() {
 
   const renderItem = ({ item }: { item: User }) => (
     <TouchableOpacity
-      style={styles.userItem}
+      style={[styles.userItem, { borderBottomColor: theme.colors.outlineVariant }]}
       onPress={() => handleSelectUser(item)}
     >
       <Avatar.Image
@@ -99,17 +99,17 @@ export default function NewChatScreen() {
         source={item.photoURL ? { uri: item.photoURL } : require('@/assets/images/default-avatar.png')}
       />
       <View style={styles.userInfo}>
-        <Text style={styles.userName}>{item.displayName}</Text>
-        <Text style={styles.userEmail}>{item.email}</Text>
+        <Text style={[styles.userName, { color: theme.colors.onSurface }]}>{item.displayName}</Text>
+        <Text style={[styles.userEmail, { color: theme.colors.onSurfaceVariant }]}>{item.email}</Text>
       </View>
       <UserPlus size={20} color={theme.colors.primary} />
     </TouchableOpacity>
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Nuevo Chat</Text>
+        <Text style={[styles.title, { color: theme.colors.primary }]}>Descubrir</Text>
       </View>
 
       <View style={styles.searchContainer}>
@@ -117,9 +117,11 @@ export default function NewChatScreen() {
           placeholder="Buscar usuarios..."
           onChangeText={searchUsers}
           value={searchQuery}
-          style={styles.searchbar}
-          icon={() => <Search size={20} color={theme.colors.secondary} />}
-          inputStyle={{ fontSize: 16 }}
+          style={[styles.searchbar, { backgroundColor: theme.colors.surfaceVariant, elevation: 0 }]}
+          placeholderTextColor={theme.colors.onSurfaceVariant}
+          iconColor={theme.colors.onSurfaceVariant}
+          inputStyle={{ fontSize: 16, color: theme.colors.onSurface }}
+          icon={() => <Search size={20} color={theme.colors.onSurfaceVariant} />}
         />
       </View>
 
@@ -134,17 +136,17 @@ export default function NewChatScreen() {
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={!searchQuery && contacts.length > 0 ? (
-            <Text style={styles.sectionTitle}>Mis Contactos</Text>
+            <Text style={[styles.sectionTitle, { backgroundColor: theme.colors.surfaceVariant, color: theme.colors.onSurfaceVariant }]}>Mis Contactos</Text>
           ) : null}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconContainer}>
-                {searchQuery ? <Search size={64} color={theme.colors.secondary} /> : <Users size={64} color={theme.colors.secondary} />}
+                {searchQuery ? <Search size={64} color={theme.colors.onSurfaceVariant} /> : <Users size={64} color={theme.colors.onSurfaceVariant} />}
               </View>
-              <Text style={styles.emptyTitle}>
+              <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>
                 {searchQuery ? 'Sin resultados' : 'No tienes contactos'}
               </Text>
-              <Text style={styles.emptySubtitle}>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>
                 {searchQuery ? 'Prueba con otro nombre' : 'Busca a alguien para chatear'}
               </Text>
             </View>
@@ -156,20 +158,20 @@ export default function NewChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   header: { padding: 16 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#FF69B4' },
+  title: { fontSize: 24, fontWeight: 'bold' },
   searchContainer: { paddingHorizontal: 16, marginBottom: 8 },
-  searchbar: { elevation: 0, borderWidth: 1, borderColor: '#eee', backgroundColor: '#fafafa' },
-  sectionTitle: { padding: 16, fontSize: 12, fontWeight: 'bold', color: '#888', backgroundColor: '#f9f9f9', textTransform: 'uppercase' },
+  searchbar: { elevation: 0, borderWidth: 1, borderColor: '#eee' },
+  sectionTitle: { padding: 16, fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' },
   listContent: { flexGrow: 1 },
-  userItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  userItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
   userInfo: { marginLeft: 16, flex: 1 },
   userName: { fontSize: 16, fontWeight: '600' },
-  userEmail: { fontSize: 14, color: '#888' },
+  userEmail: { fontSize: 14 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 80 },
   emptyIconContainer: { marginBottom: 16, opacity: 0.3 },
-  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#444' },
-  emptySubtitle: { fontSize: 14, color: '#888', textAlign: 'center', marginTop: 4 },
+  emptyTitle: { fontSize: 18, fontWeight: 'bold' },
+  emptySubtitle: { fontSize: 14, textAlign: 'center', marginTop: 4 },
 });

@@ -5,7 +5,7 @@ export const chatService = {
   async getUserChats(userId: string) {
     const { data, error } = await supabase
       .from('chats')
-      .select('*')
+      .select('*, participants:chat_participants(user_id, users(*))')
       .contains('participant_ids', [userId])
       .order('updated_at', { ascending: false });
 

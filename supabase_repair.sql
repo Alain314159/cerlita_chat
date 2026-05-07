@@ -1,150 +1,65 @@
--- ========================================================
--- 1. ESTRUCTURA DE TABLAS + CONSTRAINTS + RLS ACTIVADO
--- ========================================================
+-- ============================================
+-- CERLITA CHAT - DATABASE REPAIR & OPTIMIZATION
+-- ============================================
 
--- TABLA: chats
-CREATE TABLE IF NOT EXISTS chats (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    participant_ids UUID[] NOT NULL DEFAULT '{}',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-ALTER TABLE chats ENABLE ROW LEVEL SECURITY;
+-- 1. FIX: Redundancia en Chats (Sincronización automática de participant_ids)
+-- En lugar de insertar manualmente en ambas, usamos un trigger.
 
--- TABLA: chat_participants (Fuente de verdad relacional)
-CREATE TABLE IF NOT EXISTS chat_participants (
-    chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (chat_id, user_id)
-);
-ALTER TABLE chat_participants ENABLE ROW LEVEL SECURITY;
-
--- TABLA: messages
-CREATE TABLE IF NOT EXISTS messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-    sender_id UUID NOT NULL REFERENCES users(id) ON DELETE SET NULL,
-    content TEXT NOT NULL CHECK (char_length(trim(content)) > 0),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-
-
--- ========================================================
--- 2. ÍNDICES OBLIGATORIOS (Rendimiento + RLS eficiente)
--- ========================================================
-
--- Índice GIN para consultas de array (array_ops es el default nativo)
-CREATE INDEX IF NOT EXISTS idx_chats_participant_ids_gin 
-    ON chats USING gin(participant_ids);
-
--- Índices para joins frecuentes y ordenamiento
-CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
-CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_chat_participants_user_id ON chat_participants(user_id);
-
--- Trigger para mantener updated_at sincronizado
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+CREATE OR REPLACE FUNCTION sync_chat_participant_ids()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
+    IF (TG_OP = 'INSERT') THEN
+        UPDATE chats 
+        SET participant_ids = (
+            SELECT array_agg(user_id) 
+            FROM chat_participants 
+            WHERE chat_id = NEW.chat_id
+        )
+        WHERE id = NEW.chat_id;
+    ELSIF (TG_OP = 'DELETE') THEN
+        UPDATE chats 
+        SET participant_ids = (
+            SELECT array_agg(user_id) 
+            FROM chat_participants 
+            WHERE chat_id = OLD.chat_id
+        )
+        WHERE id = OLD.chat_id;
+    END IF;
+    RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS set_updated_at ON chats;
-CREATE TRIGGER set_updated_at
-    BEFORE UPDATE ON chats
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS trigger_sync_chat_participants ON chat_participants;
+CREATE TRIGGER trigger_sync_chat_participants
+AFTER INSERT OR DELETE ON chat_participants
+FOR EACH ROW EXECUTE FUNCTION sync_chat_participant_ids();
 
+-- 2. FIX: Seguridad en Notificaciones (Lockdown RLS)
+-- Evitar que usuarios inserten notificaciones para otros.
 
--- ========================================================
--- 3. POLÍTICAS RLS (Corregidas y optimizadas)
--- ========================================================
+DROP POLICY IF EXISTS "Users can insert own notifications" ON notifications;
+CREATE POLICY "Users can only insert own notifications" ON notifications 
+FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- CHATS: Solo ver chats donde participas
-DROP POLICY IF EXISTS "Users can view their chats" ON chats;
-CREATE POLICY "Users can view their chats" ON chats
-    FOR SELECT USING (auth.uid() = ANY(participant_ids));
+-- 3. FIX: Gestión de Presencia (Cleanup de usuarios "atascados")
+-- Función para marcar como offline a usuarios que no han tenido actividad en 10 min.
 
--- MENSAJES: Lectura
-DROP POLICY IF EXISTS "Users can view messages from their chats" ON messages;
-CREATE POLICY "Users can view messages from their chats" ON messages
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM chats
-            WHERE chats.id = messages.chat_id
-            AND auth.uid() = ANY(chats.participant_ids)
-        )
-    );
-
--- MENSAJES: Escritura
-DROP POLICY IF EXISTS "Users can insert messages into their chats" ON messages;
-CREATE POLICY "Users can insert messages into their chats" ON messages
-    FOR INSERT WITH CHECK (
-        auth.uid() = sender_id AND
-        EXISTS (
-            SELECT 1 FROM chats
-            WHERE chats.id = messages.chat_id
-            AND auth.uid() = ANY(chats.participant_ids)
-        )
-    );
-
--- PARTICIPANTES: Solo ver/listar participantes de tus chats
-DROP POLICY IF EXISTS "Users can view chat participants" ON chat_participants;
-CREATE POLICY "Users can view chat participants" ON chat_participants
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM chats
-            WHERE chats.id = chat_participants.chat_id
-            AND auth.uid() = ANY(chats.participant_ids)
-        )
-    );
-
--- USUARIOS: Búsqueda pública (ajustar si manejas datos sensibles)
-DROP POLICY IF EXISTS "Users can view all users" ON users;
-CREATE POLICY "Users can view all users" ON users FOR SELECT USING (true);
-
-
--- ========================================================
--- 4. FUNCIÓN RPC (Alineada con el esquema)
--- ========================================================
-CREATE OR REPLACE FUNCTION get_or_create_direct_chat(user1_id UUID, user2_id UUID)
-RETURNS UUID AS $$
-DECLARE
-    chat_id UUID;
+CREATE OR REPLACE FUNCTION cleanup_stuck_online_users()
+RETURNS void AS $$
 BEGIN
-    -- Buscar chat existente (usa índice GIN)
-    SELECT id INTO chat_id
-    FROM chats
-    WHERE participant_ids @> ARRAY[user1_id, user2_id]
-      AND array_length(participant_ids, 1) = 2
-    LIMIT 1;
-
-    IF chat_id IS NULL THEN
-        INSERT INTO chats (participant_ids)
-        VALUES (ARRAY[user1_id, user2_id])
-        RETURNING id INTO chat_id;
-
-        -- Insertar en tabla relacional (fuente de verdad para joins futuros)
-        INSERT INTO chat_participants (chat_id, user_id)
-        VALUES (chat_id, user1_id), (chat_id, user2_id)
-        ON CONFLICT DO NOTHING; -- Previene errores si se llama concurrentemente
-    END IF;
-
-    RETURN chat_id;
+    UPDATE users
+    SET is_online = FALSE, is_typing = FALSE
+    WHERE is_online = TRUE 
+    AND last_seen_at < NOW() - INTERVAL '10 minutes';
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
+-- 4. FIX: Optimización de consultas de Chat (Index para búsqueda por texto)
+-- Útil para cuando implementemos búsqueda de mensajes.
+CREATE INDEX IF NOT EXISTS idx_messages_content_trgm ON messages USING gin (content gin_trgm_ops);
+-- Nota: Requiere pg_trgm extension
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- ========================================================
--- 5. REALTIME + REPLICACIÓN
--- ========================================================
-ALTER TABLE messages REPLICA IDENTITY FULL;
-ALTER TABLE chats REPLICA IDENTITY FULL;
-
-BEGIN;
-  DROP PUBLICATION IF EXISTS supabase_realtime;
-  CREATE PUBLICATION supabase_realtime FOR TABLE chats, messages, chat_participants, users;
-COMMIT;
+-- 5. FIX: Seguridad - Asegurar que mensajes E2E no sean leídos si el status es 'read' sin read_at
+ALTER TABLE messages ADD CONSTRAINT check_read_at_if_read 
+CHECK (status <> 'read' OR read_at IS NOT NULL);

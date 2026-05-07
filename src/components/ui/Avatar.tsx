@@ -11,6 +11,7 @@ const SYSTEM_AVATARS = [
 
 export interface AvatarProps {
   uri?: string;
+  photoURL?: string; // Added to match usage in index.tsx
   systemAvatarId?: number;
   size?: number;
   isOnline?: boolean;
@@ -28,17 +29,20 @@ function getInitials(name?: string): string {
 
 export function Avatar({
   uri,
+  photoURL,
   systemAvatarId,
   size = 56,
   isOnline = false,
   displayName,
   showStatus = true,
 }: AvatarProps) {
+  const effectiveUri = uri || photoURL;
+
   // Si hay URI personalizada, usarla
-  if (uri) {
+  if (effectiveUri) {
     return (
       <View style={styles.container}>
-        <PaperAvatar.Image size={size} source={{ uri }} />
+        <PaperAvatar.Image size={size} source={{ uri: effectiveUri }} />
         {showStatus && isOnline && (
           <View style={[styles.indicator, { width: size * 0.25, height: size * 0.25 }]} />
         )}

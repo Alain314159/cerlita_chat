@@ -28,7 +28,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const [isEphemeral, setIsEphemeral] = useState(false);
   const [isViewOnce, setIsViewOnce] = useState(false);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
-  const inputRef = useRef<any>(null);
+  const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
   const hasText = value.trim().length > 0;
 
@@ -105,9 +105,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     <View style={styles.container}>
       {isFocused && <TermuxKeyBar onKeyPress={handleTermuxKeyPress} />}
       <View style={styles.inputRow}>
-        <TouchableOpacity style={styles.attachButton} onPress={onAttachmentPress}>
-          <IconButton icon={() => <Paperclip size={22} color={theme.colors.secondary} />} />
-        </TouchableOpacity>
+        <IconButton
+          icon={() => <Paperclip size={22} color={theme.colors.secondary} />}
+          onPress={onAttachmentPress}
+          disabled={disabled}
+          testID="attachment-button"
+        />
         <TextInput
           ref={inputRef}
           value={value}
@@ -126,13 +129,26 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
         />
         {hasText ? (
-          <TouchableOpacity style={styles.sendButton} onPress={handleSend} disabled={!hasText || disabled}>
-            <IconButton icon={() => <Send size={22} color={theme.colors.primary} />} />
-          </TouchableOpacity>
+          <IconButton
+            icon={() => <Send size={22} color={theme.colors.primary} />}
+            onPress={handleSend}
+            disabled={!hasText || disabled}
+            testID="send-button"
+          />
         ) : (
           <View style={styles.alternateButtons}>
-            <IconButton icon={() => <Camera size={22} color={theme.colors.secondary} />} onPress={onCameraPress} />
-            <IconButton icon={() => <Mic size={22} color={theme.colors.secondary} />} onPress={onVoicePress} />
+            <IconButton 
+              icon={() => <Camera size={22} color={theme.colors.secondary} />} 
+              onPress={onCameraPress} 
+              disabled={disabled}
+              testID="camera-button"
+            />
+            <IconButton 
+              icon={() => <Mic size={22} color={theme.colors.secondary} />} 
+              onPress={onVoicePress} 
+              disabled={disabled}
+              testID="voice-button"
+            />
           </View>
         )}
       </View>

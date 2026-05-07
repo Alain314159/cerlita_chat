@@ -36,7 +36,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // Map DB rows to Chat interface
       const mappedChats = rawChats.map((row: any) => ({
         id: row.id,
-        participants: row.participant_ids || [],
+        name: row.name,
+        type: row.type,
+        participants: row.participants || [],
         lastMessageId: row.last_message_id,
         lastMessageAt: row.updated_at ? new Date(row.updated_at) : null,
         unreadCount: 0,

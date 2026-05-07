@@ -14,21 +14,38 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Heart, PlusCircle, Search } from 'lucide-react-native';
+import { useTheme } from 'react-native-paper';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
-import { theme } from '@/config/theme';
 import { Chat, AvatarOption } from '@/types';
 import { haptics } from '@/services/haptics';
 import { Avatar } from '@/components/ui/Avatar';
 
 // Componente memoizado para cada item de chat
-const ChatItem = React.memo(function ChatItem({ chat, onPress }: {
+const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: {
   chat: Chat;
   onPress: (chatId: string) => void;
+  currentUserId?: string;
 }) {
-  const displayName = chat.name || 'Chat';
-  const isOnline = false;
+  const theme = useTheme();
+  const recipientInfo = useMemo(() => {
+    if (chat.name) return { name: chat.name, photo: undefined };
+    
+    const other = chat.participants?.find(p => (p.user_id || p.id) !== currentUserId);
+    if (other) {
+      const u = other.users || other;
+      return { 
+        name: u.display_name || u.displayName || 'Usuario',
+        photo: u.photo_url || u.photoURL,
+        isOnline: u.is_online || u.isOnline
+      };
+    }
+    return { name: 'Chat', photo: undefined };
+  }, [chat, currentUserId]);
+
+  const displayName = recipientInfo.name;
+  const isOnline = !!recipientInfo.isOnline;
   
   const handlePress = useCallback(() => {
     haptics.medium();
@@ -46,27 +63,28 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress }: {
         <Avatar
           size={56}
           displayName={displayName}
+          photoURL={recipientInfo.photo}
           isOnline={isOnline}
         />
       </View>
 
-      <View style={styles.chatInfo}>
+      <View style={[styles.chatInfo, { borderBottomColor: theme.colors.outlineVariant }]}>
         <View style={styles.chatHeader}>
-          <Text style={styles.displayName}>{displayName}</Text>
+          <Text style={[styles.displayName, { color: theme.colors.onSurface }]}>{displayName}</Text>
           {chat.lastMessageAt && (
-            <Text style={styles.time}>
+            <Text style={[styles.time, { color: theme.colors.onSurfaceVariant }]}>
               {format(new Date(chat.lastMessageAt), 'HH:mm', { locale: es })}
             </Text>
           )}
         </View>
 
-        <Text style={styles.lastMessage} numberOfLines={1}>
+        <Text style={[styles.lastMessage, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
           {chat.lastMessage || 'No hay mensajes'}
         </Text>
       </View>
 
       {chat.unreadCount > 0 && (
-        <View style={styles.unreadBadge}>
+        <View style={[styles.unreadBadge, { backgroundColor: theme.colors.primary }]}>
           <Text style={styles.unreadText}>{chat.unreadCount}</Text>
         </View>
       )}
@@ -80,6 +98,7 @@ export default function ChatListScreen() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [refreshing, setRefreshing] = React.useState(false);
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
 
   const onRefresh = useCallback(async () => {
     if (user) {
@@ -98,31 +117,27 @@ export default function ChatListScreen() {
   );
 
   const renderItem = useCallback(({ item }: { item: Chat }) => (
-    <ChatItem chat={item} onPress={(id) => useRouter().push(`/(chat)/${id}`)} />
-  ), []);
+    <ChatItem 
+      chat={item} 
+      onPress={(id) => useRouter().push(`/(chat)/${id}`)} 
+      currentUserId={user?.id}
+    />
+  ), [user?.id]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Chats</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <TouchableOpacity onPress={() => useRouter().push('/(chat)/requests')}>
-            <Heart size={26} color={theme.colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => useRouter().push('/(chat)/new')}>
-            <PlusCircle size={28} color={theme.colors.primary} />
-          </TouchableOpacity>
-        </View>
+        <Text style={[styles.title, { color: theme.colors.onBackground }]}>Chats</Text>
       </View>
 
-      <View style={styles.searchContainer}>
-        <Search size={20} color={theme.colors.textSecondary} />
+      <View style={[styles.searchContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
+        <Search size={20} color={theme.colors.onSurfaceVariant} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.colors.onSurface }]}
           placeholder="Buscar chats..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholderTextColor={theme.colors.textSecondary}
+          placeholderTextColor={theme.colors.onSurfaceVariant}
         />
       </View>
 
@@ -132,14 +147,21 @@ export default function ChatListScreen() {
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+          />
         }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No se encontraron chats</Text>
+              <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No se encontraron chats</Text>
             </View>
-          ) : null
+          ) : (
+            <ActivityIndicator style={{ marginTop: 20 }} color={theme.colors.primary} />
+          )
         }
       />
     </View>
@@ -149,7 +171,6 @@ export default function ChatListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -161,12 +182,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: theme.colors.text,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
     marginHorizontal: 20,
     paddingHorizontal: 15,
     borderRadius: 12,
@@ -177,7 +196,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
-    color: theme.colors.text,
   },
   listContent: {
     paddingBottom: 20,
@@ -194,7 +212,6 @@ const styles = StyleSheet.create({
   chatInfo: {
     flex: 1,
     borderBottomWidth: 0.5,
-    borderBottomColor: theme.colors.border,
     paddingBottom: 12,
   },
   chatHeader: {
@@ -206,18 +223,14 @@ const styles = StyleSheet.create({
   displayName: {
     fontSize: 17,
     fontWeight: '600',
-    color: theme.colors.text,
   },
   time: {
     fontSize: 13,
-    color: theme.colors.textSecondary,
   },
   lastMessage: {
     fontSize: 15,
-    color: theme.colors.textSecondary,
   },
   unreadBadge: {
-    backgroundColor: theme.colors.primary,
     minWidth: 20,
     height: 20,
     borderRadius: 10,
@@ -238,6 +251,5 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: theme.colors.textSecondary,
   },
 });

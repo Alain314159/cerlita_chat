@@ -9,27 +9,6 @@ jest.mock('date-fns', () => ({
   format: jest.fn(() => '12:00'),
 }));
 
-// Mock react-native-paper components
-jest.mock('react-native-paper', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return {
-    IconButton: (props: any) => {
-      const { icon, iconColor, testID, onPress } = props;
-      return (
-        <View 
-          testID={testID || `icon-button-${icon}`} 
-          accessibilityLabel={`icon-${icon}`}
-          accessibilityState={{ disabled: false }}
-          {...props}
-        >
-          {onPress && <View onTouchEnd={onPress} testID="press-target" />}
-        </View>
-      );
-    },
-  };
-});
-
 // Mock child components
 jest.mock('../../src/components/chat/ReplyThread', () => ({
   ReplyThread: () => null,
@@ -77,7 +56,7 @@ describe('MessageBubble', () => {
     it('should show a single check for "sent" status', () => {
       const message = createMockMessage({ status: 'sent' });
       const { getByLabelText } = render(
-        <MessageBubble message={message} isMyMessage={true} />
+        <MessageBubble message={message} isMe={true} />
       );
       
       const icon = getByLabelText('icon-check');
@@ -87,7 +66,7 @@ describe('MessageBubble', () => {
     it('should show double check for "delivered" status', () => {
       const message = createMockMessage({ status: 'delivered' });
       const { getByLabelText } = render(
-        <MessageBubble message={message} isMyMessage={true} />
+        <MessageBubble message={message} isMe={true} />
       );
       
       const icon = getByLabelText('icon-check-all');
@@ -100,7 +79,7 @@ describe('MessageBubble', () => {
         readAt: new Date() 
       });
       const { getByLabelText } = render(
-        <MessageBubble message={message} isMyMessage={true} />
+        <MessageBubble message={message} isMe={true} />
       );
       
       const icon = getByLabelText('icon-check-all');
@@ -110,7 +89,7 @@ describe('MessageBubble', () => {
     it('should not show status icons for received messages', () => {
       const message = createMockMessage({ status: 'read' });
       const { queryByLabelText } = render(
-        <MessageBubble message={message} isMyMessage={false} />
+        <MessageBubble message={message} isMe={false} />
       );
       
       expect(queryByLabelText('icon-check-all')).toBeNull();
@@ -127,7 +106,7 @@ describe('MessageBubble', () => {
       const message = createMockMessage();
       
       const { getByTestId, getByText } = render(
-        <MessageBubble message={message} isMyMessage={false} reactions={reactions} />
+        <MessageBubble message={message} isMe={false} reactions={reactions} />
       );
       
       expect(getByTestId('message-reactions')).toBeTruthy();
@@ -135,28 +114,28 @@ describe('MessageBubble', () => {
       expect(getByText('👍 2')).toBeTruthy();
     });
 
-    it('should call onReactionPress when a reaction is clicked', () => {
-      const onReactionPress = jest.fn();
+    it('should call onReaction when a reaction is clicked', () => {
+      const onReaction = jest.fn();
       const reactions = { '❤️': { count: 1, userReacted: false } };
       const message = createMockMessage();
       
       const { getByTestId } = render(
         <MessageBubble 
           message={message} 
-          isMyMessage={false} 
+          isMe={false} 
           reactions={reactions} 
-          onReactionPress={onReactionPress} 
+          onReaction={onReaction} 
         />
       );
       
       fireEvent.press(getByTestId('reaction-❤️'));
-      expect(onReactionPress).toHaveBeenCalledWith('❤️');
+      expect(onReaction).toHaveBeenCalledWith('❤️');
     });
 
     it('should open emoji picker on long press', () => {
       const message = createMockMessage();
       const { getByTestId, getByText } = render(
-        <MessageBubble message={message} isMyMessage={true} />
+        <MessageBubble message={message} isMe={true} />
       );
       
       // The touchable opacity around the bubble
@@ -168,18 +147,18 @@ describe('MessageBubble', () => {
       expect(getByText('👍')).toBeTruthy();
     });
 
-    it('should select emoji from picker and call onReactionPress', () => {
-      const onReactionPress = jest.fn();
+    it('should select emoji from picker and call onReaction', () => {
+      const onReaction = jest.fn();
       const message = createMockMessage();
       const { getByTestId, getByText } = render(
-        <MessageBubble message={message} isMyMessage={true} onReactionPress={onReactionPress} />
+        <MessageBubble message={message} isMe={true} onReaction={onReaction} />
       );
       
       const bubble = getByTestId(`message-${message.id}`).children[0];
       fireEvent(bubble, 'longPress');
       
       fireEvent.press(getByText('😂'));
-      expect(onReactionPress).toHaveBeenCalledWith('😂');
+      expect(onReaction).toHaveBeenCalledWith('😂');
     });
   });
 
@@ -187,7 +166,7 @@ describe('MessageBubble', () => {
     it('should sanitize and render text message', () => {
       const message = createMockMessage({ text: 'Normal text' });
       const { getByText } = render(
-        <MessageBubble message={message} isMyMessage={true} />
+        <MessageBubble message={message} isMe={true} />
       );
       
       expect(getByText('Normal text')).toBeTruthy();
@@ -196,7 +175,7 @@ describe('MessageBubble', () => {
     it('should show "editado" label if message was edited', () => {
       const message = createMockMessage({ text: 'Hello', isEdited: true });
       const { getByText } = render(
-        <MessageBubble message={message} isMyMessage={true} />
+        <MessageBubble message={message} isMe={true} />
       );
       
       expect(getByText(/editado/)).toBeTruthy();

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { MessageCircle, Settings } from 'lucide-react-native';
+import { MessageCircle, Settings, Users, Heart } from 'lucide-react-native';
 import { useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
@@ -49,13 +49,19 @@ export default function ChatLayout() {
       <Tabs.Screen
         name="new-chat"
         options={{
-          href: null,
+          title: 'Descubrir',
+          tabBarIcon: ({ color, size }) => (
+            <Users size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="requests"
         options={{
-          href: null,
+          title: 'Solicitudes',
+          tabBarIcon: ({ color, size }) => (
+            <Heart size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'reac
 import { IconButton } from 'react-native-paper';
 import { Image } from 'expo-image';
 import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
-import { theme } from '@/config/theme';
+import { useTheme } from 'react-native-paper';
 import type { Message } from '@/types';
 import type { ReplyContext } from '@/types/message.types';
 import { ReplyThread } from './ReplyThread';
@@ -13,22 +13,14 @@ import { es } from 'date-fns/locale';
 
 interface MessageBubbleProps {
   message: Message;
-  isMyMessage: boolean;
+  isMe: boolean;
   reactions?: Record<string, { count: number; userReacted: boolean }>;
   replyContext?: ReplyContext | null;
   onLongPress?: () => void;
-  onReactionPress?: (emoji: string) => void;
-  onReplyPress?: () => void;
+  onReaction?: (emoji: any) => void;
+  onReply?: () => void;
   isStarred?: boolean;
 }
-
-// Constants outside component — avoid recreation on every render
-const TYPE_EMOJIS: Record<string, string> = {
-  image: '\u{1F4F7}',
-  video: '\u{1F3A5}',
-  audio: '\u{1F3A4}',
-  file: '\u{1F4C4}',
-};
 
 const COMMON_REACTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏'];
 
@@ -40,6 +32,7 @@ const STATUS_CONFIG = [
 ];
 
 function StatusIcon({ status, readAt }: { status: string; readAt?: Date | string | null }) {
+  const theme = useTheme();
   const effectiveStatus = readAt ? 'read' : status;
   const config = STATUS_CONFIG.find((c) => c.status === effectiveStatus);
   if (!config) return null;
@@ -47,7 +40,7 @@ function StatusIcon({ status, readAt }: { status: string; readAt?: Date | string
     <IconButton
       icon={config.icon}
       size={14}
-      iconColor={theme.colors[config.colorKey as keyof typeof theme.colors] as string}
+      iconColor={(theme.colors as Record<string, string>)[config.colorKey] || theme.colors.primary}
       style={styles.statusIcon}
     />
   );
@@ -55,22 +48,23 @@ function StatusIcon({ status, readAt }: { status: string; readAt?: Date | string
 
 export const MessageBubble = React.memo(function MessageBubble({
   message,
-  isMyMessage,
+  isMe,
   reactions,
   replyContext,
   onLongPress,
-  onReactionPress,
-  onReplyPress,
+  onReaction,
+  onReply,
   isStarred,
 }: MessageBubbleProps) {
+  const theme = useTheme();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const renderContent = () => {
-    if (message.isViewOnce && message.readAt && !isMyMessage) {
+    if (message.isViewOnce && message.readAt && !isMe) {
       return (
         <View style={{ flexDirection: 'row', alignItems: 'center', opacity: 0.7 }}>
-          <IconButton icon="eye-off-outline" size={20} iconColor={theme.colors.textSecondary} />
-          <Text style={{ fontSize: 14, fontStyle: 'italic', color: theme.colors.textSecondary }}>Mensaje visto</Text>
+          <IconButton icon="eye-off-outline" size={20} iconColor={theme.colors.onSurfaceVariant} />
+          <Text style={{ fontSize: 14, fontStyle: 'italic', color: theme.colors.onSurfaceVariant }}>Mensaje visto</Text>
         </View>
       );
     }
@@ -85,7 +79,10 @@ export const MessageBubble = React.memo(function MessageBubble({
       );
     }
     return (
-      <Text style={[styles.text, isMyMessage ? styles.myText : styles.theirText]}>
+      <Text style={[
+        styles.text, 
+        { color: isMe ? '#FFFFFF' : theme.colors.onSurface }
+      ]}>
         {message.text}
         {message.isEdited && <Text style={styles.editedLabel}> (editado)</Text>}
       </Text>
@@ -98,27 +95,31 @@ export const MessageBubble = React.memo(function MessageBubble({
   }, [onLongPress]);
 
   const handleEmojiSelect = useCallback((emoji: string) => {
-    onReactionPress?.(emoji);
+    onReaction?.(emoji);
     setShowEmojiPicker(false);
-  }, [onReactionPress]);
+  }, [onReaction]);
 
   return (
     <Animated.View
       entering={FadeInUp.duration(300)}
-      style={[styles.container, isMyMessage ? styles.myMessage : styles.theirMessage]}
+      style={[styles.container, isMe ? styles.myMessage : styles.theirMessage]}
       testID={`message-${message.id}`}
     >
       {replyContext && (
         <TouchableOpacity
           style={styles.replyThread}
-          onPress={onReplyPress}
+          onPress={onReply}
           activeOpacity={0.7}
         >
-          <ReplyThread context={replyContext} isMyMessage={isMyMessage} />
+          <ReplyThread context={replyContext} isMyMessage={isMe} />
         </TouchableOpacity>
       )}
       <TouchableOpacity
-        style={[styles.bubble, isMyMessage ? styles.myBubble : styles.theirBubble]}
+        style={[
+          styles.bubble, 
+          isMe ? styles.myBubble : styles.theirBubble,
+          { backgroundColor: isMe ? theme.colors.primary : theme.colors.surfaceVariant }
+        ]}
         onLongPress={handleLongPress}
         activeOpacity={0.8}
       >
@@ -126,7 +127,7 @@ export const MessageBubble = React.memo(function MessageBubble({
         {reactions && (
           <MessageReactions
             reactions={reactions}
-            onReactionPress={onReactionPress}
+            onReactionPress={onReaction}
           />
         )}
         <View style={styles.meta}>
@@ -136,10 +137,10 @@ export const MessageBubble = React.memo(function MessageBubble({
           {message.isViewOnce && (
             <IconButton icon="lightning-bolt" size={12} iconColor="rgba(255,255,255,0.5)" style={{ margin: 0, padding: 0, width: 14, height: 14 }} />
           )}
-          <Text style={styles.time}>
+          <Text style={[styles.time, { color: isMe ? 'rgba(255,255,255,0.7)' : theme.colors.onSurfaceVariant }]}>
             {format(new Date(message.createdAt), 'HH:mm', { locale: es })}
           </Text>
-          {isMyMessage && <StatusIcon status={message.status} readAt={message.readAt} />}
+          {isMe && <StatusIcon status={message.status} readAt={message.readAt} />}
         </View>
       </TouchableOpacity>
       {isStarred && (
@@ -162,7 +163,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             entering={ZoomIn.duration(200)}
             style={[
               styles.emojiPicker,
-              isMyMessage ? styles.myEmojiPicker : styles.theirEmojiPicker
+              isMe ? styles.myEmojiPicker : styles.theirEmojiPicker
             ]}
           >
             {COMMON_REACTIONS.map((emoji) => (
@@ -187,15 +188,13 @@ const styles = StyleSheet.create({
   theirMessage: { alignSelf: 'flex-start' },
   replyThread: { marginBottom: 4 },
   bubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16 },
-  myBubble: { backgroundColor: theme.colors.messageSent, borderBottomRightRadius: 4 },
-  theirBubble: { backgroundColor: theme.colors.messageReceived, borderBottomLeftRadius: 4 },
+  myBubble: { borderBottomRightRadius: 4 },
+  theirBubble: { borderBottomLeftRadius: 4 },
   mediaImage: { width: 250, height: 250, borderRadius: 12, marginBottom: 4 },
   text: { fontSize: 15, lineHeight: 20 },
-  myText: { color: theme.colors.messageSentText },
-  theirText: { color: theme.colors.messageReceivedText },
   editedLabel: { fontSize: 11, fontStyle: 'italic', opacity: 0.6 },
   meta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, justifyContent: 'flex-end' },
-  time: { fontSize: 10, color: 'rgba(255,255,255,0.5)' },
+  time: { fontSize: 10 },
   statusIcon: { margin: 0, padding: 0, width: 18, height: 18, marginLeft: 2 },
   starIndicator: { position: 'absolute', top: -8, right: -8 },
   starIcon: { margin: 0 },
@@ -207,18 +206,20 @@ const styles = StyleSheet.create({
   },
   emojiPicker: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
     padding: 8,
     borderRadius: 24,
-    ...theme.shadows.md,
     gap: 8,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   myEmojiPicker: { marginRight: 20 },
   theirEmojiPicker: { marginLeft: 20 },
   emojiButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: theme.colors.backgroundSecondary,
   },
   emojiText: { fontSize: 24 },
 });

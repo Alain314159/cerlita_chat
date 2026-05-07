@@ -1,16 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { Avatar, IconButton } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { theme } from '@/config/theme';
 import { StatusBadge } from '../ui/StatusBadge';
 
 interface ChatHeaderProps {
-  name: string;
+  name?: string;
   isTyping?: boolean;
   isOnline?: boolean;
   photoUrl?: string;
   onOpenOptions: () => void;
+  loading?: boolean;
 }
 
 import { ArrowLeft, MoreVertical } from 'lucide-react-native';
@@ -20,7 +21,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   isTyping, 
   isOnline = false,
   photoUrl, 
-  onOpenOptions 
+  onOpenOptions,
+  loading
 }) => {
   const router = useRouter();
 
@@ -39,8 +41,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         <StatusBadge isOnline={isOnline} size={14} />
       </View>
       <View style={styles.headerInfo}>
-        <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
-        {isTyping && <Text style={styles.typingText}>escribiendo...</Text>}
+        {loading ? (
+          <ActivityIndicator size="small" color={theme.colors.primary} style={{ alignSelf: 'flex-start' }} />
+        ) : (
+          <>
+            <Text style={styles.headerName} numberOfLines={1}>{name || 'Usuario'}</Text>
+            {isTyping && <Text style={styles.typingText}>escribiendo...</Text>}
+          </>
+        )}
       </View>
       <IconButton 
         icon={() => <MoreVertical size={24} color={theme.colors.textPrimary} />} 

@@ -24,7 +24,7 @@ export interface Chat {
   id: string;
   name?: string | null;
   type?: 'direct' | 'group';
-  participants: string[]; // List of user IDs
+  participants: any[]; // Puede ser IDs o objetos con info de usuario
   lastMessageId: string | null;
   lastMessage?: string | null;
   lastMessageAt: Date | null;
@@ -82,7 +82,7 @@ export interface AuthState {
 export interface ReplyContext {
   messageId: string;
   senderName: string;
-  text: string | null;
+  text: string;
   type: MessageType;
 }
 
