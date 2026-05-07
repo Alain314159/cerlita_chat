@@ -38,17 +38,25 @@ export class E2EEncryptionService {
       return key;
     }
 
-    return this.generateChatKey(chatId);
+    // Si no hay clave, NO generamos una aleatoria para chats E2E.
+    // Se debe haber establecido previamente via establishSharedKey.
+    // Solo generamos aleatoria como fallback si realmente es necesario, 
+    // pero para Cerlita Chat 1-on-1 siempre usamos shared keys.
+    throw new Error(`No E2E key found for chat ${chatId}. Handshake required.`);
   }
 
-  // Establecer clave compartida determinísticamente (Maestro 2026: Zero-Trust Handshake)
+  /**
+   * Establece una clave compartida determinísticamente (Maestro 2026: Zero-Trust Handshake).
+   * Esta versión es la "Solución Mínima Viable" recomendada por la auditoría.
+   */
   async establishSharedKey(chatId: string, userId: string, peerId: string): Promise<void> {
     const sortedIds = [userId, peerId].sort();
     const seed = `${sortedIds[0]}:${sortedIds[1]}:cerlita_v1`;
     
     const encoder = new TextEncoder();
-    const crypto = (globalThis.crypto || (global as unknown as { crypto: Crypto }).crypto) as Crypto;
+    const crypto = (globalThis.crypto || (global as any).crypto) as Crypto;
     
+    // Derivación HKDF
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
       encoder.encode(seed),
@@ -70,14 +78,18 @@ export class E2EEncryptionService {
       ['encrypt', 'decrypt']
     );
     
-    const existing = await SecureStore.getItemAsync(`chat_key_${chatId}`);
-    if (!existing) {
-      const rawKey = await crypto.subtle.exportKey('raw', chatKey);
-      await SecureStore.setItemAsync(
-        `chat_key_${chatId}`, 
-        this.arrayBufferToBase64(new Uint8Array(rawKey))
-      );
-    }
+    const rawKey = await crypto.subtle.exportKey('raw', chatKey);
+    const base64Key = this.arrayBufferToBase64(new Uint8Array(rawKey));
+    
+    // Almacenar con el ID del chat (UUID)
+    await SecureStore.setItemAsync(`chat_key_${chatId}`, base64Key);
+    
+    // También almacenar con el ID determinístico para recuperación si el UUID cambia o se pierde
+    const deterministicId = sortedIds.join(':');
+    await SecureStore.setItemAsync(`chat_key_${deterministicId}`, base64Key);
+    
+    const key = await this.importKey(new Uint8Array(rawKey));
+    this.keyCache.set(chatId, key);
   }
 
   // Cifrar mensaje

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'reac
 import { IconButton } from 'react-native-paper';
 import { Image } from 'expo-image';
 import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
-import { useTheme } from 'react-native-paper';
+import { MD3Theme, useTheme } from 'react-native-paper';
 import type { Message } from '@/types';
 import type { ReplyContext } from '@/types/message.types';
 import { ReplyThread } from './ReplyThread';
@@ -25,23 +25,25 @@ interface MessageBubbleProps {
 
 const COMMON_REACTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏'];
 
-const STATUS_CONFIG = [
-  { status: 'read', icon: 'check-all' as const, colorKey: 'tickRead' },
-  { status: 'delivered', icon: 'check-all' as const, colorKey: 'tickDelivered' },
-  { status: 'sent', icon: 'check' as const, colorKey: 'tickDelivered' },
-  { status: 'failed', icon: 'alert-circle' as const, colorKey: 'error' },
-];
+type MessageStatusType = 'read' | 'delivered' | 'sent' | 'failed';
+
+const STATUS_CONFIG: Record<MessageStatusType, { icon: any; colorKey: keyof MD3Theme['colors'] }> = {
+  read: { icon: 'check-all', colorKey: 'primary' }, // Use primary or a custom color if defined
+  delivered: { icon: 'check-all', colorKey: 'outline' },
+  sent: { icon: 'check', colorKey: 'outline' },
+  failed: { icon: 'alert-circle', colorKey: 'error' },
+};
 
 function StatusIcon({ status, readAt }: { status: string; readAt?: Date | string | null }) {
   const theme = useTheme();
-  const effectiveStatus = readAt ? 'read' : status;
-  const config = STATUS_CONFIG.find((c) => c.status === effectiveStatus);
-  if (!config) return null;
+  const effectiveStatus: MessageStatusType = (readAt ? 'read' : status) as MessageStatusType;
+  const config = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.sent;
+
   return (
     <IconButton
       icon={config.icon}
       size={14}
-      iconColor={(theme.colors as any)[config.colorKey] || theme.colors.primary}
+      iconColor={theme.colors[config.colorKey]}
       style={styles.statusIcon}
     />
   );

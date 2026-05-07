@@ -52,22 +52,22 @@ export const SendMessageUseCase = async (
     content = text; // Para multimedia, el archivo ya debería estar cifrado antes de subir
   }
 
-  // PASO 2: Enviar al servidor con payload cifrado
+  // PASO 2: Enviar al servidor con payload cifrado (camelCase para el mapper)
   const result = await deps.sendMessage({
     chatId,
-    sender_id: senderId,
-    content, // Ahora es ciphertext
-    message_type: options?.messageType || 'text',
-    media_url: options?.mediaUrl || null,
-    thumbnail_url: options?.thumbnailUrl || null,
-    reply_to_id: options?.replyToId || null,
-    iv: encryptedPayload?.iv || null,
-    auth_tag: encryptedPayload?.authTag || null,
-    key_version: encryptedPayload?.keyVersion || 'v1',
+    senderId,
+    text: content, // El mapper usará encryptedPayload.ciphertext si existe, sino text
+    type: options?.messageType || 'text',
+    mediaURL: options?.mediaUrl || null,
+    thumbnailURL: options?.thumbnailUrl || null,
+    replyToId: options?.replyToId || null,
     status: 'sent',
-    is_ephemeral: options?.isEphemeral || false,
-    is_view_once: options?.isViewOnce || false,
+    isEphemeral: options?.isEphemeral || false,
+    isViewOnce: options?.isViewOnce || false,
+    encryptedPayload, // Pasar el objeto completo
+    iv: encryptedPayload?.iv, // Retrocompatibilidad
   });
+
 
   // PASO 3: Notificación push GENÉRICA (no revelar contenido)
   const notificationPromise = (async () => {

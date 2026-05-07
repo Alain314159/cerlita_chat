@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import NetInfo from '@react-native-community/netinfo';
 import type { Message, MessageType, ReplyContext } from '@/types';
 import { messageService } from '@/services/supabase/message.service';
 import { e2eEncryptionService } from '@/services/crypto/e2e.service';
@@ -22,6 +23,7 @@ interface MessageStore {
   subscription: RealtimeChannel | null;
   typingUsers: Record<string, boolean>;
   processedMessageIds: Set<string>;
+  offlineQueue: any[];
   setMessages: (messages: Message[]) => void;
   addMessage: (message: Message) => void;
   setError: (error: string | null) => void;
@@ -36,8 +38,11 @@ interface MessageStore {
       mediaUrl?: string;
       thumbnailUrl?: string;
       replyToId?: string;
+      isEphemeral?: boolean;
+      isViewOnce?: boolean;
     }
   ) => Promise<void>;
+  flushOfflineQueue: () => Promise<void>;
   editMessage: (messageId: string, newText: string, chatId: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   addReaction: (messageId: string, emoji: string) => Promise<void>;
@@ -59,6 +64,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   typingUsers: {},
 
   processedMessageIds: new Set<string>(),
+  offlineQueue: [],
 
   setMessages: (messages) => {
     const ids = new Set(messages.map(m => m.id));
@@ -98,6 +104,26 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   },
 
   sendMessage: async (chatId, senderId, text, options) => {
+    const net = await NetInfo.fetch();
+    
+    if (!net.isConnected) {
+      const offlineMsg: any = {
+        id: `offline-${Date.now()}`,
+        chatId,
+        senderId,
+        text,
+        type: options?.messageType || 'text',
+        status: 'sending',
+        createdAt: new Date().toISOString(),
+        options
+      };
+      set(state => ({ 
+        messages: [...state.messages, offlineMsg],
+        offlineQueue: [...state.offlineQueue, offlineMsg] 
+      }));
+      return;
+    }
+
     return safeStoreAction('sendMessage', async () => {
       try {
         set({ loading: true, error: null });
@@ -105,25 +131,27 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         const { replyContext } = get();
         const replyToId = options?.replyToId || replyContext?.messageId || undefined;
 
-        const { messageId, notificationPromise } = await SendMessageUseCase(
-          {
-            encrypt: e2eEncryptionService.encrypt.bind(e2eEncryptionService),
-            sendMessage: messageService.sendMessage,
-            getChatParticipants: messageService.getChatParticipants,
-            getUserById: userService.getUserById,
-            sendPushNotification: pushNotificationService.sendPushNotification,
-          },
-          {
-            chatId,
-            senderId,
-            text,
-            options: { ...options, replyToId }
-          }
-        );
+        const { result } = await (async () => {
+          const { messageId, notificationPromise } = await SendMessageUseCase(
+            {
+              encrypt: e2eEncryptionService.encrypt.bind(e2eEncryptionService),
+              sendMessage: messageService.sendMessage,
+              getChatParticipants: messageService.getChatParticipants,
+              getUserById: userService.getUserById,
+              sendPushNotification: pushNotificationService.sendPushNotification,
+            },
+            {
+              chatId,
+              senderId,
+              text,
+              options: { ...options, replyToId }
+            }
+          );
+          return { result: { id: messageId, notificationPromise } };
+        })();
 
-        // La notificación push se maneja en segundo plano
-        if (notificationPromise) {
-          notificationPromise.catch(err => console.error('[Store] Push Error:', err));
+        if (result.notificationPromise) {
+          result.notificationPromise.catch(err => console.error('[Store] Push Error:', err));
         }
 
         set({ replyContext: null, loading: false });
@@ -132,6 +160,29 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
         throw error;
       }
     }, { chatId, senderId });
+  },
+
+  flushOfflineQueue: async () => {
+    const { offlineQueue, sendMessage } = get();
+    if (offlineQueue.length === 0) return;
+
+    const queue = [...offlineQueue];
+    set({ offlineQueue: [] });
+
+    for (const msg of queue) {
+      try {
+        set(state => ({ 
+          messages: state.messages.filter(m => m.id !== msg.id) 
+        }));
+        await sendMessage(msg.chatId, msg.senderId, msg.text, msg.options);
+      } catch (err) {
+        console.error('[Offline] Failed to re-send:', err);
+        const net = await NetInfo.fetch();
+        if (!net.isConnected) {
+          set(state => ({ offlineQueue: [...state.offlineQueue, msg] }));
+        }
+      }
+    }
   },
 
   editMessage: async (messageId, newText, chatId) => {

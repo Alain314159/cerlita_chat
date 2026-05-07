@@ -4,6 +4,10 @@ ADD COLUMN IF NOT EXISTS auth_tag TEXT,
 ADD COLUMN IF NOT EXISTS key_version TEXT DEFAULT 'v1',
 ADD COLUMN IF NOT EXISTS encrypted_payload JSONB;
 
+ALTER TABLE connection_requests
+ADD COLUMN IF NOT EXISTS initial_message_iv TEXT,
+ADD COLUMN IF NOT EXISTS initial_message_auth_tag TEXT;
+
 -- 2. Índices para rendimiento
 CREATE INDEX IF NOT EXISTS idx_messages_chat_created 
 ON messages (chat_id, created_at DESC);

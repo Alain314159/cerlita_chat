@@ -24,6 +24,8 @@ export const connectionService = {
         sender_id: user.id,
         receiver_id: receiverId,
         initial_message_encrypted: ciphertext,
+        initial_message_iv: iv,
+        initial_message_auth_tag: authTag,
         status: 'pending'
       })
       .select()
@@ -79,9 +81,30 @@ export const connectionService = {
 
     if (error) throw new Error(error.message);
 
-    // 3. Establecer clave compartida determinísticamente (First Handshake Solution)
-    const chatId = [user.id, request.sender_id].sort().join(':');
-    await e2eEncryptionService.establishSharedKey(chatId, user.id, request.sender_id);
+    // 3. Obtener el ID del chat recién creado (por el trigger)
+    const participantArray = [user.id, request.sender_id].sort();
+    const { data: chat, error: chatError } = await supabase
+      .from('chats')
+      .select('id')
+      .contains('participant_ids', participantArray)
+      .limit(1)
+      .single();
+
+    if (chatError || !chat) {
+      console.warn('[Connection] Chat not found yet, derivation might use fallback ID');
+    }
+
+    // 4. Establecer clave compartida determinísticamente (First Handshake Solution)
+    // Usamos tanto el UUID del chat como un ID determinístico para redundancia
+    const deterministicId = participantArray.join(':');
+    const finalChatId = chat?.id || deterministicId;
+    
+    await e2eEncryptionService.establishSharedKey(finalChatId, user.id, request.sender_id);
+    
+    if (chat?.id && chat.id !== deterministicId) {
+      // También asegurar la clave con el ID determinístico por si acaso
+      await e2eEncryptionService.establishSharedKey(deterministicId, user.id, request.sender_id);
+    }
 
     return data;
   },

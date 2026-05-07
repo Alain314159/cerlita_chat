@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet, Platform, View } from 'react-native';
@@ -7,6 +7,7 @@ import { AuthProvider } from '@/providers/AuthProvider';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useAuthStore } from '@/store/authStore';
 
 // Web-only: Inject MaterialCommunityIcons CSS
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -40,6 +41,37 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   });
 }
 
+function RootNavigation() {
+  const { isAuthenticated, loading } = useAuthStore();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!isAuthenticated && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    } else if (isAuthenticated && inAuthGroup) {
+      router.replace('/(chat)');
+    }
+  }, [isAuthenticated, loading, segments]);
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+    >
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="(chat)" options={{ headerShown: false }} />
+      <Stack.Screen name="+not-found" />
+    </Stack>
+  );
+}
+
 export default function RootLayout() {
   return (
     <ErrorBoundary>
@@ -49,16 +81,7 @@ export default function RootLayout() {
             <ThemeProvider>
               <AuthProvider>
                 <View style={styles.webWrapper}>
-                  <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      animation: 'slide_from_right',
-                    }}
-                  >
-                    <Stack.Screen name="(auth)" />
-                    <Stack.Screen name="(chat)" />
-                    <Stack.Screen name="+not-found" />
-                  </Stack>
+                  <RootNavigation />
                 </View>
               </AuthProvider>
             </ThemeProvider>
@@ -77,7 +100,6 @@ const styles = StyleSheet.create({
   webWrapper: {
     flex: 1,
     width: '100%',
-    // Eliminamos el maxWidth restrictivo para que se adapte al móvil
     alignSelf: 'center',
     backgroundColor: 'transparent',
     overflow: 'hidden',
