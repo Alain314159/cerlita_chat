@@ -12,11 +12,11 @@ export interface User {
   photoURL: string | null;
   avatar?: AvatarOption;
   isOnline: boolean;
-  lastSeen: Date | null;
+  lastSeen: string | null;
   isTyping: boolean;
   pushToken: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Chat types
@@ -24,70 +24,45 @@ export interface Chat {
   id: string;
   name?: string | null;
   type?: 'direct' | 'group';
-  participants: any[]; // Puede ser IDs o objetos con info de usuario
+  participant_ids: string[];
   lastMessageId: string | null;
   lastMessage?: string | null;
-  lastMessageAt: Date | null;
+  lastMessageAt: string | null;
   unreadCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ParticipantInfo {
-  displayName: string;
-  photoURL: string | null;
-  isOnline: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Message types
 export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'file';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 
+export interface EncryptedPayload {
+  ciphertext: string; // Base64 del contenido cifrado
+  iv: string;         // Base64 del vector de inicialización (12 bytes para GCM)
+  authTag: string;    // Base64 de la etiqueta de autenticación (16 bytes para GCM)
+  keyVersion: string; // Para soportar rotación de claves
+}
+
 export interface Message {
   id: string;
   chatId: string;
   senderId: string;
   type: MessageType;
-  text: string | null;
+  text: string | null; 
   mediaURL: string | null;
   thumbnailURL: string | null;
   status: MessageStatus;
-  readAt: Date | null;
-  deliveredAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
+  readAt: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  encryptedPayload?: EncryptedPayload; // Para mensajes E2E
+  plaintext?: string; // SOLO para caché local tras descifrar, NUNCA enviar al servidor
+  iv?: string; 
   isEdited: boolean;
-  editedAt?: Date | null;
+  editedAt?: string | null;
   replyToId: string | null;
   isEphemeral?: boolean;
   isViewOnce?: boolean;
 }
-
-export interface MessageReaction {
-  id: string;
-  messageId: string;
-  userId: string;
-  emoji: string;
-  createdAt: Date;
-}
-
-// Auth types
-export interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  loading: boolean;
-  error: string | null;
-}
-
-export interface ReplyContext {
-  messageId: string;
-  senderName: string;
-  text: string;
-  type: MessageType;
-}
-
-export type ReactionCounts = Record<string, { count: number; userReacted: boolean }>;
-export type MessageEdit = { messageId: string; newText: string; chatId: string };
-export type ForwardTarget = { chatId: string; chatName: string };
-export type MessageAction = 'reply' | 'edit' | 'delete' | 'forward' | 'star';
-export type MessageWithMeta = Message & { reactions?: ReactionCounts };

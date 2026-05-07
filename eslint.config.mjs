@@ -1,10 +1,15 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import securityPlugin from 'eslint-plugin-security';
 
 export default tseslint.config(
   {
     files: ['**/*.{ts,tsx}'],
-    extends: [eslint.configs.recommended, ...tseslint.configs.recommended],
+    extends: [
+      eslint.configs.recommended,
+      ...tseslint.configs.recommended,
+      securityPlugin.configs.recommended,
+    ],
     rules: {
       '@typescript-eslint/no-unused-vars': 'warn',
       'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
