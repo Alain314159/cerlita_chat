@@ -160,40 +160,37 @@ export const messageService = {
     if (error) throw new Error(error.message);
   },
 
-  // Subscribe to new messages in a chat (Maestro 2026: INSERT Filtering & Retry)
+  // Subscribe to new messages in a chat (Maestro 2026: Full Event Sync)
   subscribeToMessages(
     chatId: string, 
-    onMessage: (payload: any) => void
+    onEvent: (payload: any) => void
   ): { unsubscribe: () => void } {
-    // Crear un nuevo canal único por chatId para evitar colisiones
-    const channel = supabase.channel(`chat:${chatId}:${Date.now()}`);
+    // 🔧 FIX ULTRA: Listen for ALL events (UPDATE/DELETE/INSERT) for full sync
+    const channel = supabase.channel(`chat_messages:${chatId}`);
     
-    // 🔧 CRÍTICO: Encadenar TODOS los .on() ANTES de .subscribe()
     channel
       .on(
         'postgres_changes',
         {
-          event: 'INSERT', // Solo INSERT para eficiencia energética (Maestro 2026)
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `chat_id=eq.${chatId}`,
         },
         (payload) => {
-          // Validar payload antes de llamar al callback
-          if (payload?.new?.id) {
-            onMessage(payload);
-          }
+          onEvent(payload);
         }
-      );
+      )
+      // Broadcast support for ephemeral events (typing)
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        onEvent({ eventType: 'BROADCAST', event: 'typing', ...payload });
+      })
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.error(`[Realtime] Error en canal chat_messages:${chatId}`);
+        }
+      });
     
-    // Suscribirse y manejar estado
-    channel.subscribe((status) => {
-      if (status === 'CHANNEL_ERROR') {
-        console.error(`[Realtime] Error en canal chat:${chatId}`);
-      }
-    });
-    
-    // Retornar función de limpieza
     return {
       unsubscribe: () => {
         supabase.removeChannel(channel);

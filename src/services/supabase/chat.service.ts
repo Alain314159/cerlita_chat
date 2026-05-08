@@ -77,18 +77,33 @@ export const chatService = {
 
   // Subscribe to chat updates
   subscribeToUserChats(userId: string, onUpdate: (payload: any) => void): RealtimeChannel {
+    // 🔧 FIX ULTRA 2026: Supabase Realtime 'cs' is unreliable for arrays.
+    // Instead, we subscribe to the chat_participants table for the current user.
+    // When a user is added to a chat, the list should refresh.
     return supabase
-      .channel(`public:chats:participants=${userId}`)
+      .channel(`user_chats:${userId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'chats',
-          // Filtro optimizado para participantes
-          filter: `participant_ids=cs.{${userId}}`,
+          table: 'chat_participants',
+          filter: `user_id=eq.${userId}`,
         },
-        (payload: any) => {
+        () => {
+          onUpdate({ eventType: 'REFRESH' });
+        }
+      )
+      // Also listen for updates to chats the user is already in (last_message_id)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'chats',
+        },
+        (payload) => {
+          // Verify if the user is a participant of the updated chat locally
           onUpdate(payload);
         }
       )
