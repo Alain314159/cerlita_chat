@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,

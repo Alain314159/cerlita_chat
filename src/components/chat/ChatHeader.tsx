@@ -36,7 +36,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         {photoUrl ? (
           <Avatar.Image size={40} source={{ uri: photoUrl }} />
         ) : (
-          <Avatar.Image size={40} source={require('@/assets/images/default-avatar.png')} />
+          <Avatar.Image size={40} source={require('../../../assets/images/default-avatar.png')} />
         )}
         <StatusBadge isOnline={isOnline} size={14} />
       </View>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -35,7 +35,7 @@ export default function ChatConversationScreen() {
   const flatListRef = useRef<FlashList<any>>(null);
 
   const {
-    messages,
+    messages: initialMessages,
     loading,
     sending,
     sendMessage,
@@ -47,6 +47,17 @@ export default function ChatConversationScreen() {
     isOtherUserTyping,
     queryResult,
   } = useMessages(chatId as string);
+
+  // Robust array conversion to prevent TanStack Query structure mismatches
+  const messagesArray = useMemo(() => {
+    if (!queryResult.data) return initialMessages || [];
+    if (Array.isArray(queryResult.data)) return queryResult.data;
+    // Fallback if useMessages select failed or wasn't applied
+    if (typeof queryResult.data === 'object' && 'pages' in queryResult.data) {
+      return (queryResult.data as any).pages.flat().filter(Boolean);
+    }
+    return initialMessages || [];
+  }, [queryResult.data, initialMessages]);
 
   const { activeChat, chats } = useChat(chatId as string);
   const [recipient, setRecipient] = useState<{displayName: string, photoURL?: string} | null>(null);
@@ -61,13 +72,15 @@ export default function ChatConversationScreen() {
       if (payload.eventType === 'INSERT' && payload.newRecord) {
         // Insertar nuevo mensaje al inicio de la primera página
         queryClient.setQueryData(['messages', chatId], (old: any) => {
-          if (!old) return old;
+          if (!old || !old.pages || old.pages.length === 0) return old;
+          
+          // Clonar para evitar mutaciones directas
+          const newPages = [...old.pages];
+          newPages[0] = [payload.newRecord, ...(newPages[0] || [])];
+          
           return {
             ...old,
-            pages: [
-              [payload.newRecord, ...(old.pages[0] || [])],
-              ...old.pages.slice(1)
-            ]
+            pages: newPages
           };
         });
       }
@@ -131,7 +144,7 @@ export default function ChatConversationScreen() {
 
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isMe = item.senderId === user?.id;
-    const prevMessage = messages[index + 1];
+    const prevMessage = messagesArray[index + 1];
     const showDateHeader = !prevMessage || formatDateHeader(item.createdAt) !== formatDateHeader(prevMessage.createdAt);
 
     return (
@@ -156,7 +169,7 @@ export default function ChatConversationScreen() {
         />
       </View>
     );
-  }, [user?.id, messages, recipient, addReaction, setReplyContext, theme]);
+  }, [user?.id, messagesArray, recipient, addReaction, setReplyContext, theme]);
 
   if (queryResult.isError) {
     return (
@@ -169,7 +182,7 @@ export default function ChatConversationScreen() {
     );
   }
 
-  if (loading && messages.length === 0) {
+  if (loading && messagesArray.length === 0) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -193,9 +206,12 @@ export default function ChatConversationScreen() {
 
       <FlashList
         ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
+        data={messagesArray ?? []}
+        keyExtractor={(item) => item?.id ?? `fallback-${Math.random()}`}
+        renderItem={({ item, index }) => {
+          if (!item) return null;
+          return renderMessage({ item, index });
+        }}
         estimatedItemSize={70}
         contentContainerStyle={styles.listContent}
         inverted // Messages typically list from bottom to top
@@ -254,6 +270,18 @@ const styles = StyleSheet.create({
   },
   dateHeaderText: {
     fontSize: 12,
+    fontWeight: '600',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
+});
+ze: 12,
     fontWeight: '600',
     paddingHorizontal: 12,
     paddingVertical: 4,

@@ -5,8 +5,8 @@ import { theme } from '@/config/theme';
 
 // Importar avatares del sistema
 const SYSTEM_AVATARS = [
-  require('@/assets/images/cerdita-avatar.jpg'),
-  require('@/assets/images/koala-avatar.jpg'),
+  require('../../../assets/images/cerdita-avatar.jpg'),
+  require('../../../assets/images/koala-avatar.jpg'),
 ];
 
 export interface AvatarProps {

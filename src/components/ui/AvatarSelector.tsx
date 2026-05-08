@@ -18,12 +18,12 @@ import { haptics } from '@/services/haptics';
 const SYSTEM_AVATARS = [
   {
     id: 0,
-    image: require('@/assets/images/cerdita-avatar.jpg'),
+    image: require('../../../assets/images/cerdita-avatar.jpg'),
     name: 'Cerdita',
   },
   {
     id: 1,
-    image: require('@/assets/images/koala-avatar.jpg'),
+    image: require('../../../assets/images/koala-avatar.jpg'),
     name: 'Koala',
   },
 ];

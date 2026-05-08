@@ -9,7 +9,8 @@ export function useMessages(chatId: string) {
   const { data, isLoading: loading, error: queryError } = queryResult;
 
   const messages = useMemo(() => {
-    return data?.pages.flatMap(page => page) || [];
+    // data ya está aplanado por el 'select' en useMessagesQuery
+    return (data || []) as Message[];
   }, [data]);
 
   const {

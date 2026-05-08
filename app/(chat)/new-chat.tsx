@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Avatar, Searchbar, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Avatar, Searchbar, ActivityIndicator, useTheme, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/authStore';
 import { chatService } from '@/services/supabase/chat.service';
 import { userService } from '@/services/supabase/user.service';
+import { connectionService } from '@/services/supabase/connection.service';
 import type { User } from '@/types';
-import { Search, UserPlus, Users } from 'lucide-react-native';
+import { Search, UserPlus, Users, MessageSquare } from 'lucide-react-native';
 
 // Simple debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -60,6 +61,7 @@ export default function NewChatScreen() {
     if (!user?.id) return;
     try {
       setSearching(true);
+      console.log('Searching users for query:', searchQuery);
       const results = await userService.searchUsers(user.id, searchQuery);
       setUsers(results);
     } catch (error) {
@@ -69,50 +71,108 @@ export default function NewChatScreen() {
     }
   };
 
-  const handleSelectUser = async (selectedUser: User) => {
+  const handleAddContact = async (selectedUser: User) => {
+    console.log('handleAddContact called for:', selectedUser.displayName);
     if (!user?.id) return;
-    
-    Alert.alert(
-      'Conectar',
-      `¿Quieres iniciar un chat con ${selectedUser.displayName}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Conectar', 
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const chatId = await chatService.getOrCreateDirectChat(user.id, selectedUser.id);
-              if (!chatId) throw new Error('No se pudo crear la conexión');
-              router.push(`/(chat)/${chatId}`);
-            } catch (error: any) {
-              console.error('Failed to create chat:', error);
-              Alert.alert('Error', error.message || 'No se pudo crear el chat');
-            } finally {
-              setLoading(false);
-            }
-          }
+
+    const performAction = async () => {
+      try {
+        setLoading(true);
+        await connectionService.sendRequest(selectedUser.id);
+        Alert.alert('Solicitud enviada', `Se ha enviado una solicitud a ${selectedUser.displayName}`);
+        if (Platform.OS === 'web') {
+           alert(`Solicitud enviada a ${selectedUser.displayName}`);
         }
-      ]
-    );
+      } catch (error: any) {
+        console.error('Failed to send request:', error);
+        Alert.alert('Error', error.message || 'No se pudo enviar la solicitud');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`¿Quieres añadir a ${selectedUser.displayName} como contacto?`)) {
+        performAction();
+      }
+    } else {
+      Alert.alert(
+        'Añadir contacto',
+        `¿Quieres enviar una solicitud de conexión a ${selectedUser.displayName}?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Enviar', onPress: performAction }
+        ]
+      );
+    }
   };
 
-  const renderItem = ({ item }: { item: User }) => (
-    <TouchableOpacity
-      style={[styles.userItem, { borderBottomColor: theme.colors.outlineVariant }]}
-      onPress={() => handleSelectUser(item)}
-    >
-      <Avatar.Image
-        size={56}
-        source={item.photoURL ? { uri: item.photoURL } : require('@/assets/images/default-avatar.png')}
-      />
-      <View style={styles.userInfo}>
-        <Text style={[styles.userName, { color: theme.colors.onSurface }]}>{item.displayName}</Text>
-        <Text style={[styles.userEmail, { color: theme.colors.onSurfaceVariant }]}>{item.email}</Text>
-      </View>
-      <UserPlus size={20} color={theme.colors.primary} />
-    </TouchableOpacity>
-  );
+  const handleSelectUser = async (selectedUser: User) => {
+    console.log('handleSelectUser (Direct Mode) called for:', selectedUser.displayName);
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
+      // Intentar crear o abrir el chat directamente
+      const chatId = await chatService.getOrCreateDirectChat(user.id, selectedUser.id);
+      console.log('Chat obtained/created:', chatId);
+      router.push(`/(chat)/${chatId}`);
+    } catch (error: any) {
+      console.error('Failed to start direct chat:', error);
+      
+      // Fallback: si falla el inicio directo, ofrecer añadir como contacto
+      if (Platform.OS === 'web') {
+        if (window.confirm(`No se pudo abrir el chat directamente. ¿Quieres intentar enviar una solicitud de contacto a ${selectedUser.displayName}?`)) {
+          handleAddContact(selectedUser);
+        }
+      } else {
+        Alert.alert(
+          'Error al iniciar chat',
+          '¿Quieres enviar una solicitud de contacto en su lugar?',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Enviar Solicitud', onPress: () => handleAddContact(selectedUser) }
+          ]
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderItem = ({ item }: { item: User }) => {
+    const isContact = contacts.some(c => c.id === item.id);
+    
+    return (
+      <TouchableOpacity
+        style={[styles.userItem, { borderBottomColor: theme.colors.outlineVariant }]}
+        onPress={() => handleSelectUser(item)}
+      >
+        <Avatar.Image
+          size={56}
+          source={item.photoURL ? { uri: item.photoURL } : require('../../assets/images/default-avatar.png')}
+        />
+        <View style={styles.userInfo}>
+          <Text style={[styles.userName, { color: theme.colors.onSurface }]}>{item.displayName}</Text>
+          <Text style={[styles.userEmail, { color: theme.colors.onSurfaceVariant }]}>{item.email}</Text>
+        </View>
+        
+        {isContact ? (
+          <MessageSquare size={20} color={theme.colors.primary} />
+        ) : (
+          <TouchableOpacity 
+            onPress={(e) => {
+              e.stopPropagation();
+              handleAddContact(item);
+            }}
+            style={styles.actionButton}
+          >
+            <UserPlus size={20} color={theme.colors.primary} />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
@@ -177,6 +237,7 @@ const styles = StyleSheet.create({
   userInfo: { marginLeft: 16, flex: 1 },
   userName: { fontSize: 16, fontWeight: '600' },
   userEmail: { fontSize: 14 },
+  actionButton: { padding: 8 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 80 },
   emptyIconContainer: { marginBottom: 16, opacity: 0.3 },
