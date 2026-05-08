@@ -30,20 +30,24 @@ export function useSendMessageMutation(chatId: string) {
     mutationFn: async ({ 
       text, 
       senderId, 
+      chatId: explicitChatId,
       isEphemeral = false,
       isViewOnce = false
     }: { 
       text: string; 
       senderId: string; 
+      chatId: string;
       isEphemeral?: boolean;
       isViewOnce?: boolean;
     }) => {
+      // Usar explicitChatId si se proporciona, sino usar el del hook
+      const targetChatId = explicitChatId || chatId;
       // 1. Cifrado local con AES-GCM (authTag incluido)
-      const { ciphertext, iv, authTag, keyVersion } = await e2eEncryptionService.encrypt(text, chatId);
+      const { ciphertext, iv, authTag, keyVersion } = await e2eEncryptionService.encrypt(text, targetChatId);
 
       // 2. Envío al servidor
       return await messageService.sendMessage({
-        chatId,
+        chatId: targetChatId,
         senderId,
         text: ciphertext,
         iv,

@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Avatar, Searchbar, ActivityIndicator, useTheme, IconButton } from 'react-native-paper';
+import { Avatar, Searchbar, ActivityIndicator, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/authStore';
 import { chatService } from '@/services/supabase/chat.service';
 import { userService } from '@/services/supabase/user.service';
-import { connectionService } from '@/services/supabase/connection.service';
 import type { User } from '@/types';
-import { Search, UserPlus, Users, MessageSquare } from 'lucide-react-native';
+import { Search, Users, MessageSquare } from 'lucide-react-native';
 
 // Simple debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -71,69 +70,24 @@ export default function NewChatScreen() {
     }
   };
 
-  const handleAddContact = async (selectedUser: User) => {
-    console.log('handleAddContact called for:', selectedUser.displayName);
-    if (!user?.id) return;
-
-    const performAction = async () => {
-      try {
-        setLoading(true);
-        await connectionService.sendRequest(selectedUser.id);
-        Alert.alert('Solicitud enviada', `Se ha enviado una solicitud a ${selectedUser.displayName}`);
-        if (Platform.OS === 'web') {
-           alert(`Solicitud enviada a ${selectedUser.displayName}`);
-        }
-      } catch (error: any) {
-        console.error('Failed to send request:', error);
-        Alert.alert('Error', error.message || 'No se pudo enviar la solicitud');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      if (window.confirm(`¿Quieres añadir a ${selectedUser.displayName} como contacto?`)) {
-        performAction();
-      }
-    } else {
-      Alert.alert(
-        'Añadir contacto',
-        `¿Quieres enviar una solicitud de conexión a ${selectedUser.displayName}?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Enviar', onPress: performAction }
-        ]
-      );
-    }
-  };
-
   const handleSelectUser = async (selectedUser: User) => {
-    console.log('handleSelectUser (Direct Mode) called for:', selectedUser.displayName);
+    console.log('handleSelectUser (Direct Open) called for:', selectedUser.displayName);
     if (!user?.id) return;
 
     try {
       setLoading(true);
-      // Intentar crear o abrir el chat directamente
+      // Abrir o crear el chat directamente sin pasar por solicitudes
       const chatId = await chatService.getOrCreateDirectChat(user.id, selectedUser.id);
-      console.log('Chat obtained/created:', chatId);
+      console.log('Chat established:', chatId);
       router.push(`/(chat)/${chatId}`);
     } catch (error: any) {
-      console.error('Failed to start direct chat:', error);
-      
-      // Fallback: si falla el inicio directo, ofrecer añadir como contacto
+      console.error('Failed to open chat:', error);
+      const title = 'Error';
+      const msg = 'No se pudo iniciar el chat. Por favor, intenta de nuevo.';
       if (Platform.OS === 'web') {
-        if (window.confirm(`No se pudo abrir el chat directamente. ¿Quieres intentar enviar una solicitud de contacto a ${selectedUser.displayName}?`)) {
-          handleAddContact(selectedUser);
-        }
+        window.alert(`${title}: ${msg}`);
       } else {
-        Alert.alert(
-          'Error al iniciar chat',
-          '¿Quieres enviar una solicitud de contacto en su lugar?',
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Enviar Solicitud', onPress: () => handleAddContact(selectedUser) }
-          ]
-        );
+        Alert.alert(title, msg, [{ text: 'OK' }]);
       }
     } finally {
       setLoading(false);
@@ -141,8 +95,6 @@ export default function NewChatScreen() {
   };
 
   const renderItem = ({ item }: { item: User }) => {
-    const isContact = contacts.some(c => c.id === item.id);
-    
     return (
       <TouchableOpacity
         style={[styles.userItem, { borderBottomColor: theme.colors.outlineVariant }]}
@@ -154,22 +106,12 @@ export default function NewChatScreen() {
         />
         <View style={styles.userInfo}>
           <Text style={[styles.userName, { color: theme.colors.onSurface }]}>{item.displayName}</Text>
-          <Text style={[styles.userEmail, { color: theme.colors.onSurfaceVariant }]}>{item.email}</Text>
+          <Text style={[styles.userEmail, { color: theme.colors.onSurfaceVariant }]}>
+            {item.cerlitaId ? `${item.cerlitaId} • ` : ''}{item.email}
+          </Text>
         </View>
         
-        {isContact ? (
-          <MessageSquare size={20} color={theme.colors.primary} />
-        ) : (
-          <TouchableOpacity 
-            onPress={(e) => {
-              e.stopPropagation();
-              handleAddContact(item);
-            }}
-            style={styles.actionButton}
-          >
-            <UserPlus size={20} color={theme.colors.primary} />
-          </TouchableOpacity>
-        )}
+        <MessageSquare size={20} color={theme.colors.primary} />
       </TouchableOpacity>
     );
   };
@@ -182,7 +124,7 @@ export default function NewChatScreen() {
 
       <View style={styles.searchContainer}>
         <Searchbar
-          placeholder="Buscar usuarios..."
+          placeholder="Nombre, Email o Cerlita ID..."
           onChangeText={setQuery}
           value={query}
           style={[styles.searchbar, { backgroundColor: theme.colors.surfaceVariant, elevation: 0 }]}
@@ -237,7 +179,6 @@ const styles = StyleSheet.create({
   userInfo: { marginLeft: 16, flex: 1 },
   userName: { fontSize: 16, fontWeight: '600' },
   userEmail: { fontSize: 14 },
-  actionButton: { padding: 8 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 80 },
   emptyIconContainer: { marginBottom: 16, opacity: 0.3 },

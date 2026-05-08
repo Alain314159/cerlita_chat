@@ -7,6 +7,7 @@ export const mapDatabaseUserToDomain = (dbUser: any): User | null => {
     id: dbUser.id,
     email: dbUser.email || '',
     displayName: dbUser.display_name || 'Usuario',
+    cerlitaId: dbUser.cerlita_id || null,
     photoURL: dbUser.photo_url || null,
     avatar: dbUser.avatar_type ? {
       type: dbUser.avatar_type as 'system' | 'custom',
@@ -25,6 +26,7 @@ export const mapDatabaseUserToDomain = (dbUser: any): User | null => {
 export const mapDomainUserToDatabase = (updates: Partial<User>) => {
   const dbUpdates: any = {};
   if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
+  if (updates.cerlitaId !== undefined) dbUpdates.cerlita_id = updates.cerlitaId;
   if (updates.photoURL !== undefined) dbUpdates.photo_url = updates.photoURL;
   if (updates.isOnline !== undefined) dbUpdates.is_online = updates.isOnline;
   if (updates.pushToken !== undefined) dbUpdates.push_token = updates.pushToken;

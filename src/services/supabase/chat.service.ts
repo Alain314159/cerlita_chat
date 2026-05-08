@@ -13,11 +13,11 @@ export const chatService = {
       .order('updated_at', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return (data || []).map(mapDatabaseChatToDomain);
+    return (data || []).map(chat => mapDatabaseChatToDomain(chat, userId));
   },
 
   // Get chat by ID
-  async getChatById(chatId: string): Promise<Chat | null> {
+  async getChatById(chatId: string, userId?: string): Promise<Chat | null> {
     const { data, error } = await supabase
       .from('chats')
       .select('*, participants:chat_participants(user_id, users(*))')
@@ -25,7 +25,7 @@ export const chatService = {
       .single();
 
     if (error) return null;
-    return mapDatabaseChatToDomain(data);
+    return mapDatabaseChatToDomain(data, userId);
   },
 
   // Get or create a direct chat between two users
@@ -48,6 +48,18 @@ export const chatService = {
 
     if (error) throw new Error(error.message);
     return data || [];
+  },
+
+  // Delete a chat and its messages
+  async deleteChat(chatId: string): Promise<void> {
+    // Primero eliminar mensajes
+    await supabase.from('messages').delete().eq('chat_id', chatId);
+    // Luego eliminar participantes
+    await supabase.from('chat_participants').delete().eq('chat_id', chatId);
+    // Por último eliminar el chat
+    const { error } = await supabase.from('chats').delete().eq('id', chatId);
+    
+    if (error) throw new Error(error.message);
   },
 
   // Update last message in chat (Optional: trigger handles this, but kept for manual overrides)

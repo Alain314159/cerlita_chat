@@ -72,6 +72,7 @@ export default function ChatLayout() {
       <Tabs.Screen
         name="requests"
         options={{
+          href: null,
           title: 'Solicitudes',
           tabBarIcon: ({ color, size }) => (
             <Heart size={size} color={color} />

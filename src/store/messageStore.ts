@@ -20,7 +20,7 @@ interface MessageStore {
   error: string | null;
   currentUserId: string | null;
   replyContext: ReplyContext | null;
-  subscription: RealtimeChannel | null;
+  subscription: { unsubscribe: () => void } | null;
   typingUsers: Record<string, boolean>;
   processedMessageIds: Set<string>;
   offlineQueue: any[];

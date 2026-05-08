@@ -83,7 +83,7 @@ export default function SettingsScreen() {
           <List.Item
             title={user.displayName}
             titleStyle={{ color: theme.colors.onSurface }}
-            description={user.email}
+            description={`${user.cerlitaId ? user.cerlitaId + ' • ' : ''}${user.email}`}
             descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
             left={() => (
               <Avatar

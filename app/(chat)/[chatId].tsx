@@ -18,6 +18,7 @@ import { messageService } from '@/services/supabase/message.service';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages } from '@/hooks/useMessages';
 import { useChat } from '@/hooks/useChat';
+import { useSendMessageMutation } from '@/hooks/useSendMessageMutation';
 import { theme as staticTheme } from '@/config/theme';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { MessageInput } from '@/components/chat/MessageInput';
@@ -25,7 +26,8 @@ import { ChatHeader } from '@/components/chat/ChatHeader';
 import { ReplyPreview } from '@/components/chat/ReplyPreview';
 import { ChatOptionsMenu } from '@/components/chat/ChatOptionsMenu';
 import { formatDateHeader } from '@/utils/date';
-import { Message } from '@/types';
+import { Message, User } from '@/types';
+import { userService } from '@/services/supabase/user.service';
 
 export default function ChatConversationScreen() {
   const { chatId } = useLocalSearchParams();
@@ -33,6 +35,9 @@ export default function ChatConversationScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const flatListRef = useRef<FlashList<any>>(null);
+
+  // 🔧 FIX: Habilitar el hook solo si chatId es válido
+  const isEnabled = !!chatId && typeof chatId === 'string' && chatId.length > 0;
 
   const {
     messages: initialMessages,
@@ -46,28 +51,27 @@ export default function ChatConversationScreen() {
     setReplyContext,
     isOtherUserTyping,
     queryResult,
-  } = useMessages(chatId as string);
+  } = useMessages(isEnabled ? (chatId as string) : '');
+
+  const sendMessageMutation = useSendMessageMutation(chatId as string);
 
   // messages viene del hook con select que ya aplana, pero agregamos protección extra
   const messagesArray = React.useMemo(() => {
     const data = queryResult.data;
     
-    // Caso 1: data es undefined/null
     if (!data) return initialMessages || [];
     
-    // Caso 2: data ya es un array plano (gracias al select del hook)
     if (Array.isArray(data)) {
-      return data.filter((m): m is Message => m !== null && m !== undefined);
+      return data.filter((m): m is Message => m !== null && m !== undefined && typeof m === 'object');
     }
     
-    // Caso 3: data tiene estructura de InfiniteData (fallback)
     if (typeof data === 'object' && 'pages' in data && Array.isArray((data as any).pages)) {
       return (data as any).pages
-        .flat()
-        .filter((m: any): m is Message => m !== null && m !== undefined);
+        .flatMap((page: any) => page ?? [])
+        .filter((m: any): m is Message => m !== null && m !== undefined && typeof m === 'object');
     }
     
-    // Caso por defecto
+    console.warn('[ChatScreen] Unexpected data structure:', data);
     return initialMessages || [];
   }, [queryResult.data, initialMessages]);
 
@@ -80,79 +84,132 @@ export default function ChatConversationScreen() {
 
   // Optimizar realtime: append a caché en lugar de refetch completo
   useEffect(() => {
-    const subscription = messageService.subscribeToMessages(chatId as string, (payload) => {
-      if (payload.eventType === 'INSERT' && payload.newRecord) {
-        // Insertar nuevo mensaje al inicio de la primera página
+    // No suscribirse si no hay chatId válido
+    if (!chatId || typeof chatId !== 'string') return;
+    
+    let isSubscribed = true;
+    
+    const subscription = messageService.subscribeToMessages(chatId, (payload) => {
+      // Verificar que el componente aún está montado antes de actuar
+      if (!isSubscribed) return;
+      
+      if (payload?.eventType === 'INSERT' && payload?.new) {
+        // En lugar de refetch completo, append a caché si es posible
         queryClient.setQueryData(['messages', chatId], (old: any) => {
-          if (!old || !old.pages || old.pages.length === 0) return old;
+          if (!old) return old;
           
-          // Clonar para evitar mutaciones directas
-          const newPages = [...old.pages];
-          newPages[0] = [payload.newRecord, ...(newPages[0] || [])];
+          // Si es InfiniteData con pages
+          if (old.pages && Array.isArray(old.pages)) {
+            const newPages = [...old.pages];
+            // Insertar al inicio de la primera página
+            newPages[0] = [payload.new, ...(newPages[0] || [])];
+            
+            return {
+              ...old,
+              pages: newPages
+            };
+          }
           
-          return {
-            ...old,
-            pages: newPages
-          };
+          // Si ya está aplanado por el select (fallback)
+          if (Array.isArray(old)) {
+            return [payload.new, ...old];
+          }
+          
+          return old;
         });
       }
     });
-    return () => { subscription.unsubscribe(); };
+
+    // Cleanup: desuscribir al desmontar o cambiar chatId
+    return () => {
+      isSubscribed = false;
+      subscription.unsubscribe();
+    };
   }, [chatId, queryClient]);
 
-  // Buscar el destinatario real para la cabecera
   useEffect(() => {
-    const currentChat = activeChat || chats.find(c => c.id === chatId);
-    if (currentChat && user) {
-      // Si el chat tiene participantes (formato de getChatById)
-      if (currentChat.participants && Array.isArray(currentChat.participants)) {
-        const otherParticipant = (currentChat.participants as any[]).find(
-          p => (p.user_id || p.id) !== user.id
-        );
-        
-        if (otherParticipant) {
-          // Si viene de chat_participants (nested users)
-          const userData = otherParticipant.users || otherParticipant;
-          setRecipient({
-            displayName: userData.display_name || userData.displayName || 'Usuario',
-            photoURL: userData.photo_url || userData.photoURL
-          });
-          return;
-        }
+    const loadRecipient = async () => {
+      if (!chatId || !user?.id) {
+        console.warn('[loadRecipient] Missing chatId or userId');
+        return;
       }
       
-      // Fallback si es un chat con nombre (grupal o ya procesado)
-      if (currentChat.name) {
-        setRecipient({
-          displayName: currentChat.name,
-          photoURL: undefined
-        });
+      try {
+        console.log('[loadRecipient] Loading for chatId:', chatId);
+        setRecipient(null); // Limpiar estado anterior
+        
+        const participants = await messageService.getChatParticipants(chatId as string);
+        console.log('[loadRecipient] Participants:', participants);
+        
+        const otherId = participants.find(id => id !== user.id);
+        console.log('[loadRecipient] Other ID:', otherId);
+        
+        if (otherId) {
+          const profile = await userService.getUserById(otherId);
+          console.log('[loadRecipient] Profile loaded:', profile);
+          if (profile) {
+            setRecipient({
+              displayName: profile.displayName || 'Usuario',
+              photoURL: profile.photoURL
+            });
+          }
+        } else {
+          console.warn('[loadRecipient] Could not find other participant');
+        }
+      } catch (error) {
+        console.error('[loadRecipient] Error:', error);
+        setRecipient(null);
       }
-    }
-  }, [chatId, activeChat, chats, user]);
-
-  useEffect(() => {
-    const subscription = subscribeToMessages(chatId as string);
-    return () => {
-      unsubscribeFromMessages();
     };
-  }, [chatId]);
+    
+    loadRecipient();
+  }, [chatId, user?.id]);
 
   const handleSendMessage = useCallback(async (options?: { isEphemeral?: boolean; isViewOnce?: boolean }) => {
-    if (!messageText.trim()) return;
+    if (!messageText.trim() || !user?.id || !chatId) {
+      console.warn('[handleSendMessage] Missing:', { 
+        hasText: !!messageText.trim(), 
+        hasUser: !!user?.id, 
+        hasChatId: !!chatId 
+      });
+      return;
+    }
     
-    const textToSend = messageText;
+    const textToSend = messageText.trim();
     setMessageText('');
+    setReplyContext(null);
     
+    console.log('[handleSendMessage] Sending message:', { 
+      text: textToSend, 
+      chatId, 
+      senderId: user.id,
+      options 
+    });
+
     try {
-      await sendMessage(textToSend, options);
-      // Scroll to top/bottom depending on list direction
+      // Usar sendMessageMutation del hook useMessages (vía queryResult si está disponible, o inyectado)
+      // Nota: En este componente useMessages retorna queryResult, pero no expone directamente el mutation.
+      // Sin embargo, useMessages tiene un sendMessage interno que llama a messageStore.
+      // Pero el usuario sugirió usar sendMessageMutation.mutateAsync.
+      // Vamos a verificar useMessages.ts para ver si expone el mutation.
+      await sendMessageMutation.mutateAsync({
+        text: textToSend,
+        senderId: user.id,
+        chatId: chatId as string,
+        ...options
+      });
+      console.log('[handleSendMessage] Message sent successfully');
       flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('[handleSendMessage] Error sending message:', error);
+      Alert.alert(
+        'Error al enviar',
+        'No se pudo enviar el mensaje. Verifica tu conexión.',
+        [{ text: 'OK' }]
+      );
       setMessageText(textToSend); // Restore text on failure
     }
-  }, [messageText, sendMessage]);
+  }, [messageText, user?.id, chatId, sendMessageMutation]);
 
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isMe = item.senderId === user?.id;
@@ -182,6 +239,15 @@ export default function ChatConversationScreen() {
       </View>
     );
   }, [user?.id, messagesArray, recipient, addReaction, setReplyContext, theme]);
+
+  // Si el chat no está habilitado, mostrar placeholder
+  if (!isEnabled) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   if (queryResult.isError) {
     return (

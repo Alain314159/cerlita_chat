@@ -9,6 +9,7 @@ export interface User {
   id: string;
   email: string;
   displayName: string;
+  cerlitaId: string | null;
   photoURL: string | null;
   avatar?: AvatarOption;
   isOnline: boolean;
@@ -25,6 +26,7 @@ export interface Chat {
   name?: string | null;
   type?: 'direct' | 'group';
   participant_ids: string[];
+  recipient?: User | null; // Info de la otra persona en chats directos
   lastMessageId: string | null;
   lastMessage?: string | null;
   lastMessageAt: string | null;

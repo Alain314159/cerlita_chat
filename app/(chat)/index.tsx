@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +15,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Heart, PlusCircle, Search } from 'lucide-react-native';
 import { useTheme, Text, Button } from 'react-native-paper';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/hooks/useAuth';
 import { Chat } from '@/types';
@@ -29,20 +30,21 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: 
   currentUserId?: string;
 }) {
   const theme = useTheme();
+  const queryClient = useQueryClient();
+
   const recipientInfo = useMemo(() => {
-    if (chat.name) return { name: chat.name, photo: undefined };
-    
-    const other = chat.participant_ids?.find(id => id !== currentUserId);
-    if (other) {
-      // En una implementación real, buscaríamos la info del usuario si no está en el objeto chat
-      return { 
-        name: 'Usuario',
-        photo: undefined,
-        isOnline: false
+    if (chat.recipient) {
+      return {
+        name: chat.recipient.displayName,
+        photo: chat.recipient.photoURL,
+        isOnline: chat.recipient.isOnline
       };
     }
+    
+    if (chat.name) return { name: chat.name, photo: undefined };
+    
     return { name: 'Chat', photo: undefined };
-  }, [chat, currentUserId]);
+  }, [chat]);
 
   const displayName = recipientInfo.name;
   const isOnline = !!recipientInfo.isOnline;
@@ -52,10 +54,34 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: 
     onPress(chat.id);
   }, [chat.id, onPress]);
 
+  const handleLongPress = useCallback(() => {
+    haptics.heavy();
+    Alert.alert(
+      'Eliminar chat',
+      '¿Estás seguro de que quieres eliminar esta conversación?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await chatService.deleteChat(chat.id);
+              await queryClient.invalidateQueries({ queryKey: ['chats', currentUserId] });
+            } catch (error) {
+              Alert.alert('Error', 'No se pudo eliminar el chat');
+            }
+          }
+        }
+      ]
+    );
+  }, [chat.id, currentUserId, queryClient]);
+
   return (
     <TouchableOpacity
       style={styles.chatItem}
       onPress={handlePress}
+      onLongPress={handleLongPress}
       accessibilityRole="button"
       accessibilityLabel={`Chat con ${displayName}`}
     >
@@ -106,6 +132,23 @@ export default function ChatListScreen() {
     staleTime: 1000 * 60 * 5, // 5 min
     gcTime: 1000 * 60 * 30,   // 30 min
   });
+
+  // 🔔 Sincronización en tiempo real (Maestro 2026)
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log('[ChatList] Subscribing to chat updates for:', user.id);
+    const channel = chatService.subscribeToUserChats(user.id, (payload) => {
+      console.log('[ChatList] Realtime update received:', payload.eventType);
+      // Invalidar caché para forzar recarga de la lista
+      queryClient.invalidateQueries({ queryKey: ['chats', user.id] });
+    });
+
+    return () => {
+      console.log('[ChatList] Unsubscribing from chat updates');
+      channel.unsubscribe();
+    };
+  }, [user?.id, queryClient]);
 
   const onRefresh = useCallback(async () => {
     await refetch();

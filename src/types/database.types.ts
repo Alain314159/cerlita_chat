@@ -8,7 +8,11 @@ export interface Database {
           id: string;
           email: string;
           display_name: string;
+          cerlita_id: string | null;
           photo_url: string | null;
+          avatar_type: string | null;
+          avatar_uri: string | null;
+          avatar_system_id: number | null;
           is_online: boolean;
           last_seen_at: string | null;
           is_typing: boolean;
@@ -20,7 +24,11 @@ export interface Database {
           id: string;
           email: string;
           display_name?: string;
+          cerlita_id?: string | null;
           photo_url?: string | null;
+          avatar_type?: string | null;
+          avatar_uri?: string | null;
+          avatar_system_id?: number | null;
           is_online?: boolean;
           last_seen_at?: string | null;
           is_typing?: boolean;
@@ -32,7 +40,11 @@ export interface Database {
           id?: string;
           email?: string;
           display_name?: string;
+          cerlita_id?: string | null;
           photo_url?: string | null;
+          avatar_type?: string | null;
+          avatar_uri?: string | null;
+          avatar_system_id?: number | null;
           is_online?: boolean;
           last_seen_at?: string | null;
           is_typing?: boolean;

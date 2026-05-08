@@ -50,10 +50,10 @@ export const userService = {
   async searchUsers(currentUserId: string, query: string): Promise<User[]> {
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, display_name, photo_url, is_online')
-      .ilike('display_name', `%${query}%`)
+      .select('id, email, display_name, cerlita_id, photo_url, is_online')
+      .or(`display_name.ilike.%${query}%,email.ilike.%${query}%,cerlita_id.ilike.%${query}%`)
       .neq('id', currentUserId)
-      .limit(20);
+      .limit(50);
 
     if (error) throw error;
     return data?.map(user => mapDatabaseUserToDomain(user)) || [];

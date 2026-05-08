@@ -32,19 +32,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   loadChats: async (userId: string) => {
     try {
       set({ loading: true, error: null });
-      const rawChats = await chatService.getUserChats(userId);
-      // Map DB rows to Chat interface
-      const mappedChats = rawChats.map((row: any) => ({
-        id: row.id,
-        name: row.name,
-        type: row.type,
-        participants: row.participants || [],
-        lastMessageId: row.last_message_id,
-        lastMessageAt: row.updated_at ? new Date(row.updated_at) : null,
-        unreadCount: 0,
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-      }));
+      const mappedChats = await chatService.getUserChats(userId);
       set({ chats: mappedChats, loading: false });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to load chats';
