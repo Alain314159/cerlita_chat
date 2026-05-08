@@ -63,7 +63,7 @@ export function useSendMessageMutation(chatId: string) {
     onMutate: async (newMessage) => {
       await queryClient.cancelQueries({ queryKey: ['messages', chatId] });
       
-      const previousData = queryClient.getQueryData<Message[]>(['messages', chatId]);
+      const previousData = queryClient.getQueryData<InfiniteData<Message[], string | null>>(['messages', chatId]);
       const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       const optimisticMsg: Message = {
@@ -75,8 +75,8 @@ export function useSendMessageMutation(chatId: string) {
         status: 'sending',
         isEphemeral: newMessage.isEphemeral || false,
         isViewOnce: newMessage.isViewOnce || false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         readAt: null,
         deliveredAt: null,
         mediaURL: null,
@@ -85,32 +85,45 @@ export function useSendMessageMutation(chatId: string) {
         isEdited: false,
       };
 
-      queryClient.setQueryData<Message[]>(['messages', chatId], (old) => {
-        if (!old) return [optimisticMsg];
-        return [optimisticMsg, ...old];
+      // 🔧 FIX ULTRA: Actualizar estructura InfiniteData (pages)
+      queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
+        if (!old || !old.pages) {
+          return {
+            pages: [[optimisticMsg]],
+            pageParams: [null],
+          };
+        }
+        
+        const newPages = [...old.pages];
+        newPages[0] = [optimisticMsg, ...(newPages[0] || [])];
+        
+        return {
+          ...old,
+          pages: newPages,
+        };
       });
 
       return { previousData, tempId };
     },
 
     onError: (err, newMessage, context) => {
-      // Marcar como fallido en UI
-      queryClient.setQueryData<Message[]>(['messages', chatId], (old) => {
-        return old?.map((m: Message) => 
-          m.id === context?.tempId ? { ...m, status: 'failed' as const } : m
-        );
-      });
-
-      // TODO: Implementar guardado en SecureStore para cola offline real
+      // 🔧 FIX: Revertir al estado anterior completo en caso de error
+      if (context?.previousData) {
+        queryClient.setQueryData(['messages', chatId], context.previousData);
+      }
       console.error('[Mutation Error]', err);
     },
 
     onSuccess: (data, variables, context) => {
-      // Reemplazar temporal con real
-      queryClient.setQueryData<Message[]>(['messages', chatId], (old) => {
-        return old?.map((m: Message) => 
-          m.id === context?.tempId ? data : m
-        );
+      // 🔧 FIX: Reemplazar temporal con real dentro de las páginas
+      queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map(page => 
+            page.map(m => m.id === context?.tempId ? data : m)
+          ),
+        };
       });
     },
 
