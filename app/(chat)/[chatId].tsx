@@ -82,45 +82,75 @@ export default function ChatConversationScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // Optimizar realtime: append a caché en lugar de refetch completo
+  // Optimizar realtime: handle ALL events correctly
   useEffect(() => {
-    // No suscribirse si no hay chatId válido
     if (!chatId || typeof chatId !== 'string') return;
     
     let isSubscribed = true;
     
-    const subscription = messageService.subscribeToMessages(chatId, (payload) => {
-      // Verificar que el componente aún está montado antes de actuar
+    const subscription = messageService.subscribeToMessages(chatId, async (payload) => {
       if (!isSubscribed) return;
       
-      if (payload?.eventType === 'INSERT' && payload?.new) {
-        // En lugar de refetch completo, append a caché si es posible
-        queryClient.setQueryData(['messages', chatId], (old: any) => {
-          if (!old) return old;
-          
-          // Si es InfiniteData con pages
-          if (old.pages && Array.isArray(old.pages)) {
-            const newPages = [...old.pages];
-            // Insertar al inicio de la primera página
-            newPages[0] = [payload.new, ...(newPages[0] || [])];
-            
-            return {
-              ...old,
-              pages: newPages
-            };
+      const { eventType, new: newRecord, old: oldRecord } = payload;
+      console.log(`[Realtime ${chatId}] Event:`, eventType);
+
+      if (eventType === 'INSERT' && newRecord) {
+        // Map and Decrypt before inserting into cache
+        const domainMsg = mapDatabaseMessageToDomain(newRecord);
+        let finalMsg = domainMsg;
+
+        if (domainMsg.text && domainMsg.encryptedPayload) {
+          try {
+            const { text } = await e2eEncryptionService.decrypt(
+              domainMsg.encryptedPayload.ciphertext,
+              chatId,
+              domainMsg.encryptedPayload.iv,
+              domainMsg.encryptedPayload.authTag,
+              domainMsg.encryptedPayload.keyVersion
+            );
+            finalMsg = { ...domainMsg, text };
+          } catch (err) {
+            console.warn('[Realtime Decryption] Failed:', domainMsg.id, err);
+            finalMsg = { ...domainMsg, text: '[Error de cifrado]', status: 'failed' };
           }
+        }
+
+        queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
+          if (!old || !old.pages) return old;
           
-          // Si ya está aplanado por el select (fallback)
-          if (Array.isArray(old)) {
-            return [payload.new, ...old];
-          }
-          
-          return old;
+          // Deduplicar: Si el mensaje ya existe (optimístico), no agregarlo de nuevo
+          const alreadyExists = old.pages.some(page => page.some(m => m.id === finalMsg.id));
+          if (alreadyExists) return old;
+
+          const newPages = [...old.pages];
+          newPages[0] = [finalMsg, ...(newPages[0] || [])];
+          return { ...old, pages: newPages };
         });
+      } else if (eventType === 'UPDATE' && newRecord) {
+        // Actualizar mensaje existente (lectura, edición, etc.)
+        queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
+          if (!old || !old.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map(page => 
+              page.map(m => m.id === newRecord.id ? mapDatabaseMessageToDomain(newRecord) : m)
+            ),
+          };
+        });
+      } else if (eventType === 'DELETE' && oldRecord) {
+        queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
+          if (!old || !old.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map(page => page.filter(m => m.id !== oldRecord.id)),
+          };
+        });
+      } else if (payload.eventType === 'BROADCAST' && payload.event === 'typing') {
+        // Manejar typing indicator vía broadcast
+        // setOtherUserTyping(payload.userId, payload.isTyping);
       }
     });
 
-    // Cleanup: desuscribir al desmontar o cambiar chatId
     return () => {
       isSubscribed = false;
       subscription.unsubscribe();
