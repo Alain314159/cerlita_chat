@@ -48,14 +48,26 @@ export default function ChatConversationScreen() {
     queryResult,
   } = useMessages(chatId as string);
 
-  // Robust array conversion to prevent TanStack Query structure mismatches
-  const messagesArray = useMemo(() => {
-    if (!queryResult.data) return initialMessages || [];
-    if (Array.isArray(queryResult.data)) return queryResult.data;
-    // Fallback if useMessages select failed or wasn't applied
-    if (typeof queryResult.data === 'object' && 'pages' in queryResult.data) {
-      return (queryResult.data as any).pages.flat().filter(Boolean);
+  // messages viene del hook con select que ya aplana, pero agregamos protección extra
+  const messagesArray = React.useMemo(() => {
+    const data = queryResult.data;
+    
+    // Caso 1: data es undefined/null
+    if (!data) return initialMessages || [];
+    
+    // Caso 2: data ya es un array plano (gracias al select del hook)
+    if (Array.isArray(data)) {
+      return data.filter((m): m is Message => m !== null && m !== undefined);
     }
+    
+    // Caso 3: data tiene estructura de InfiniteData (fallback)
+    if (typeof data === 'object' && 'pages' in data && Array.isArray((data as any).pages)) {
+      return (data as any).pages
+        .flat()
+        .filter((m: any): m is Message => m !== null && m !== undefined);
+    }
+    
+    // Caso por defecto
     return initialMessages || [];
   }, [queryResult.data, initialMessages]);
 
@@ -270,18 +282,6 @@ const styles = StyleSheet.create({
   },
   dateHeaderText: {
     fontSize: 12,
-    fontWeight: '600',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  }
-});
-ze: 12,
     fontWeight: '600',
     paddingHorizontal: 12,
     paddingVertical: 4,
