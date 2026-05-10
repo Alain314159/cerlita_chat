@@ -7,13 +7,12 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
-import { TextInput, Button, IconButton } from 'react-native-paper';
+import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { theme } from '@/config/theme';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -83,7 +82,7 @@ export default function LoginScreen() {
             autoCapitalize="none"
             autoComplete="email"
             style={styles.input}
-            left={<TextInput.Icon icon={() => <Mail size={20} color={theme.colors.secondary} />} />}
+            left={<TextInput.Icon icon="email" color={theme.colors.secondary} />}
           />
 
           <TextInput
@@ -94,14 +93,11 @@ export default function LoginScreen() {
             secureTextEntry={!showPassword}
             autoCapitalize="none"
             style={styles.input}
-            left={<TextInput.Icon icon={() => <Lock size={20} color={theme.colors.secondary} />} />}
+            left={<TextInput.Icon icon="lock" color={theme.colors.secondary} />}
             right={
               <TextInput.Icon
-                icon={() => (
-                  showPassword 
-                    ? <EyeOff size={20} color={theme.colors.secondary} /> 
-                    : <Eye size={20} color={theme.colors.secondary} />
-                )}
+                icon={showPassword ? 'eye-off' : 'eye'}
+                color={theme.colors.secondary}
                 onPress={() => setShowPassword(!showPassword)}
               />
             }

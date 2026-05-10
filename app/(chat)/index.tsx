@@ -13,9 +13,9 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Heart, PlusCircle, Search } from 'lucide-react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme, Text, Button } from 'react-native-paper';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/hooks/useAuth';
 import { Chat } from '@/types';
@@ -49,22 +49,21 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: 
   }, [chat]);
 
   const displayName = recipientInfo.name;
-  const isOnline = !!recipientInfo.isOnline;
-  
-  const handlePress = useCallback(() => {
-    haptics.medium();
-    onPress(chat.id);
-  }, [chat.id, onPress]);
+  const isOnline = recipientInfo.isOnline;
 
-  const handleLongPress = useCallback(() => {
+  const handlePress = () => {
+    onPress(chat.id);
+  };
+
+  const handleLongPress = () => {
     haptics.heavy();
     Alert.alert(
       'Eliminar chat',
-      '¿Estás seguro de que quieres eliminar esta conversación?',
+      `¿Estás seguro de que quieres eliminar la conversación con ${displayName}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
+        { 
+          text: 'Eliminar', 
           style: 'destructive',
           onPress: async () => {
             try {
@@ -77,7 +76,7 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: 
         }
       ]
     );
-  }, [chat.id, currentUserId, queryClient]);
+  };
 
   return (
     <TouchableOpacity
@@ -124,40 +123,27 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: 
 
 export default function ChatListScreen() {
   const { user } = useAuth();
-  const [searchQuery, setSearchQuery] = React.useState('');
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const router = useRouter();
+  const [searchQuery, setSearchQuery] = React.useState('');
 
-  const { data: chats = [], isLoading: loading, isError, refetch } = useChatsQuery(user?.id);
+  const { data: chats, isLoading, isError, refetch } = useChatsQuery(user?.id || '');
 
-  const onRefresh = useCallback(async () => {
-    await refetch();
-  }, [refetch]);
-
-  const filteredChats = useMemo(() =>
-    chats.filter((chat) => {
-      const name = chat.name || '';
+  const filteredChats = useMemo(() => {
+    if (!chats) return [];
+    if (!searchQuery.trim()) return chats;
+    
+    return chats.filter(chat => {
+      const name = chat.recipient?.displayName || chat.name || '';
       return name.toLowerCase().includes(searchQuery.toLowerCase());
-    }),
-    [chats, searchQuery]
-  );
+    });
+  }, [chats, searchQuery]);
 
-  const renderItem = useCallback(({ item }: { item: Chat }) => (
-    <ChatItem 
-      chat={item} 
-      onPress={(id) => router.push(`/(chat)/${id}`)} 
-      currentUserId={user?.id}
-    />
-  ), [user?.id, router]);
-
-  if (isError) {
+  if (isLoading) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
-        <Text style={{ color: theme.colors.error, marginBottom: 16 }}>Error al cargar chats</Text>
-        <Button mode="contained" onPress={() => refetch()}>
-          Reintentar
-        </Button>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -165,41 +151,55 @@ export default function ChatListScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.onBackground }]}>Chats</Text>
+        <Text style={[styles.title, { color: theme.colors.onSurface }]}>Mensajes</Text>
+        <TouchableOpacity onPress={() => router.push('/(chat)/new-chat')}>
+          <MaterialCommunityIcons name="plus-circle" size={28} color={theme.colors.primary} />
+        </TouchableOpacity>
       </View>
 
-      <View style={[styles.searchContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
-        <Search size={20} color={theme.colors.onSurfaceVariant} />
-        <TextInput
-          style={[styles.searchInput, { color: theme.colors.onSurface }]}
-          placeholder="Buscar chats..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor={theme.colors.onSurfaceVariant}
-        />
+      <View style={styles.searchContainer}>
+        <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <MaterialCommunityIcons name="magnify" size={20} color={theme.colors.onSurfaceVariant} />
+          <TextInput
+            placeholder="Buscar chats..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={[styles.searchInput, { color: theme.colors.onSurface }]}
+            placeholderTextColor={theme.colors.onSurfaceVariant}
+          />
+        </View>
       </View>
 
       <FlatList
         data={filteredChats}
         keyExtractor={(item) => item.id}
-        renderItem={renderItem}
+        renderItem={({ item }) => (
+          <ChatItem 
+            chat={item} 
+            onPress={(id) => router.push(`/(chat)/${id}`)} 
+            currentUserId={user?.id}
+          />
+        )}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={loading && chats.length > 0} 
-            onRefresh={onRefresh} 
-            tintColor={theme.colors.primary}
-            colors={[theme.colors.primary]}
-          />
+          <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={theme.colors.primary} />
         }
         ListEmptyComponent={
-          !loading ? (
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No se encontraron chats</Text>
-            </View>
-          ) : (
-            <ActivityIndicator style={{ marginTop: 20 }} color={theme.colors.primary} />
-          )
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="heart-outline" size={64} color={theme.colors.outline} />
+            <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>
+              {searchQuery ? 'No se encontraron chats' : 'No tienes conversaciones aún'}
+            </Text>
+            {!searchQuery && (
+              <Button 
+                mode="contained" 
+                onPress={() => router.push('/(chat)/new-chat')}
+                style={{ marginTop: 20 }}
+              >
+                Buscar personas
+              </Button>
+            )}
+          </View>
         }
       />
     </View>
@@ -219,38 +219,42 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: 'bold',
   },
   searchContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 20,
-    paddingHorizontal: 15,
-    borderRadius: 12,
+    paddingHorizontal: 12,
     height: 44,
-    marginBottom: 10,
+    borderRadius: 22,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 8,
     fontSize: 16,
+    padding: 0,
   },
   listContent: {
     paddingBottom: 20,
   },
   chatItem: {
     flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
+    alignItems: 'center',
   },
   avatarContainer: {
-    marginRight: 15,
+    position: 'relative',
   },
   chatInfo: {
     flex: 1,
-    borderBottomWidth: 0.5,
+    marginLeft: 15,
     paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   chatHeader: {
     flexDirection: 'row',
@@ -263,10 +267,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   time: {
-    fontSize: 13,
+    fontSize: 12,
   },
   lastMessage: {
-    fontSize: 15,
+    fontSize: 14,
   },
   unreadBadge: {
     minWidth: 20,
@@ -274,7 +278,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
     marginLeft: 10,
   },
   unreadText: {
@@ -285,10 +289,13 @@ const styles = StyleSheet.create({
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 100,
   },
   emptyText: {
     fontSize: 16,
+    marginTop: 10,
+    textAlign: 'center',
   },
   centered: {
     flex: 1,

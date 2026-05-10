@@ -1,24 +1,16 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { theme } from '@/config/theme';
-import { User, Mail, Lock } from 'lucide-react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function RegisterScreen() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { signUp } = useAuth();
@@ -30,23 +22,12 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Las contraseñas no coinciden');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-
     try {
       setLoading(true);
       await signUp(email, password, displayName);
-      Alert.alert('Éxito', 'Cuenta creada exitosamente');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Error desconocido';
-      Alert.alert('Error de registro', message);
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      Alert.alert('Error', error.message || 'No se pudo crear la cuenta');
     } finally {
       setLoading(false);
     }
@@ -58,7 +39,6 @@ export default function RegisterScreen() {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Crear Cuenta</Text>
           <Text style={styles.subtitle}>
@@ -66,16 +46,14 @@ export default function RegisterScreen() {
           </Text>
         </View>
 
-        {/* Form */}
         <View style={styles.form}>
           <TextInput
-            label="Nombre"
+            label="Nombre Completo"
             value={displayName}
             onChangeText={setDisplayName}
             mode="outlined"
-            autoCapitalize="words"
             style={styles.input}
-            left={<TextInput.Icon icon={() => <User size={20} color={theme.colors.textSecondary} />} />}
+            left={<TextInput.Icon icon="account" color={theme.colors.secondary} />}
           />
 
           <TextInput
@@ -85,9 +63,8 @@ export default function RegisterScreen() {
             mode="outlined"
             keyboardType="email-address"
             autoCapitalize="none"
-            autoComplete="email"
             style={styles.input}
-            left={<TextInput.Icon icon={() => <Mail size={20} color={theme.colors.textSecondary} />} />}
+            left={<TextInput.Icon icon="email" color={theme.colors.secondary} />}
           />
 
           <TextInput
@@ -95,21 +72,16 @@ export default function RegisterScreen() {
             value={password}
             onChangeText={setPassword}
             mode="outlined"
-            secureTextEntry
-            autoCapitalize="none"
+            secureTextEntry={!showPassword}
             style={styles.input}
-            left={<TextInput.Icon icon={() => <Lock size={20} color={theme.colors.textSecondary} />} />}
-          />
-
-          <TextInput
-            label="Confirmar Contraseña"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            mode="outlined"
-            secureTextEntry
-            autoCapitalize="none"
-            style={styles.input}
-            left={<TextInput.Icon icon={() => <Lock size={20} color={theme.colors.textSecondary} />} />}
+            left={<TextInput.Icon icon="lock" color={theme.colors.secondary} />}
+            right={
+              <TextInput.Icon
+                icon={showPassword ? 'eye-off' : 'eye'}
+                color={theme.colors.secondary}
+                onPress={() => setShowPassword(!showPassword)}
+              />
+            }
           />
 
           <Button
@@ -119,18 +91,16 @@ export default function RegisterScreen() {
             disabled={loading}
             style={styles.button}
             contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
           >
-            Crear Cuenta
+            Registrarse
           </Button>
 
-          <Button
-            mode="text"
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            ¿Ya tienes cuenta? Inicia Sesión
-          </Button>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>¿Ya tienes una cuenta? </Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+              <Text style={styles.link}>Inicia Sesión</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -138,49 +108,16 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: theme.spacing.lg,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.sm,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  form: {
-    gap: theme.spacing.md,
-  },
-  input: {
-    marginBottom: theme.spacing.sm,
-  },
-  button: {
-    marginTop: theme.spacing.md,
-    backgroundColor: theme.colors.primary,
-  },
-  buttonContent: {
-    paddingVertical: theme.spacing.sm,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.textInverse,
-  },
-  backButton: {
-    marginTop: theme.spacing.sm,
-  },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: theme.spacing.lg },
+  header: { alignItems: 'center', marginBottom: theme.spacing.xl },
+  title: { fontSize: 28, fontWeight: 'bold', color: theme.colors.primary, marginBottom: theme.spacing.sm },
+  subtitle: { fontSize: 16, color: theme.colors.textSecondary, textAlign: 'center' },
+  form: { gap: theme.spacing.md },
+  input: { marginBottom: theme.spacing.xs },
+  button: { marginTop: theme.spacing.md },
+  buttonContent: { paddingVertical: theme.spacing.xs },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: theme.spacing.md },
+  footerText: { color: theme.colors.textSecondary, fontSize: 14 },
+  link: { color: theme.colors.primary, fontWeight: 'bold', fontSize: 14 },
 });

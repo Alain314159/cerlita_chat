@@ -35,16 +35,16 @@ const STATUS_CONFIG: Record<string, { icon: string; colorKey: string }> = {
 
 function StatusIcon({ status, readAt }: { status: string; readAt?: Date | string | null }) {
   const theme = useTheme();
-  const effectiveStatus = (readAt ? 'read' : status);
-  const config = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.sent;
-
+  const isRead = !!readAt;
+  const isFailed = status === 'failed';
+  
   return (
     <IconButton
-      icon={config?.icon || 'check'}
+      icon={isRead ? 'check-all' : isFailed ? 'alert-circle' : 'check'}
+      iconColor={isRead ? (theme.colors as any).primary : isFailed ? (theme.colors as any).error : (theme.colors as any).outline}
       size={14}
-      iconColor={config ? (theme.colors as any)[config.colorKey] : (theme.colors as any).outline}
       style={styles.statusIcon}
-      accessibilityLabel={`icon-${config?.icon || 'check'}`}
+      accessibilityLabel={isRead ? 'icon-check-all-read' : `icon-${isFailed ? 'alert-circle' : 'check'}`}
     />
   );
 }

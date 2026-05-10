@@ -313,7 +313,7 @@ export default function ChatConversationScreen() {
       <ChatHeader
         name={recipient?.displayName || activeChat?.name || undefined}
         photoUrl={recipient?.photoURL}
-        isTyping={isOtherUserTyping()}
+        isTyping={isOtherUserTyping}
         loading={!recipient && !activeChat?.name}
         onOpenOptions={() => setShowOptionsMenu(true)}
       />

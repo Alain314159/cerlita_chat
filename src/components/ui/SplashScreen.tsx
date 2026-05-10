@@ -7,7 +7,7 @@ export function SplashScreen() {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
-    Animated.parallel([
+    const animation = Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
@@ -19,8 +19,11 @@ export function SplashScreen() {
         friction: 7,
         useNativeDriver: true,
       }),
-    ]).start();
-  }, []);
+    ]);
+    
+    animation.start();
+    return () => animation.stop();
+  }, [fadeAnim, scaleAnim]);
 
   return (
     <View style={styles.container}>

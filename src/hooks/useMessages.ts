@@ -54,7 +54,7 @@ export function useMessages(chatId: string) {
     await markAsRead(chatId, user.id);
   }, [user, chatId, markAsRead]);
 
-  const isOtherUserTyping = useCallback(() => {
+  const isOtherUserTyping = useMemo(() => {
     if (!user) return false;
     return Object.keys(typingUsers).some((id) => id !== user.id);
   }, [typingUsers, user]);

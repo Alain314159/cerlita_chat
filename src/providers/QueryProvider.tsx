@@ -1,23 +1,19 @@
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import React, { type ReactNode, useEffect } from 'react';
+import React, { type ReactNode } from 'react';
 
-// Sync online status with React Query
+// Sync online status with React Query (Maestro 2026: Robust Network Handling)
 onlineManager.setEventListener((setOnline) => {
-  const unsubscribe = NetInfo.addEventListener((state) => {
+  return NetInfo.addEventListener((state) => {
     setOnline(!!state.isConnected);
   });
-  return unsubscribe;
 });
 
-// Configurar cliente de consultas
+// Maestro 2026: Optimal Cache Strategy
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      gcTime: 1000 * 60 * 60 * 24, // 24 horas
+      gcTime: 1000 * 60 * 60 * 1, // 1 hora (No persistimos en disco por seguridad E2E)
       staleTime: 1000 * 60 * 5, // 5 minutos
       retry: 2,
       networkMode: 'offlineFirst',
@@ -28,23 +24,14 @@ export const queryClient = new QueryClient({
   },
 });
 
-// Configurar persistencia para modo offline
-const asyncStoragePersister = createAsyncStoragePersister({
-  storage: AsyncStorage,
-  key: 'REACT_QUERY_OFFLINE_CACHE',
-});
-
 interface QueryProviderProps {
   children: ReactNode;
 }
 
 export function QueryProvider({ children }: QueryProviderProps) {
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister: asyncStoragePersister }}
-    >
+    <QueryClientProvider client={queryClient}>
       {children}
-    </PersistQueryClientProvider>
+    </QueryClientProvider>
   );
 }

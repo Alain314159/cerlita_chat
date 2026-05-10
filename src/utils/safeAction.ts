@@ -1,8 +1,6 @@
-import * as Sentry from 'sentry-expo';
-
 /**
- * Wrapper para ejecutar acciones de Store con reporte automático a Sentry.
- * Ideal para 2026: Diagnóstico proactivo.
+ * Wrapper para ejecutar acciones de Store con reporte proactivo.
+ * Maestro 2026: Diagnóstico de alta señal.
  */
 export async function safeStoreAction<T>(
   actionName: string,
@@ -14,10 +12,11 @@ export async function safeStoreAction<T>(
   } catch (error: any) {
     console.error(`[StoreAction Error: ${actionName}]`, error);
     
-    Sentry.Native.captureException(error, {
-      tags: { action: actionName },
-      extra: context,
-    });
+    // En lugar de Sentry (que añade peso innecesario al MVP), 
+    // usamos un sistema de logging estructurado por consola.
+    if (context) {
+      console.log(`[Context: ${actionName}]`, JSON.stringify(context, null, 2));
+    }
     
     throw error;
   }

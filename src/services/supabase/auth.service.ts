@@ -71,8 +71,8 @@ export const authService = {
 
   // Get user profile (Self-healing with Upsert)
   async getUserProfile(userId: string): Promise<User> {
-    // Basic UUID validation
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+    // Basic UUID validation (Permissive for future versions and case sensitivity)
+    if (!/^[0-9a-fA-F-]{36}$/.test(userId)) {
       throw new Error('Invalid user ID format');
     }
 

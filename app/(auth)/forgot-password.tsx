@@ -1,24 +1,15 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/hooks/useAuth';
 import { theme } from '@/config/theme';
-import { supabase } from '@/services/supabase/config';
-import { Mail } from 'lucide-react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
-
+  const { resetPassword } = useAuth();
   const router = useRouter();
 
   const handleResetPassword = async () => {
@@ -29,42 +20,19 @@ export default function ForgotPasswordScreen() {
 
     try {
       setLoading(true);
-
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'cerlitachat://reset-password',
-      });
-
-      if (error) throw error;
-
-      setSent(true);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Error desconocido';
-      Alert.alert('Error', message);
+      await resetPassword(email);
+      Alert.alert(
+        'Email enviado',
+        'Se han enviado las instrucciones a tu correo electrónico.',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      Alert.alert('Error', error.message || 'No se pudo procesar la solicitud');
     } finally {
       setLoading(false);
     }
   };
-
-  if (sent) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.icon}>📧</Text>
-          <Text style={styles.title}>¡Revisa tu email!</Text>
-          <Text style={styles.subtitle}>
-            Te hemos enviado un enlace para restablecer tu contraseña.
-          </Text>
-          <Button
-            mode="contained"
-            onPress={() => router.replace('/(auth)/login')}
-            style={styles.button}
-          >
-            Volver al Login
-          </Button>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <KeyboardAvoidingView
@@ -75,7 +43,7 @@ export default function ForgotPasswordScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Recuperar Contraseña</Text>
           <Text style={styles.subtitle}>
-            Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña
+            Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.
           </Text>
         </View>
 
@@ -87,9 +55,8 @@ export default function ForgotPasswordScreen() {
             mode="outlined"
             keyboardType="email-address"
             autoCapitalize="none"
-            autoComplete="email"
             style={styles.input}
-            left={<TextInput.Icon icon={() => <Mail size={20} color={theme.colors.textSecondary} />} />}
+            left={<TextInput.Icon icon="email" color={theme.colors.secondary} />}
           />
 
           <Button
@@ -99,17 +66,16 @@ export default function ForgotPasswordScreen() {
             disabled={loading}
             style={styles.button}
             contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
           >
-            Enviar Enlace
+            Enviar Instrucciones
           </Button>
 
           <Button
             mode="text"
             onPress={() => router.back()}
-            style={styles.backButton}
+            style={styles.textButton}
           >
-            Volver al Login
+            Volver al inicio
           </Button>
         </View>
       </ScrollView>
@@ -118,59 +84,14 @@ export default function ForgotPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: theme.spacing.lg,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: theme.spacing.lg,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.sm,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  icon: {
-    fontSize: 64,
-    marginBottom: theme.spacing.md,
-  },
-  form: {
-    gap: theme.spacing.md,
-  },
-  input: {
-    marginBottom: theme.spacing.md,
-  },
-  button: {
-    marginTop: theme.spacing.md,
-    backgroundColor: theme.colors.primary,
-  },
-  buttonContent: {
-    paddingVertical: theme.spacing.sm,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.textInverse,
-  },
-  backButton: {
-    marginTop: theme.spacing.sm,
-  },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: theme.spacing.lg },
+  header: { alignItems: 'center', marginBottom: theme.spacing.xl },
+  title: { fontSize: 24, fontWeight: 'bold', color: theme.colors.primary, marginBottom: theme.spacing.sm },
+  subtitle: { fontSize: 16, color: theme.colors.textSecondary, textAlign: 'center' },
+  form: { gap: theme.spacing.md },
+  input: { marginBottom: theme.spacing.sm },
+  button: { marginTop: theme.spacing.md },
+  buttonContent: { paddingVertical: theme.spacing.xs },
+  textButton: { marginTop: theme.spacing.sm },
 });

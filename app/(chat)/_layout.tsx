@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs, Redirect } from 'expo-router';
-import { MessageCircle, Settings, Users, Heart } from 'lucide-react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme, ActivityIndicator } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, View } from 'react-native';
@@ -50,7 +50,7 @@ export default function ChatLayout() {
         options={{
           title: 'Chats',
           tabBarIcon: ({ color, size }) => (
-            <MessageCircle size={size} color={color} />
+            <MaterialCommunityIcons name="chat" size={size} color={color} />
           ),
         }}
       />
@@ -65,7 +65,7 @@ export default function ChatLayout() {
         options={{
           title: 'Descubrir',
           tabBarIcon: ({ color, size }) => (
-            <Users size={size} color={color} />
+            <MaterialCommunityIcons name="magnify" size={size} color={color} />
           ),
         }}
       />
@@ -75,7 +75,7 @@ export default function ChatLayout() {
           href: null,
           title: 'Solicitudes',
           tabBarIcon: ({ color, size }) => (
-            <Heart size={size} color={color} />
+            <MaterialCommunityIcons name="account-multiple-plus" size={size} color={color} />
           ),
         }}
       />
@@ -84,7 +84,7 @@ export default function ChatLayout() {
         options={{
           title: 'Ajustes',
           tabBarIcon: ({ color, size }) => (
-            <Settings size={size} color={color} />
+            <MaterialCommunityIcons name="cog" size={size} color={color} />
           ),
         }}
       />

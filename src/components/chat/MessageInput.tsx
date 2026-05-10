@@ -1,10 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { TextInput, IconButton } from 'react-native-paper';
 import { theme } from '@/config/theme';
 import type { ReplyContext } from '@/types';
-import { TermuxKeyBar, TermuxKey } from './TermuxKeyBar';
-import { Paperclip, Send, Camera, Mic, Clock, EyeOff } from 'lucide-react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface MessageInputProps {
   value: string;
@@ -28,10 +27,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const [isFocused, setIsFocused] = useState(false);
   const [isEphemeral, setIsEphemeral] = useState(false);
   const [isViewOnce, setIsViewOnce] = useState(false);
-  const [selection, setSelection] = useState({ start: 0, end: 0 });
   const inputRef = useRef<any>(null);
-
-  const hasText = value.trim().length > 0;
 
   const handleSend = () => {
     const text = value.trim();
@@ -42,77 +38,14 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     setIsViewOnce(false);
   };
 
-  const handleTermuxKeyPress = (key: TermuxKey) => {
-    switch (key) {
-      case 'TAB': {
-        const tabValue = value.slice(0, selection.start) + '    ' + value.slice(selection.end);
-        onChangeText(tabValue);
-        const newTabPos = selection.start + 4;
-        setSelection({ start: newTabPos, end: newTabPos });
-        break;
-      }
-      case 'LEFT':
-        if (selection.start > 0) {
-          const newPos = selection.start - 1;
-          setSelection({ start: newPos, end: newPos });
-        }
-        break;
-      case 'RIGHT':
-        if (selection.end < value.length) {
-          const newPos = selection.end + 1;
-          setSelection({ start: newPos, end: newPos });
-        }
-        break;
-      case 'UP': {
-        const lines = value.slice(0, selection.start).split('\n');
-        if (lines.length > 1) {
-          const lastNewline = value.lastIndexOf('\n', selection.start - 1);
-          if (lastNewline !== -1) {
-            const secondLastNewline = value.lastIndexOf('\n', lastNewline - 1);
-            const lineOffset = selection.start - lastNewline - 1;
-            const targetPos = Math.min(lastNewline, secondLastNewline + 1 + lineOffset);
-            setSelection({ start: targetPos, end: targetPos });
-          }
-        }
-        break;
-      }
-      case 'DOWN': {
-        const nextNewline = value.indexOf('\n', selection.start);
-        if (nextNewline !== -1) {
-          const lastNewline = value.lastIndexOf('\n', selection.start - 1);
-          const lineOffset = selection.start - lastNewline - 1;
-          const followingNewline = value.indexOf('\n', nextNewline + 1);
-          const targetPos = followingNewline === -1 
-            ? Math.min(value.length, nextNewline + 1 + lineOffset)
-            : Math.min(followingNewline, nextNewline + 1 + lineOffset);
-          setSelection({ start: targetPos, end: targetPos });
-        }
-        break;
-      }
-      case '-':
-      case '/': {
-        const char = key === '-' ? '-' : '/';
-        const newVal = value.slice(0, selection.start) + char + value.slice(selection.end);
-        onChangeText(newVal);
-        const newPos = selection.start + 1;
-        setSelection({ start: newPos, end: newPos });
-        break;
-      }
-      case 'ESC':
-      case 'CTRL':
-      case 'ALT':
-        break;
-    }
-  };
-
   return (
     <View style={styles.container}>
-      {isFocused && <TermuxKeyBar onKeyPress={handleTermuxKeyPress} />}
       <View style={styles.inputRow}>
         <IconButton
-          icon={() => <Paperclip size={22} color={theme.colors.secondary} />}
+          icon="paperclip"
           onPress={onAttachmentPress}
           disabled={disabled || isLoading}
+          iconColor={theme.colors.secondary}
           testID="attachment-button"
         />
         <View style={styles.inputWrapper}>
@@ -130,43 +63,53 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             testID="message-input"
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            selection={selection}
-            onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+            outlineStyle={{ borderRadius: 24, borderWidth: 1 }}
           />
           <View style={styles.privacyToggles}>
             <TouchableOpacity 
               style={[styles.toggle, isEphemeral && styles.toggleActive]}
               onPress={() => setIsEphemeral(!isEphemeral)}
             >
-              <Clock size={16} color={isEphemeral ? theme.colors.primary : theme.colors.secondary} />
+              <MaterialCommunityIcons 
+                name={isEphemeral ? "clock" : "clock-outline"} 
+                size={20} 
+                color={isEphemeral ? theme.colors.primary : theme.colors.secondary} 
+              />
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.toggle, isViewOnce && styles.toggleActive]}
               onPress={() => setIsViewOnce(!isViewOnce)}
             >
-              <EyeOff size={16} color={isViewOnce ? theme.colors.primary : theme.colors.secondary} />
+              <MaterialCommunityIcons 
+                name={isViewOnce ? "eye-off" : "eye-outline"} 
+                size={20} 
+                color={isViewOnce ? theme.colors.primary : theme.colors.secondary} 
+              />
             </TouchableOpacity>
           </View>
         </View>
-        {hasText ? (
+        {value.trim().length > 0 ? (
           <IconButton
-            icon={() => <Send size={22} color={theme.colors.primary} />}
+            icon="send"
             onPress={handleSend}
-            disabled={!hasText || disabled || isLoading}
+            disabled={disabled || isLoading}
+            iconColor={theme.colors.primary}
             testID="send-button"
           />
         ) : (
           <View style={styles.alternateButtons}>
             <IconButton 
-              icon={() => <Camera size={22} color={theme.colors.secondary} />} 
+              icon="camera" 
               onPress={onCameraPress} 
               disabled={disabled || isLoading}
+              iconColor={theme.colors.secondary}
               testID="camera-button"
             />
             <IconButton 
-              icon={() => <Mic size={22} color={theme.colors.secondary} />} 
+              icon="microphone" 
               onPress={onVoicePress} 
               disabled={disabled || isLoading}
+              iconColor={theme.colors.secondary}
               testID="voice-button"
             />
           </View>
@@ -181,7 +124,7 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, padding: 8 },
   inputWrapper: { flex: 1 },
   input: { backgroundColor: theme.colors.surface, maxHeight: 120 },
-  inputContent: { minHeight: 40, paddingRight: 60 },
+  inputContent: { minHeight: 40, paddingRight: 80 },
   privacyToggles: { 
     flexDirection: 'row', 
     position: 'absolute', 
