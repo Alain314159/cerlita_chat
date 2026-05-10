@@ -1,4 +1,5 @@
 import { useCallback, useState, useMemo } from 'react';
+import { InfiniteData } from '@tanstack/react-query';
 import { useMessageStore } from '@/store/messageStore';
 import { useAuthStore, AuthStore } from '@/store/authStore';
 import { useMessagesQuery } from './useMessagesQuery';
@@ -6,12 +7,13 @@ import type { ReplyContext, Message } from '@/types';
 
 export function useMessages(chatId: string) {
   const queryResult = useMessagesQuery(chatId);
-  const { data, isLoading: loading, error: queryError } = queryResult;
+  const { data: rawData, isLoading: loading, error: queryError } = queryResult;
 
   const messages = useMemo(() => {
-    // data ya está aplanado por el 'select' en useMessagesQuery
-    return (data || []) as Message[];
-  }, [data]);
+    const data = rawData as unknown as InfiniteData<Message[], string | null>;
+    if (!data || !data.pages) return [];
+    return data.pages.flat().filter((m: Message): m is Message => m !== null && !!m.id);
+  }, [rawData]);
 
   const {
     typingUsers,

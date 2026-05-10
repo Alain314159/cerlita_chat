@@ -28,6 +28,7 @@ import { ChatOptionsMenu } from '@/components/chat/ChatOptionsMenu';
 import { formatDateHeader } from '@/utils/date';
 import { Message, User } from '@/types';
 import { userService } from '@/services/supabase/user.service';
+import { e2eEncryptionService } from '@/services/crypto/e2e.service';
 
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -107,18 +108,17 @@ export default function ChatConversationScreen() {
     loadRecipient();
   }, [chatId, user?.id]);
 
-  const handleSendMessage = useCallback(async (options?: { isEphemeral?: boolean; isViewOnce?: boolean }) => {
-    if (!messageText.trim() || !user?.id || !chatId) {
+  const handleSendMessage = useCallback(async (text: string, options?: { isEphemeral?: boolean; isViewOnce?: boolean }) => {
+    if (!text.trim() || !user?.id || !chatId) {
       console.warn('[handleSendMessage] Missing:', { 
-        hasText: !!messageText.trim(), 
+        hasText: !!text.trim(), 
         hasUser: !!user?.id, 
         hasChatId: !!chatId 
       });
       return;
     }
     
-    const textToSend = messageText.trim();
-    setMessageText('');
+    const textToSend = text.trim();
     setReplyContext(null);
     
     try {
@@ -157,7 +157,7 @@ export default function ChatConversationScreen() {
       );
       setMessageText(textToSend); // Restaurar el texto solo si el envío falló definitivamente
     }
-  }, [messageText, user?.id, chatId, sendMessageMutation]);
+  }, [user?.id, chatId, sendMessageMutation]);
 
   const uploadMedia = async (uri: string, name: string, type: string) => {
     try {
@@ -237,6 +237,10 @@ export default function ChatConversationScreen() {
     } catch (error) {
       Alert.alert('Error', 'No se pudo abrir la cámara');
     }
+  };
+
+  const handleVoicePress = () => {
+    Alert.alert('Próximamente', 'La grabación de voz estará disponible en la próxima actualización.');
   };
 
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {

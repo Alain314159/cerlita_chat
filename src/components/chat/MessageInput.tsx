@@ -9,7 +9,7 @@ import { Paperclip, Send, Camera, Mic, Clock, EyeOff } from 'lucide-react-native
 interface MessageInputProps {
   value: string;
   onChangeText: (text: string) => void;
-  onSend: (options?: { isEphemeral?: boolean; isViewOnce?: boolean }) => void;
+  onSend: (text: string, options?: { isEphemeral?: boolean; isViewOnce?: boolean }) => void;
   onAttachmentPress?: () => void;
   onCameraPress?: () => void;
   onVoicePress?: () => void;
@@ -34,8 +34,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const hasText = value.trim().length > 0;
 
   const handleSend = () => {
-    if (!hasText || isLoading) return;
-    onSend({ isEphemeral, isViewOnce });
+    const text = value.trim();
+    if (!text || isLoading) return;
+    onSend(text, { isEphemeral, isViewOnce });
+    onChangeText('');
     setIsEphemeral(false);
     setIsViewOnce(false);
   };

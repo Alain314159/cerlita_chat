@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useRouter, useSegments } from 'expo-router';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 import { useAuthStore, AuthStore } from '@/store/authStore';
+import { authService } from '@/services/supabase/auth.service';
 import { pushNotificationService } from '@/services/pushNotifications';
 import { SplashScreen } from '@/components/ui/SplashScreen';
 
@@ -58,15 +59,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isAuthenticated, loading, user?.id]);
 
-  // Manejar cambios de estado de la app (background/foreground)
+  // Manejar cambios de estado de la app (presencia online/offline)
   useEffect(() => {
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      console.log('App state changed:', nextAppState);
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (!user?.id) return;
+      
+      const isOnline = nextAppState === 'active';
+      console.log(`[Presence] User ${user.id} is now ${isOnline ? 'online' : 'offline'}`);
+      
+      try {
+        await authService.updatePresence(isOnline, user.id);
+      } catch (error) {
+        console.error('[Presence] Failed to update presence:', error);
+      }
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
-    return () => { subscription.remove(); };
-  }, [user]);
+    return () => {
+      subscription.remove();
+    };
+  }, [user?.id]);
 
   // Proteger rutas
   useEffect(() => {

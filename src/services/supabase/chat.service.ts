@@ -4,11 +4,19 @@ import { mapDatabaseChatToDomain } from './mappers/chat.mapper';
 import type { Chat } from '@/types';
 
 export const chatService = {
-  // Get all chats for a user (Maestro 2026: Strong Typing & Mappers)
+  // Get all chats for a user (Maestro 2026: Relational Join for Reliability)
   async getUserChats(userId: string): Promise<Chat[]> {
     const { data, error } = await supabase
       .from('chat_participants')
-      .select('chat:chats(*, participants:chat_participants(user_id, users(*)))')
+      .select(`
+        chat:chats(
+          *,
+          participants:chat_participants(
+            user_id,
+            user:users(*)
+          )
+        )
+      `)
       .eq('user_id', userId)
       .order('chat(updated_at)', { ascending: false });
 
@@ -16,7 +24,7 @@ export const chatService = {
     
     // Mapear correctamente desde la tabla de unión
     return (data || [])
-      .filter(row => row.chat) // Evitar nulos si hay inconsistencias
+      .filter(row => row.chat)
       .map(row => mapDatabaseChatToDomain(row.chat, userId));
   },
 
@@ -93,7 +101,6 @@ export const chatService = {
 
   // Subscribe to chat updates
   subscribeToUserChats(userId: string, onUpdate: (payload: any) => void): { unsubscribe: () => void } {
-    // 🔧 FIX ULTRA 2026: Unique channel name to avoid "callbacks after subscribe" error
     const channelId = `user_chats_${userId}_${Date.now()}`;
     const channel = supabase.channel(channelId);
 
@@ -116,4 +123,17 @@ export const chatService = {
           event: 'UPDATE',
           schema: 'public',
           table: 'chats',
+        },
+        (payload) => {
+          onUpdate(payload);
         }
+      )
+      .subscribe();
+
+    return {
+      unsubscribe: () => {
+        supabase.removeChannel(channel);
+      }
+    };
+  },
+};

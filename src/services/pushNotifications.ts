@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase/config';
 import type { Subscription } from 'expo-notifications';
@@ -61,7 +62,10 @@ class PushNotificationService {
   private async getPushToken(): Promise<string | null> {
     if (!Device.isDevice) return null;
     try {
-      const token = (await Notifications.getExpoPushTokenAsync()).data;
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
+      const token = (await Notifications.getExpoPushTokenAsync({
+        projectId
+      })).data;
       return token;
     } catch (error) {
       console.error('[PushNotifications] Error getting token:', error);

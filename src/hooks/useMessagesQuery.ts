@@ -52,7 +52,7 @@ export function useMessagesQuery(chatId: string) {
     getNextPageParam: (lastPage) => {
       if (!lastPage || !Array.isArray(lastPage) || lastPage.length < 30) return undefined;
       const oldest = lastPage[lastPage.length - 1];
-      return oldest?.createdAt ? new Date(oldest.createdAt).toISOString() : undefined;
+      return oldest?.createdAt ? oldest.createdAt : undefined;
     },
 
     initialPageParam: null as string | null,
@@ -60,11 +60,6 @@ export function useMessagesQuery(chatId: string) {
     gcTime: 1000 * 60 * 30,
     refetchOnWindowFocus: false,
     retry: 2,
-    
-    select: (data: InfiniteData<Message[], string | null>): Message[] => {
-      if (!data || !data.pages) return [];
-      return data.pages.flatMap(page => page ?? []).filter(item => item && item.id);
-    },
     placeholderData: (previousData) => previousData,
   });
 
