@@ -11,13 +11,14 @@ describe('authStore', () => {
     id: 'user-123', 
     email: 'test@example.com', 
     displayName: 'Test User',
+    cerlitaId: 'test-123',
     photoURL: null,
     isOnline: false,
     lastSeen: null,
     isTyping: false,
     pushToken: null,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
   beforeEach(() => {

@@ -29,6 +29,10 @@ import { formatDateHeader } from '@/utils/date';
 import { Message, User } from '@/types';
 import { userService } from '@/services/supabase/user.service';
 
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import { supabase } from '@/services/supabase/config';
+
 export default function ChatConversationScreen() {
   const { chatId } = useLocalSearchParams();
   const { user } = useAuth();
@@ -40,7 +44,7 @@ export default function ChatConversationScreen() {
   const isEnabled = !!chatId && typeof chatId === 'string' && chatId.length > 0;
 
   const {
-    messages: initialMessages,
+    messages,
     loading,
     sending,
     sendMessage,
@@ -53,109 +57,17 @@ export default function ChatConversationScreen() {
     queryResult,
   } = useMessages(isEnabled ? (chatId as string) : '');
 
-  const sendMessageMutation = useSendMessageMutation(chatId as string);
-
-  // messages viene del hook con select que ya aplana, pero agregamos protección extra
-  const messagesArray = React.useMemo(() => {
-    const data = queryResult.data;
-    
-    if (!data) return initialMessages || [];
-    
-    if (Array.isArray(data)) {
-      return data.filter((m): m is Message => m !== null && m !== undefined && typeof m === 'object');
-    }
-    
-    if (typeof data === 'object' && 'pages' in data && Array.isArray((data as any).pages)) {
-      return (data as any).pages
-        .flatMap((page: any) => page ?? [])
-        .filter((m: any): m is Message => m !== null && m !== undefined && typeof m === 'object');
-    }
-    
-    console.warn('[ChatScreen] Unexpected data structure:', data);
-    return initialMessages || [];
-  }, [queryResult.data, initialMessages]);
+  const sendMessageMutation = useSendMessageMutation(
+    isEnabled ? (chatId as string) : ''
+  );
 
   const { activeChat, chats } = useChat(chatId as string);
   const [recipient, setRecipient] = useState<{displayName: string, photoURL?: string} | null>(null);
   const [messageText, setMessageText] = useState('');
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const router = useRouter();
   const queryClient = useQueryClient();
-
-  // Optimizar realtime: handle ALL events correctly
-  useEffect(() => {
-    if (!chatId || typeof chatId !== 'string') return;
-    
-    let isSubscribed = true;
-    
-    const subscription = messageService.subscribeToMessages(chatId, async (payload) => {
-      if (!isSubscribed) return;
-      
-      const { eventType, new: newRecord, old: oldRecord } = payload;
-      console.log(`[Realtime ${chatId}] Event:`, eventType);
-
-      if (eventType === 'INSERT' && newRecord) {
-        // Map and Decrypt before inserting into cache
-        const domainMsg = mapDatabaseMessageToDomain(newRecord);
-        let finalMsg = domainMsg;
-
-        if (domainMsg.text && domainMsg.encryptedPayload) {
-          try {
-            const { text } = await e2eEncryptionService.decrypt(
-              domainMsg.encryptedPayload.ciphertext,
-              chatId,
-              domainMsg.encryptedPayload.iv,
-              domainMsg.encryptedPayload.authTag,
-              domainMsg.encryptedPayload.keyVersion
-            );
-            finalMsg = { ...domainMsg, text };
-          } catch (err) {
-            console.warn('[Realtime Decryption] Failed:', domainMsg.id, err);
-            finalMsg = { ...domainMsg, text: '[Error de cifrado]', status: 'failed' };
-          }
-        }
-
-        queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
-          if (!old || !old.pages) return old;
-          
-          // Deduplicar: Si el mensaje ya existe (optimístico), no agregarlo de nuevo
-          const alreadyExists = old.pages.some(page => page.some(m => m.id === finalMsg.id));
-          if (alreadyExists) return old;
-
-          const newPages = [...old.pages];
-          newPages[0] = [finalMsg, ...(newPages[0] || [])];
-          return { ...old, pages: newPages };
-        });
-      } else if (eventType === 'UPDATE' && newRecord) {
-        // Actualizar mensaje existente (lectura, edición, etc.)
-        queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
-          if (!old || !old.pages) return old;
-          return {
-            ...old,
-            pages: old.pages.map(page => 
-              page.map(m => m.id === newRecord.id ? mapDatabaseMessageToDomain(newRecord) : m)
-            ),
-          };
-        });
-      } else if (eventType === 'DELETE' && oldRecord) {
-        queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
-          if (!old || !old.pages) return old;
-          return {
-            ...old,
-            pages: old.pages.map(page => page.filter(m => m.id !== oldRecord.id)),
-          };
-        });
-      } else if (payload.eventType === 'BROADCAST' && payload.event === 'typing') {
-        // Manejar typing indicator vía broadcast
-        // setOtherUserTyping(payload.userId, payload.isTyping);
-      }
-    });
-
-    return () => {
-      isSubscribed = false;
-      subscription.unsubscribe();
-    };
-  }, [chatId, queryClient]);
 
   useEffect(() => {
     const loadRecipient = async () => {
@@ -180,7 +92,7 @@ export default function ChatConversationScreen() {
           if (profile) {
             setRecipient({
               displayName: profile.displayName || 'Usuario',
-              photoURL: profile.photoURL
+              photoURL: profile.photoURL || undefined
             });
           }
         } else {
@@ -209,49 +121,139 @@ export default function ChatConversationScreen() {
     setMessageText('');
     setReplyContext(null);
     
-    console.log('[handleSendMessage] Sending message:', { 
-      text: textToSend, 
-      chatId, 
-      senderId: user.id,
-      options 
-    });
-
     try {
-      // Usar sendMessageMutation del hook useMessages (vía queryResult si está disponible, o inyectado)
-      // Nota: En este componente useMessages retorna queryResult, pero no expone directamente el mutation.
-      // Sin embargo, useMessages tiene un sendMessage interno que llama a messageStore.
-      // Pero el usuario sugirió usar sendMessageMutation.mutateAsync.
-      // Vamos a verificar useMessages.ts para ver si expone el mutation.
+      // 🔐 MAESTRO 2026: Recuperación Dinámica de Clave E2E
+      // Si por alguna razón la clave local no existe (ej: reinstalación),
+      // intentamos recuperarla/derivarla antes de que la mutation falle.
+      try {
+        await e2eEncryptionService.getChatKey(chatId as string);
+      } catch (e) {
+        console.log('[handleSendMessage] E2E key missing, attempting recovery handshake...');
+        const participants = await messageService.getChatParticipants(chatId as string);
+        const otherId = participants.find(id => id !== user.id);
+        if (otherId) {
+          await e2eEncryptionService.establishSharedKey(chatId as string, user.id, otherId);
+          console.log('[handleSendMessage] Recovery handshake successful.');
+        } else {
+          throw new Error('No se pudo identificar al destinatario para el cifrado E2E.');
+        }
+      }
+
       await sendMessageMutation.mutateAsync({
         text: textToSend,
         senderId: user.id,
         chatId: chatId as string,
         ...options
       });
+      
       console.log('[handleSendMessage] Message sent successfully');
       flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('[handleSendMessage] Error sending message:', error);
       Alert.alert(
         'Error al enviar',
-        'No se pudo enviar el mensaje. Verifica tu conexión.',
+        error.message || 'No se pudo enviar el mensaje. Verifica tu conexión.',
         [{ text: 'OK' }]
       );
-      setMessageText(textToSend); // Restore text on failure
+      setMessageText(textToSend); // Restaurar el texto solo si el envío falló definitivamente
     }
   }, [messageText, user?.id, chatId, sendMessageMutation]);
 
+  const uploadMedia = async (uri: string, name: string, type: string) => {
+    try {
+      setIsUploading(true);
+      const fileName = `${chatId}/${Date.now()}_${name}`;
+      
+      // Convert URI to Blob for upload
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const { data, error } = await supabase.storage
+        .from('chat-media')
+        .upload(fileName, blob, {
+          contentType: type,
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-media')
+        .getPublicUrl(data.path);
+
+      await sendMessageMutation.mutateAsync({
+        text: '',
+        senderId: user!.id,
+        chatId: chatId as string,
+        mediaURL: publicUrl,
+        type: type.startsWith('image/') ? 'image' : (type.startsWith('video/') ? 'video' : 'file')
+      } as any);
+
+    } catch (error: any) {
+      console.error('[uploadMedia] Error:', error);
+      Alert.alert('Error', 'No se pudo subir el archivo: ' + error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAttachmentPress = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+      const asset = result.assets[0];
+      if (asset) {
+        await uploadMedia(asset.uri, asset.name, asset.mimeType || 'application/octet-stream');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo seleccionar el archivo');
+    }
+  };
+
+  const handleCameraPress = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara para tomar fotos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+      const asset = result.assets[0];
+      if (asset) {
+        const name = asset.uri.split('/').pop() || 'camera_upload.jpg';
+        await uploadMedia(asset.uri, name, asset.mimeType || 'image/jpeg');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo abrir la cámara');
+    }
+  };
+
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isMe = item.senderId === user?.id;
-    const prevMessage = messagesArray[index + 1];
-    const showDateHeader = !prevMessage || formatDateHeader(item.createdAt) !== formatDateHeader(prevMessage.createdAt);
+    const prevMessage = messages[index + 1];
+    
+    const currentDate = new Date(item.createdAt);
+    const prevDate = prevMessage ? new Date(prevMessage.createdAt) : null;
+    
+    const showDateHeader = !prevDate || formatDateHeader(currentDate) !== formatDateHeader(prevDate);
 
     return (
       <View>
         {showDateHeader && (
           <View style={styles.dateHeader}>
             <Text style={[styles.dateHeaderText, { backgroundColor: theme.colors.surfaceVariant, color: theme.colors.onSurfaceVariant }]}>
-              {formatDateHeader(item.createdAt)}
+              {formatDateHeader(currentDate)}
             </Text>
           </View>
         )}
@@ -268,7 +270,7 @@ export default function ChatConversationScreen() {
         />
       </View>
     );
-  }, [user?.id, messagesArray, recipient, addReaction, setReplyContext, theme]);
+  }, [user?.id, messages, recipient, addReaction, setReplyContext, theme]);
 
   // Si el chat no está habilitado, mostrar placeholder
   if (!isEnabled) {
@@ -290,7 +292,7 @@ export default function ChatConversationScreen() {
     );
   }
 
-  if (loading && messagesArray.length === 0) {
+  if (loading && messages.length === 0) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -314,7 +316,7 @@ export default function ChatConversationScreen() {
 
       <FlashList
         ref={flatListRef}
-        data={messagesArray ?? []}
+        data={messages ?? []}
         keyExtractor={(item) => item?.id ?? `fallback-${Math.random()}`}
         renderItem={({ item, index }) => {
           if (!item) return null;
@@ -330,8 +332,11 @@ export default function ChatConversationScreen() {
         }}
         onEndReachedThreshold={0.5}
         ListFooterComponent={() => 
-          queryResult.isFetchingNextPage ? (
-            <ActivityIndicator style={{ marginVertical: 10 }} color={theme.colors.primary} />
+          (queryResult.isFetchingNextPage || isUploading) ? (
+            <View style={{ marginVertical: 10 }}>
+              {isUploading && <Text style={{ textAlign: 'center', fontSize: 12, color: theme.colors.primary, marginBottom: 5 }}>Subiendo archivo...</Text>}
+              <ActivityIndicator color={theme.colors.primary} />
+            </View>
           ) : null
         }
       />
@@ -347,12 +352,13 @@ export default function ChatConversationScreen() {
         value={messageText}
         onChangeText={setMessageText}
         onSend={handleSendMessage}
-        onAttachmentPress={() => Alert.alert('Próximamente', 'La función de adjuntar archivos estará disponible pronto.')}
-        onCameraPress={() => Alert.alert('Próximamente', 'La función de cámara estará disponible pronto.')}
-        onVoicePress={() => Alert.alert('Próximamente', 'La función de voz estará disponible pronto.')}
+        onAttachmentPress={handleAttachmentPress}
+        onCameraPress={handleCameraPress}
+        onVoicePress={handleVoicePress}
         replyContext={replyContext}
         onReplyClose={() => setReplyContext(null)}
-        disabled={sending}
+        disabled={sending || isUploading}
+        isLoading={isUploading}
       />
 
       <ChatOptionsMenu

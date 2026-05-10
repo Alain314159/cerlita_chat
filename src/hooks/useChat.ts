@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useChatStore } from '@/store/chatStore';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, AuthStore } from '@/store/authStore';
 import { chatService } from '@/services/supabase/chat.service';
 
 export function useChat(chatId?: string) {
@@ -17,7 +17,7 @@ export function useChat(chatId?: string) {
     setError,
   } = useChatStore();
 
-  const { user } = useAuthStore();
+  const { user } = useAuthStore() as AuthStore;
 
   useEffect(() => {
     if (user) {

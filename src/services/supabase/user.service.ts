@@ -27,6 +27,7 @@ export const userService = {
     }
 
     const domainUser = mapDatabaseUserToDomain(data);
+    if (!domainUser) return null;
     
     // 2. Update Cache
     userCache.set(userId, { data: domainUser, timestamp: Date.now() });
@@ -56,7 +57,9 @@ export const userService = {
       .limit(50);
 
     if (error) throw error;
-    return data?.map(user => mapDatabaseUserToDomain(user)) || [];
+    return (data || [])
+      .map(user => mapDatabaseUserToDomain(user))
+      .filter((u): u is User => u !== null);
   },
 
   async getContacts(currentUserId: string): Promise<User[]> {
@@ -70,8 +73,11 @@ export const userService = {
       .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
 
     if (error) throw error;
-    return data.map((conn: any) => 
-      mapDatabaseUserToDomain(conn.sender.id === currentUserId ? conn.receiver : conn.sender)
-    );
+    return (data || [])
+      .map((conn: any) => {
+        const otherUser = conn.sender.id === currentUserId ? conn.receiver : conn.sender;
+        return mapDatabaseUserToDomain(otherUser);
+      })
+      .filter((u): u is User => u !== null);
   }
 };

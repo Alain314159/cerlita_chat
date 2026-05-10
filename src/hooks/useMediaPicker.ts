@@ -23,8 +23,10 @@ export function useMediaPicker() {
       aspect: [4, 3],
       quality: 0.8,
     });
-    if (result.canceled) return null;
+    if (result.canceled || !result.assets || result.assets.length === 0) return null;
     const asset = result.assets[0];
+    if (!asset) return null;
+
     const compressedUri = await compressionService.compressImage(asset.uri);
     return {
       uri: compressedUri,
@@ -40,8 +42,10 @@ export function useMediaPicker() {
       mediaTypes: ImagePicker.MediaTypeOptions.Videos,
       allowsEditing: false,
     });
-    if (result.canceled) return null;
+    if (result.canceled || !result.assets || result.assets.length === 0) return null;
     const asset = result.assets[0];
+    if (!asset) return null;
+
     return {
       uri: asset.uri,
       type: asset.mimeType || 'video/mp4',
@@ -58,8 +62,10 @@ export function useMediaPicker() {
       aspect: [4, 3],
       quality: 0.8,
     });
-    if (result.canceled) return null;
+    if (result.canceled || !result.assets || result.assets.length === 0) return null;
     const asset = result.assets[0];
+    if (!asset) return null;
+
     const compressedUri = await compressionService.compressImage(asset.uri);
     return {
       uri: compressedUri,

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { theme } from '@/config/theme';
-import type { Call } from '@/types/call.types';
+import type { Call } from '@/types';
 
 interface IncomingCallModalProps {
   call: Call | null;

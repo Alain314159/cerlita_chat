@@ -1,3 +1,5 @@
+// Core types for Cerlita Chat
+
 // User types
 export interface AvatarOption {
   type: 'system' | 'custom';
@@ -26,7 +28,7 @@ export interface Chat {
   name?: string | null;
   type?: 'direct' | 'group';
   participant_ids: string[];
-  recipient?: User | null; // Info de la otra persona en chats directos
+  recipient?: User | null;
   lastMessageId: string | null;
   lastMessage?: string | null;
   lastMessageAt: string | null;
@@ -40,10 +42,10 @@ export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'file';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 
 export interface EncryptedPayload {
-  ciphertext: string; // Base64 del contenido cifrado
-  iv: string;         // Base64 del vector de inicialización (12 bytes para GCM)
-  authTag: string;    // Base64 de la etiqueta de autenticación (16 bytes para GCM)
-  keyVersion: string; // Para soportar rotación de claves
+  ciphertext: string;
+  iv: string;
+  authTag: string;
+  keyVersion: string;
 }
 
 export interface Message {
@@ -59,12 +61,51 @@ export interface Message {
   deliveredAt: string | null;
   createdAt: string;
   updatedAt: string;
-  encryptedPayload?: EncryptedPayload; // Para mensajes E2E
-  plaintext?: string; // SOLO para caché local tras descifrar, NUNCA enviar al servidor
+  encryptedPayload?: EncryptedPayload;
+  plaintext?: string;
   iv?: string; 
   isEdited: boolean;
   editedAt?: string | null;
   replyToId: string | null;
   isEphemeral?: boolean;
   isViewOnce?: boolean;
+}
+
+// UI & Context types
+export interface ReplyContext {
+  messageId: string;
+  text: string | null;
+  senderName: string;
+  type: MessageType;
+}
+
+export interface ReactionCounts {
+  [emoji: string]: { count: number; userReacted: boolean };
+}
+
+export interface MessageWithMeta extends Message {
+  reactions?: ReactionCounts;
+  replyContext?: ReplyContext | null;
+  isStarred?: boolean;
+  isSelected?: boolean;
+}
+
+// Auth types
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+  error: string | null;
+}
+
+// Call types
+export interface Call {
+  id: string;
+  chatId: string;
+  callerId: string;
+  receiverId: string;
+  type: 'audio' | 'video';
+  status: 'initiating' | 'ringing' | 'connected' | 'ended' | 'missed';
+  startedAt: string;
+  endedAt?: string;
 }

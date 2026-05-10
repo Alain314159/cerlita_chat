@@ -128,7 +128,8 @@ export class E2EEncryptionService {
     ciphertext: string,
     chatId: string,
     iv?: string,
-    authTag?: string
+    authTag?: string,
+    keyVersion?: string
   ): Promise<{ text: string }> {
     if (!iv || !authTag) {
       // Si falta IV o Tag, no podemos verificar integridad
@@ -191,7 +192,10 @@ export class E2EEncryptionService {
     let binary = '';
     const len = buffer.byteLength;
     for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(buffer[i]);
+      const byte = buffer[i];
+      if (byte !== undefined) {
+        binary += String.fromCharCode(byte);
+      }
     }
     return btoa(binary);
   }

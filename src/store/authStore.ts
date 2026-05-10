@@ -7,10 +7,10 @@ import { SignUpUseCase } from '@/use-cases/auth/SignUp';
 import { SignOutUseCase } from '@/use-cases/auth/SignOut';
 import { InitializeAuthUseCase } from '@/use-cases/auth/InitializeAuth';
 
-interface AuthStore extends AuthState {
+export interface AuthStore extends AuthState {
   selectedAvatar: AvatarOption | null;
   setUser: (user: User | null) => void;
-  initialize: () => Promise<any>;
+  initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -33,7 +33,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Initialize auth state
   initialize: async () => {
-    return await InitializeAuthUseCase(
+    await InitializeAuthUseCase(
       {
         getSession: authService.getSession,
         getUserProfile: authService.getUserProfile,

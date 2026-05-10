@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { messageService } from '@/services/supabase/message.service';
 import { e2eEncryptionService } from '@/services/crypto/e2e.service';
 import type { Message } from '@/types';
@@ -19,7 +19,7 @@ const isNetworkError = (error: any): boolean => {
     msg.includes('connection') ||
     code === 'NETWORK_ERROR' ||
     code === 0 ||
-    error?.name === 'TypeError' && msg.includes('fetch')
+    (error?.name === 'TypeError' && msg.includes('fetch'))
   );
 };
 
@@ -106,7 +106,7 @@ export function useSendMessageMutation(chatId: string) {
       return { previousData, tempId };
     },
 
-    onError: (err, newMessage, context) => {
+    onError: (err, _newMessage, context) => {
       // 🔧 FIX: Revertir al estado anterior completo en caso de error
       if (context?.previousData) {
         queryClient.setQueryData(['messages', chatId], context.previousData);
@@ -114,7 +114,7 @@ export function useSendMessageMutation(chatId: string) {
       console.error('[Mutation Error]', err);
     },
 
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, _variables, context) => {
       // 🔧 FIX: Reemplazar temporal con real dentro de las páginas
       queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
         if (!old) return old;

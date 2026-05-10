@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { theme } from '@/config/theme';
-import type { ReplyContext } from '@/types/message.types';
+import type { ReplyContext } from '@/types';
 
 interface ReplyPreviewProps {
   context: ReplyContext;

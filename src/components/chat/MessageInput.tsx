@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { TextInput, IconButton } from 'react-native-paper';
 import { theme } from '@/config/theme';
-import type { ReplyContext } from '@/types/message.types';
+import type { ReplyContext } from '@/types';
 import { TermuxKeyBar, TermuxKey } from './TermuxKeyBar';
 import { Paperclip, Send, Camera, Mic, Clock, EyeOff } from 'lucide-react-native';
 

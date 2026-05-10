@@ -9,7 +9,7 @@ interface ChatStore {
   loading: boolean;
   error: string | null;
   activeChat: Chat | null;
-  channels: Map<string, RealtimeChannel>;
+  channels: Map<string, { unsubscribe: () => void }>;
 
   // Actions
   loadChats: (userId: string) => Promise<void>;
@@ -71,26 +71,26 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const channelKey = `chats_${userId}`;
 
     // Unsubscribe from previous if exists
-    const existingChannel = channels.get(channelKey);
-    if (existingChannel) {
-      existingChannel.unsubscribe();
+    const existing = channels.get(channelKey);
+    if (existing) {
+      existing.unsubscribe();
       channels.delete(channelKey);
     }
 
-    const channel = chatService.subscribeToUserChats(userId, (payload: any) => {
+    const sub = chatService.subscribeToUserChats(userId, (payload: any) => {
       // In a real app, you might want to handle individual events (INSERT, UPDATE, DELETE)
       // For simplicity, we just reload all chats for now or handle the payload
       get().loadChats(userId);
     });
 
-    channels.set(channelKey, channel);
+    channels.set(channelKey, sub);
     set({ channels });
   },
 
   // Unsubscribe from chats
   unsubscribeFromChats: () => {
     const { channels } = get();
-    channels.forEach((channel) => channel.unsubscribe());
+    channels.forEach((sub) => sub.unsubscribe());
     channels.clear();
     set({ channels });
   },

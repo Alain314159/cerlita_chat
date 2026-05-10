@@ -23,9 +23,9 @@ jest.mock('@supabase/supabase-js', () => ({
       limit: jest.fn().mockReturnThis(),
     }),
     auth: { 
-      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
-      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
-      onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } }))
+      getSession: jest.fn<any>().mockResolvedValue({ data: { session: null }, error: null }),
+      getUser: jest.fn<any>().mockResolvedValue({ data: { user: null }, error: null }),
+      onAuthStateChange: jest.fn<any>(() => ({ data: { subscription: { unsubscribe: jest.fn() } } }))
     }
   })
 }));
@@ -39,9 +39,9 @@ jest.mock('expo-notifications', () => ({
   addNotificationReceivedListener: jest.fn(),
   addNotificationResponseReceivedListener: jest.fn(),
   removeNotificationSubscription: jest.fn(),
-  getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
-  requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
-  getExpoPushTokenAsync: jest.fn().mockResolvedValue({ data: 'mock-token' }),
+  getPermissionsAsync: jest.fn<any>().mockResolvedValue({ status: 'granted' }),
+  requestPermissionsAsync: jest.fn<any>().mockResolvedValue({ status: 'granted' }),
+  getExpoPushTokenAsync: jest.fn<any>().mockResolvedValue({ data: 'mock-token' }),
   setNotificationChannelAsync: jest.fn(),
 }));
 

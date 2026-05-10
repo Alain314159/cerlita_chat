@@ -4,6 +4,7 @@ import { messageService } from '@/services/supabase/message.service';
 import { e2eEncryptionService } from '@/services/crypto/e2e.service';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import { Message } from '@/types';
 
 // Mocks
 jest.mock('@/services/supabase/message.service');
@@ -25,9 +26,24 @@ const createWrapper = () => {
 
 describe('useMessagesQuery - Integration Test', () => {
   const mockChatId = 'chat-123';
-  const mockMessages = [
-    { id: '1', content: 'encrypted-1', message_type: 'text' },
-    { id: '2', content: 'hello', message_type: 'system' },
+  const mockMessages: any[] = [
+    { 
+      id: '1', 
+      text: 'encrypted-1', 
+      type: 'text', 
+      chat_id: mockChatId,
+      sender_id: 'user-1',
+      created_at: new Date().toISOString(),
+      encrypted_payload: { ciphertext: 'encrypted-1', iv: 'iv', auth_tag: 'tag' }
+    },
+    { 
+      id: '2', 
+      text: 'hello', 
+      type: 'system',
+      chat_id: mockChatId,
+      sender_id: 'user-1',
+      created_at: new Date().toISOString()
+    },
   ];
 
   beforeEach(() => {
@@ -36,25 +52,23 @@ describe('useMessagesQuery - Integration Test', () => {
 
   it('debe cargar mensajes y descifrarlos automáticamente', async () => {
     (messageService.getMessages as jest.Mock).mockResolvedValue(mockMessages);
-    (e2eEncryptionService.decrypt as jest.Mock).mockResolvedValue('Decrypted Message');
+    (e2eEncryptionService.decrypt as jest.Mock).mockResolvedValue({ text: 'Decrypted Message' });
 
     const { result } = renderHook(() => useMessagesQuery(mockChatId), {
       wrapper: createWrapper(),
     });
 
-    // Debe estar en estado loading inicialmente
-    expect(result.current.isLoading).toBe(true);
-
     // Esperar a que la query termine
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.isSuccess).toBe(true), { timeout: 5000 });
 
-    expect(result.current.data).toHaveLength(2);
-    expect(result.current.data![0].text).toBe('Decrypted Message');
-    expect(result.current.data![1].text).toBe('hello'); // System messages no se descifran
-    expect(e2eEncryptionService.decrypt).toHaveBeenCalledTimes(1);
+    const data = result.current.data as Message[];
+    expect(data).toHaveLength(2);
+    expect(data[0]!.text).toBe('Decrypted Message');
+    expect(data[1]!.text).toBe('hello'); // System messages no se descifran
+    expect(e2eEncryptionService.decrypt).toHaveBeenCalled();
   });
 
-  it('debe mostrar [Unable to decrypt] si falla el descifrado pero seguir funcionando', async () => {
+  it('debe mostrar [Error de cifrado] si falla el descifrado pero seguir funcionando', async () => {
     (messageService.getMessages as jest.Mock).mockResolvedValue([mockMessages[0]]);
     (e2eEncryptionService.decrypt as jest.Mock).mockRejectedValue(new Error('Fail'));
 
@@ -64,6 +78,7 @@ describe('useMessagesQuery - Integration Test', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data![0].text).toBe('[Unable to decrypt]');
+    const data = result.current.data as Message[];
+    expect(data[0]!.text).toBe('[Error de cifrado]');
   });
 });

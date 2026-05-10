@@ -4,8 +4,7 @@ import { IconButton } from 'react-native-paper';
 import { Image } from 'expo-image';
 import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
 import { MD3Theme, useTheme } from 'react-native-paper';
-import type { Message } from '@/types';
-import type { ReplyContext } from '@/types/message.types';
+import type { Message, ReplyContext } from '@/types';
 import { ReplyThread } from './ReplyThread';
 import { MessageReactions } from './MessageReactions';
 import { format } from 'date-fns';
@@ -27,8 +26,8 @@ const COMMON_REACTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏'];
 
 type MessageStatusType = 'read' | 'delivered' | 'sent' | 'failed';
 
-const STATUS_CONFIG: Record<MessageStatusType, { icon: any; colorKey: keyof MD3Theme['colors'] }> = {
-  read: { icon: 'check-all', colorKey: 'primary' }, // Use primary or a custom color if defined
+const STATUS_CONFIG: Record<string, { icon: string; colorKey: string }> = {
+  read: { icon: 'check-all', colorKey: 'primary' },
   delivered: { icon: 'check-all', colorKey: 'outline' },
   sent: { icon: 'check', colorKey: 'outline' },
   failed: { icon: 'alert-circle', colorKey: 'error' },
@@ -36,15 +35,16 @@ const STATUS_CONFIG: Record<MessageStatusType, { icon: any; colorKey: keyof MD3T
 
 function StatusIcon({ status, readAt }: { status: string; readAt?: Date | string | null }) {
   const theme = useTheme();
-  const effectiveStatus: MessageStatusType = (readAt ? 'read' : status) as MessageStatusType;
+  const effectiveStatus = (readAt ? 'read' : status);
   const config = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.sent;
 
   return (
     <IconButton
-      icon={config.icon}
+      icon={config?.icon || 'check'}
       size={14}
-      iconColor={theme.colors[config.colorKey]}
+      iconColor={config ? (theme.colors as any)[config.colorKey] : (theme.colors as any).outline}
       style={styles.statusIcon}
+      accessibilityLabel={`icon-${config?.icon || 'check'}`}
     />
   );
 }

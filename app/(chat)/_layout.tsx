@@ -4,12 +4,12 @@ import { MessageCircle, Settings, Users, Heart } from 'lucide-react-native';
 import { useTheme, ActivityIndicator } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, View } from 'react-native';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, AuthStore } from '@/store/authStore';
 
 export default function ChatLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { isAuthenticated, loading } = useAuthStore();
+  const { isAuthenticated, loading } = useAuthStore() as AuthStore;
 
   if (loading) {
     return (

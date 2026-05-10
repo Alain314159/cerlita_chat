@@ -98,11 +98,15 @@ export const authService = {
           .single();
 
         if (upsertError) throw new Error(upsertError.message);
-        return mapDatabaseUserToDomain(newUser);
+        const domainUser = mapDatabaseUserToDomain(newUser);
+        if (!domainUser) throw new Error('Failed to map user profile');
+        return domainUser;
       }
       throw new Error(error.message);
     }
-    return mapDatabaseUserToDomain(data);
+    const domainUser = mapDatabaseUserToDomain(data);
+    if (!domainUser) throw new Error('Failed to map user profile');
+    return domainUser;
   },
 
   // Update profile

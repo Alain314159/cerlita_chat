@@ -16,6 +16,8 @@ export const messagingManager = {
     retryCount = 0
   ): Promise<any> {
     try {
+      const messageType: MessageType = options?.messageType || 'text';
+      
       // 1. Cifrado E2E
       let content = text;
       let iv = null;
@@ -35,13 +37,16 @@ export const messagingManager = {
         chatId,
         senderId,
         text: content,
-        type: messageType as any,
+        type: messageType,
         mediaURL: options?.mediaUrl || null,
         thumbnailURL: options?.thumbnailUrl || null,
         replyToId: options?.replyToId || null,
         iv,
-        encryptedPayload: iv ? { ciphertext: content, iv, authTag: authTag!, keyVersion } : undefined
-      } as any);
+        authTag,
+        keyVersion,
+        isEphemeral: options?.isEphemeral || false,
+        isViewOnce: options?.isViewOnce || false,
+      });
 
       // 3. Notificación en segundo plano (No bloqueante)
       this.dispatchNotification(chatId, senderId, text, messageType);

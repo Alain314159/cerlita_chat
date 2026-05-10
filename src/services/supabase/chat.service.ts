@@ -7,13 +7,17 @@ export const chatService = {
   // Get all chats for a user (Maestro 2026: Strong Typing & Mappers)
   async getUserChats(userId: string): Promise<Chat[]> {
     const { data, error } = await supabase
-      .from('chats')
-      .select('*, participants:chat_participants(user_id, users(*))')
-      .contains('participant_ids', [userId])
-      .order('updated_at', { ascending: false });
+      .from('chat_participants')
+      .select('chat:chats(*, participants:chat_participants(user_id, users(*)))')
+      .eq('user_id', userId)
+      .order('chat(updated_at)', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return (data || []).map(chat => mapDatabaseChatToDomain(chat, userId));
+    
+    // Mapear correctamente desde la tabla de unión
+    return (data || [])
+      .filter(row => row.chat) // Evitar nulos si hay inconsistencias
+      .map(row => mapDatabaseChatToDomain(row.chat, userId));
   },
 
   // Get chat by ID
@@ -50,13 +54,25 @@ export const chatService = {
     return data || [];
   },
 
-  // Delete a chat and its messages
+  // Delete a chat and its messages (Maestro 2026: Safe Atomic Deletion)
   async deleteChat(chatId: string): Promise<void> {
-    // Primero eliminar mensajes
+    // 1. Romper la referencia circular del last_message_id (Fundamental para Postgres)
+    await supabase.from('chats').update({ last_message_id: null }).eq('id', chatId);
+
+    // 2. Eliminar reacciones primero (dependen de los mensajes)
+    // Usamos una subquery para mayor precisión
+    const { data: msgIds } = await supabase.from('messages').select('id').eq('chat_id', chatId);
+    if (msgIds && msgIds.length > 0) {
+      await supabase.from('message_reactions').delete().in('message_id', msgIds.map(m => m.id));
+    }
+
+    // 3. Eliminar mensajes
     await supabase.from('messages').delete().eq('chat_id', chatId);
-    // Luego eliminar participantes
+
+    // 4. Eliminar participantes
     await supabase.from('chat_participants').delete().eq('chat_id', chatId);
-    // Por último eliminar el chat
+
+    // 5. Finalmente eliminar el chat raíz
     const { error } = await supabase.from('chats').delete().eq('id', chatId);
     
     if (error) throw new Error(error.message);
@@ -76,12 +92,12 @@ export const chatService = {
   },
 
   // Subscribe to chat updates
-  subscribeToUserChats(userId: string, onUpdate: (payload: any) => void): RealtimeChannel {
-    // 🔧 FIX ULTRA 2026: Supabase Realtime 'cs' is unreliable for arrays.
-    // Instead, we subscribe to the chat_participants table for the current user.
-    // When a user is added to a chat, the list should refresh.
-    return supabase
-      .channel(`user_chats:${userId}`)
+  subscribeToUserChats(userId: string, onUpdate: (payload: any) => void): { unsubscribe: () => void } {
+    // 🔧 FIX ULTRA 2026: Unique channel name to avoid "callbacks after subscribe" error
+    const channelId = `user_chats_${userId}_${Date.now()}`;
+    const channel = supabase.channel(channelId);
+
+    channel
       .on(
         'postgres_changes',
         {
@@ -94,19 +110,10 @@ export const chatService = {
           onUpdate({ eventType: 'REFRESH' });
         }
       )
-      // Also listen for updates to chats the user is already in (last_message_id)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'chats',
-        },
-        (payload) => {
-          // Verify if the user is a participant of the updated chat locally
-          onUpdate(payload);
         }
-      )
-      .subscribe();
-  },
-};

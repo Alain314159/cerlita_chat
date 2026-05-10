@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -22,6 +22,8 @@ import { Chat } from '@/types';
 import { haptics } from '@/services/haptics';
 import { Avatar } from '@/components/ui/Avatar';
 import { chatService } from '@/services/supabase/chat.service';
+
+import { useChatsQuery } from '@/hooks/useChatsQuery';
 
 // Componente memoizado para cada item de chat
 const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: {
@@ -82,6 +84,8 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: 
       style={styles.chatItem}
       onPress={handlePress}
       onLongPress={handleLongPress}
+      delayLongPress={500}
+      activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={`Chat con ${displayName}`}
     >
@@ -89,7 +93,7 @@ const ChatItem = React.memo(function ChatItem({ chat, onPress, currentUserId }: 
         <Avatar
           size={56}
           displayName={displayName}
-          photoURL={recipientInfo.photo}
+          photoURL={recipientInfo.photo || undefined}
           isOnline={isOnline}
         />
       </View>
@@ -125,30 +129,7 @@ export default function ChatListScreen() {
   const theme = useTheme();
   const router = useRouter();
 
-  const { data: chats = [], isLoading: loading, isError, refetch } = useQuery({
-    queryKey: ['chats', user?.id],
-    queryFn: () => chatService.getUserChats(user?.id || ''),
-    enabled: !!user?.id,
-    staleTime: 1000 * 60 * 5, // 5 min
-    gcTime: 1000 * 60 * 30,   // 30 min
-  });
-
-  // 🔔 Sincronización en tiempo real (Maestro 2026)
-  useEffect(() => {
-    if (!user?.id) return;
-
-    console.log('[ChatList] Subscribing to chat updates for:', user.id);
-    const channel = chatService.subscribeToUserChats(user.id, (payload) => {
-      console.log('[ChatList] Realtime update received:', payload.eventType);
-      // Invalidar caché para forzar recarga de la lista
-      queryClient.invalidateQueries({ queryKey: ['chats', user.id] });
-    });
-
-    return () => {
-      console.log('[ChatList] Unsubscribing from chat updates');
-      channel.unsubscribe();
-    };
-  }, [user?.id, queryClient]);
+  const { data: chats = [], isLoading: loading, isError, refetch } = useChatsQuery(user?.id);
 
   const onRefresh = useCallback(async () => {
     await refetch();

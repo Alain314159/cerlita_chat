@@ -46,8 +46,8 @@ describe('messageService', () => {
       const result = await messageService.getMessages('chat-123');
 
       expect(supabase.from).toHaveBeenCalledWith('messages');
-      expect(result[0].text).toBe('Hi');
-      expect(result[1].text).toBe('Hello');
+      expect(result[0]!.text).toBe('Hi');
+      expect(result[1]!.text).toBe('Hello');
     });
   });
 
@@ -79,8 +79,8 @@ describe('messageService', () => {
       const result = await messageService.sendMessage({
         chatId: 'chat-123',
         senderId: 'user-1',
-        content: 'encrypted-text',
-        messageType: 'text',
+        text: 'encrypted-text',
+        type: 'text',
       });
 
       expect(mockFromChain.insert).toHaveBeenCalledWith(expect.objectContaining({

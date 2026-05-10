@@ -44,8 +44,9 @@ const createMockMessage = (overrides: Partial<Message> = {}): Message => ({
   thumbnailURL: null,
   status: 'sent' as MessageStatus,
   readAt: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
+  deliveredAt: null,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
   isEdited: false,
   replyToId: null,
   ...overrides,
@@ -76,7 +77,7 @@ describe('MessageBubble', () => {
     it('should show blue double check when readAt is present', () => {
       const message = createMockMessage({ 
         status: 'delivered', 
-        readAt: new Date() 
+        readAt: new Date().toISOString()
       });
       const { getByLabelText } = render(
         <MessageBubble message={message} isMe={true} />

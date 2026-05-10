@@ -7,7 +7,7 @@ import { AuthProvider } from '@/providers/AuthProvider';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, AuthStore } from '@/store/authStore';
 
 // Web-only: Inject MaterialCommunityIcons CSS
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -42,22 +42,6 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 }
 
 function RootNavigation() {
-  const { isAuthenticated, loading } = useAuthStore();
-  const segments = useSegments();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (loading) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-
-    if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(chat)');
-    }
-  }, [isAuthenticated, loading, segments]);
-
   return (
     <Stack
       screenOptions={{

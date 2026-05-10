@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, AuthStore } from '@/store/authStore';
 import { pushNotificationService } from '@/services/pushNotifications';
 import { SplashScreen } from '@/components/ui/SplashScreen';
 
@@ -19,7 +19,15 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const router = useRouter();
-  const { user, isAuthenticated, loading, initialize, signOut: storeSignOut, signIn: storeSignIn, signUp: storeSignUp } = useAuthStore();
+  const { 
+    user, 
+    isAuthenticated, 
+    loading, 
+    initialize, 
+    signOut: storeSignOut, 
+    signIn: storeSignIn, 
+    signUp: storeSignUp 
+  } = useAuthStore() as AuthStore;
   const [isInitializing, setIsInitializing] = useState(true);
 
   // Inicializar autenticación
@@ -87,7 +95,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading: loading, isAuthenticated, signIn: storeSignIn, signUp: storeSignUp, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isLoading: loading, 
+      isAuthenticated, 
+      signIn: storeSignIn, 
+      signUp: storeSignUp, 
+      signOut 
+    }}>
       {children}
     </AuthContext.Provider>
   );

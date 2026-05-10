@@ -1,6 +1,6 @@
 import { useCallback, useState, useMemo } from 'react';
 import { useMessageStore } from '@/store/messageStore';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, AuthStore } from '@/store/authStore';
 import { useMessagesQuery } from './useMessagesQuery';
 import type { ReplyContext, Message } from '@/types';
 
@@ -27,7 +27,7 @@ export function useMessages(chatId: string) {
     error: storeError,
   } = useMessageStore();
 
-  const { user } = useAuthStore();
+  const { user } = useAuthStore() as AuthStore;
   const [isTyping, setIsTyping] = useState(false);
   const [sending, setSending] = useState(false);
 

@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Platform } f
 import { useRouter } from 'expo-router';
 import { Avatar, Searchbar, ActivityIndicator, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, AuthStore } from '@/store/authStore';
 import { chatService } from '@/services/supabase/chat.service';
 import { userService } from '@/services/supabase/user.service';
+import { e2eEncryptionService } from '@/services/crypto/e2e.service';
 import type { User } from '@/types';
 import { Search, Users, MessageSquare } from 'lucide-react-native';
 
@@ -26,7 +27,7 @@ export default function NewChatScreen() {
   const [contacts, setContacts] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
-  const { user } = useAuthStore();
+  const { user } = useAuthStore() as AuthStore;
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -79,6 +80,11 @@ export default function NewChatScreen() {
       // Abrir o crear el chat directamente sin pasar por solicitudes
       const chatId = await chatService.getOrCreateDirectChat(user.id, selectedUser.id);
       console.log('Chat established:', chatId);
+
+      // 🔐 FIX MAESTRO 2026: Establecer clave E2E antes de entrar al chat
+      // Esto asegura que la clave compartida exista localmente vía HKDF
+      await e2eEncryptionService.establishSharedKey(chatId, user.id, selectedUser.id);
+      
       router.push(`/(chat)/${chatId}`);
     } catch (error: any) {
       console.error('Failed to open chat:', error);

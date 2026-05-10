@@ -1,7 +1,7 @@
 import { Chat, User } from '@/types';
 
 export const getOtherParticipantId = (chat: Chat, currentUserId: string): string | null => {
-  return chat.participants.find(id => id !== currentUserId) || null;
+  return chat.participant_ids.find(id => id !== currentUserId) || null;
 };
 
 export const getChatDisplayName = (chat: Chat, currentUserId: string, otherUserInfo?: any): string => {

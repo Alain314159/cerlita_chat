@@ -1,6 +1,6 @@
 import { supabase } from './config';
 import { mapDatabaseMessageToDomain, mapDomainMessageToDatabase } from './mappers/message.mapper';
-import type { Message } from '@/types';
+import type { Message, MessageType } from '@/types';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 export const messageService = {
@@ -37,9 +37,23 @@ export const messageService = {
   },
 
   // Send a message (pJ/bit Optimization: DB triggers handle chat updates)
-  async sendMessage(params: Partial<Message> & { chatId: string }): Promise<Message> {
-    const dbPayload = mapDomainMessageToDatabase(params);
-    
+  async sendMessage(params: {
+    chatId: string;
+    senderId: string;
+    text: string | null;
+    type: MessageType;
+    mediaURL?: string | null;
+    thumbnailURL?: string | null;
+    replyToId?: string | null;
+    iv?: string | null;
+    authTag?: string | null;
+    keyVersion?: string | null;
+    status?: Message['status'];
+    isEphemeral?: boolean;
+    isViewOnce?: boolean;
+  }): Promise<Message> {
+    const dbPayload = mapDomainMessageToDatabase(params as any);
+
     const { data, error } = await supabase.from('messages').insert(dbPayload).select().single();
 
     if (error) throw new Error(error.message);
@@ -47,7 +61,6 @@ export const messageService = {
     // NOTE: last_message_id and updated_at in 'chats' are now handled 
     // by the server-side trigger 'update_chat_on_new_message_trigger'.
     // This reduces network roundtrips and ensures atomicity.
-
     return mapDatabaseMessageToDomain(data);
   },
 
@@ -165,8 +178,9 @@ export const messageService = {
     chatId: string, 
     onEvent: (payload: any) => void
   ): { unsubscribe: () => void } {
-    // 🔧 FIX ULTRA: Listen for ALL events (UPDATE/DELETE/INSERT) for full sync
-    const channel = supabase.channel(`chat_messages:${chatId}`);
+    // 🔧 FIX ULTRA: Unique channel name to prevent "callbacks after subscribe" error
+    const channelId = `chat_messages_${chatId}_${Date.now()}`;
+    const channel = supabase.channel(channelId);
     
     channel
       .on(
@@ -183,11 +197,11 @@ export const messageService = {
       )
       // Broadcast support for ephemeral events (typing)
       .on('broadcast', { event: 'typing' }, (payload) => {
-        onEvent({ eventType: 'BROADCAST', event: 'typing', ...payload });
+        onEvent({ ...payload, eventType: 'BROADCAST', event: 'typing' });
       })
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR') {
-          console.error(`[Realtime] Error en canal chat_messages:${chatId}`);
+          console.error(`[Realtime] Error en canal ${channelId}`);
         }
       });
     

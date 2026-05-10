@@ -1,33 +1,26 @@
-import { useInfiniteQuery, InfiniteData } from '@tanstack/react-query';
+import { useInfiniteQuery, InfiniteData, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { messageService } from '@/services/supabase/message.service';
 import { e2eEncryptionService } from '@/services/crypto/e2e.service';
+import { mapDatabaseMessageToDomain } from '@/services/supabase/mappers/message.mapper';
 import type { Message } from '@/types';
 
 export function useMessagesQuery(chatId: string) {
-  return useInfiniteQuery<Message[], Error, Message[], [string, string], string | null>({
+  const queryClient = useQueryClient();
+
+  const query = useInfiniteQuery<Message[], Error, Message[], [string, string], string | null>({
     queryKey: ['messages', chatId],
-    
+    // ... rest of config ...
     queryFn: async ({ pageParam }) => {
       try {
-        // Validar chatId antes de consultar
-        if (!chatId || typeof chatId !== 'string') {
-          console.warn('[useMessagesQuery] Invalid chatId:', chatId);
-          return [];
-        }
+        if (!chatId || typeof chatId !== 'string') return [];
 
         const messages = await messageService.getMessages(chatId, {
           limit: 30,
           before: pageParam ?? undefined,
         });
 
-        // 🔧 FIX: Garantizar que siempre retornamos un array, nunca undefined
-        if (!messages) {
-          console.debug('[useMessagesQuery] No messages returned, returning []');
-          return [];
-        }
-
-        // Si no hay mensajes, retornar array vacío sin intentar descifrar
-        if (messages.length === 0) return [];
+        if (!messages || messages.length === 0) return [];
 
         const decryptedMessages = await Promise.all(
           messages.map(async (msg) => {
@@ -52,68 +45,89 @@ export function useMessagesQuery(chatId: string) {
         return decryptedMessages;
       } catch (error) {
         console.error('[useMessagesQuery] Critical error:', error);
-        return []; // Nunca propagar error, siempre retornar array válido
+        return [];
       }
     },
 
-    // 🔧 FIX ULTRA-DEFENSIVO para getNextPageParam
     getNextPageParam: (lastPage) => {
-      // Validaciones en cascada
-      if (lastPage === null || lastPage === undefined) {
-        return undefined;
-      }
-      if (!Array.isArray(lastPage)) {
-        console.warn('[getNextPageParam] lastPage is not array:', typeof lastPage);
-        return undefined;
-      }
-      if (lastPage.length === 0) {
-        return undefined; // Chat vacío o última página
-      }
-      if (lastPage.length < 30) {
-        return undefined; // No hay más páginas
-      }
-      
-      // Obtener cursor del mensaje más antiguo (último del array)
+      if (!lastPage || !Array.isArray(lastPage) || lastPage.length < 30) return undefined;
       const oldest = lastPage[lastPage.length - 1];
-      if (!oldest?.createdAt) {
-        console.warn('[getNextPageParam] oldest message missing createdAt');
-        return undefined;
-      }
-      
-      return new Date(oldest.createdAt).toISOString();
+      return oldest?.createdAt ? new Date(oldest.createdAt).toISOString() : undefined;
     },
 
     initialPageParam: null as string | null,
-    
-    // Configuración optimizada para chats nuevos
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
     refetchOnWindowFocus: false,
     retry: 2,
     
-    // 🔧 FIX: select con validación exhaustiva de estructura
     select: (data: InfiniteData<Message[], string | null>): Message[] => {
-      // Caso 1: data es undefined/null
-      if (!data) return [];
-      
-      // Caso 2: data.pages no existe o no es array
-      if (!data.pages || !Array.isArray(data.pages)) {
-        console.warn('[select] Invalid data structure:', data);
-        return [];
-      }
-      
-      // Aplanar páginas y filtrar elementos inválidos
-      return data.pages
-        .flatMap(page => page ?? [])
-        .filter((item): item is Message => 
-          item !== null && 
-          item !== undefined && 
-          typeof item === 'object' && 
-          'id' in item
-        );
+      if (!data || !data.pages) return [];
+      return data.pages.flatMap(page => page ?? []).filter(item => item && item.id);
     },
-    
-    // 🔧 FIX: Habilitar placeholder data para chats nuevos (evita undefined inicial)
     placeholderData: (previousData) => previousData,
   });
+
+  // 🔔 Sincronización en tiempo real integrada (Maestro 2026)
+  useEffect(() => {
+    if (!chatId) return;
+
+    console.log('[useMessagesQuery] Subscribing to chat:', chatId);
+    const subscription = messageService.subscribeToMessages(chatId, async (payload) => {
+      const { eventType, new: newRecord, old: oldRecord } = payload;
+
+      if (eventType === 'INSERT' && newRecord) {
+        const domainMsg = mapDatabaseMessageToDomain(newRecord);
+        let finalMsg = domainMsg;
+
+        if (domainMsg.text && domainMsg.encryptedPayload) {
+          try {
+            const { text } = await e2eEncryptionService.decrypt(
+              domainMsg.encryptedPayload.ciphertext,
+              chatId,
+              domainMsg.encryptedPayload.iv,
+              domainMsg.encryptedPayload.authTag,
+              domainMsg.encryptedPayload.keyVersion
+            );
+            finalMsg = { ...domainMsg, text };
+          } catch (err) {
+            finalMsg = { ...domainMsg, text: '[Error de cifrado]', status: 'failed' };
+          }
+        }
+
+        queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
+          if (!old || !old.pages) return old;
+          if (old.pages.some(page => page.some(m => m.id === finalMsg.id))) return old;
+          const newPages = [...old.pages];
+          newPages[0] = [finalMsg, ...(newPages[0] || [])];
+          return { ...old, pages: newPages };
+        });
+      } else if (eventType === 'UPDATE' && newRecord) {
+        queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
+          if (!old || !old.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map(page => 
+              page.map(m => m.id === newRecord.id ? mapDatabaseMessageToDomain(newRecord) : m)
+            ),
+          };
+        });
+      } else if (eventType === 'DELETE' && oldRecord) {
+        queryClient.setQueryData<InfiniteData<Message[], string | null>>(['messages', chatId], (old) => {
+          if (!old || !old.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map(page => page.filter(m => m.id !== oldRecord.id)),
+          };
+        });
+      }
+    });
+
+    return () => {
+      console.log('[useMessagesQuery] Unsubscribing');
+      subscription.unsubscribe();
+    };
+  }, [chatId, queryClient]);
+
+  return query;
 }

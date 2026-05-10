@@ -23,8 +23,15 @@ export interface AvatarProps {
 function getInitials(name?: string): string {
   if (!name) return '?';
   const parts = name.trim().split(' ');
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?';
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  const firstPart = parts[0];
+  if (!firstPart) return '?';
+  
+  if (parts.length === 1) return firstPart[0]?.toUpperCase() || '?';
+  
+  const lastPart = parts[parts.length - 1];
+  if (!lastPart) return firstPart[0]?.toUpperCase() || '?';
+  
+  return ((firstPart[0] || '') + (lastPart[0] || '')).toUpperCase() || '?';
 }
 
 export function Avatar({
