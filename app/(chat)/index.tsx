@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { PlusCircle, Search, Heart } from 'lucide-react-native';
 import { useTheme, Text, Button } from 'react-native-paper';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -153,13 +153,13 @@ export default function ChatListScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.colors.onSurface }]}>Mensajes</Text>
         <TouchableOpacity onPress={() => router.push('/(chat)/new-chat')}>
-          <MaterialCommunityIcons name="plus-circle" size={28} color={theme.colors.primary} />
+          <PlusCircle size={28} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
         <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
-          <MaterialCommunityIcons name="magnify" size={20} color={theme.colors.onSurfaceVariant} />
+          <Search size={20} color={theme.colors.onSurfaceVariant} />
           <TextInput
             placeholder="Buscar chats..."
             value={searchQuery}
@@ -186,7 +186,7 @@ export default function ChatListScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="heart-outline" size={64} color={theme.colors.outline} />
+            <Heart size={64} color={theme.colors.outline} />
             <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>
               {searchQuery ? 'No se encontraron chats' : 'No tienes conversaciones aún'}
             </Text>

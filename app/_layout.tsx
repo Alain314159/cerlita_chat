@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet, Platform, View } from 'react-native';
@@ -7,15 +7,9 @@ import { AuthProvider } from '@/providers/AuthProvider';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { useAuthStore, AuthStore } from '@/store/authStore';
 
-// Web-only: Inject MaterialCommunityIcons CSS
+// Web-only optimizations (Maestro 2026: Performance & Clean Architecture)
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
-  const iconLink = document.createElement('link');
-  iconLink.rel = 'stylesheet';
-  iconLink.href = 'https://cdn.jsdelivr.net/npm/@mdi/font@7.2.96/css/materialdesignicons.min.css';
-  document.head.appendChild(iconLink);
-
   const style = document.createElement('style');
   style.type = 'text/css';
   style.appendChild(document.createTextNode(`
@@ -34,11 +28,14 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   `));
   document.head.appendChild(style);
 
-  // Telemetría segura (No bloqueante)
-  window.addEventListener('error', (e) => {
-    const logServer = 'http://bore.pub:9028/log';
-    fetch(logServer, { method: 'POST', body: JSON.stringify({ type: 'error', msg: e.message }), mode: 'no-cors' }).catch(() => {});
-  });
+  // Forzar viewport para evitar zoom en inputs y mejorar UX móvil en PWA
+  const meta = document.createElement('meta');
+  meta.name = 'viewport';
+  meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0';
+  const head = document.getElementsByTagName('head')[0];
+  if (head) {
+    head.appendChild(meta);
+  }
 }
 
 function RootNavigation() {

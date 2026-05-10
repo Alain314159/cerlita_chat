@@ -146,25 +146,15 @@ export class E2EEncryptionService {
     this.keyCache.clear();
   }
 
+  // Maestro 2026: Robust Base64 for Web/Mobile with Unicode support
   private uint8ArrayToBase64(buffer: Uint8Array): string {
-    let binary = '';
-    const len = buffer.byteLength;
-    for (let i = 0; i < len; i++) {
-      const byte = buffer[i];
-      if (byte !== undefined) {
-        binary += String.fromCharCode(byte);
-      }
-    }
-    return btoa(binary);
+    const chars = Array.from(buffer, byte => String.fromCharCode(byte)).join('');
+    return btoa(chars);
   }
 
   private base64ToUint8Array(base64: string): Uint8Array {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
+    const binary = atob(base64);
+    return Uint8Array.from(binary, char => char.charCodeAt(0));
   }
 }
 

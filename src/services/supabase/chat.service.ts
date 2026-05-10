@@ -17,15 +17,19 @@ export const chatService = {
           )
         )
       `)
-      .eq('user_id', userId)
-      .order('chat(updated_at)', { ascending: false });
+      .eq('user_id', userId);
 
     if (error) throw new Error(error.message);
     
-    // Mapear correctamente desde la tabla de unión
+    // Mapear y ordenar en memoria (Maestro 2026: Reliable Sorting for Joined Tables)
     return (data || [])
       .filter(row => row.chat)
-      .map(row => mapDatabaseChatToDomain(row.chat, userId));
+      .map(row => mapDatabaseChatToDomain(row.chat, userId))
+      .sort((a, b) => {
+        const dateA = new Date(a.updatedAt || 0).getTime();
+        const dateB = new Date(b.updatedAt || 0).getTime();
+        return dateB - dateA;
+      });
   },
 
   // Get chat by ID

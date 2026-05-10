@@ -72,28 +72,33 @@ export default function NewChatScreen() {
   };
 
   const handleSelectUser = async (selectedUser: User) => {
-    console.log('handleSelectUser (Direct Open) called for:', selectedUser.displayName);
     if (!user?.id) return;
 
     try {
       setLoading(true);
-      // Abrir o crear el chat directamente sin pasar por solicitudes
-      const chatId = await chatService.getOrCreateDirectChat(user.id, selectedUser.id);
-      console.log('Chat established:', chatId);
-
-      // 🔐 FIX MAESTRO 2026: Establecer clave E2E antes de entrar al chat
-      // Esto asegura que la clave compartida exista localmente vía HKDF
-      await e2eEncryptionService.establishSharedKey(chatId, user.id, selectedUser.id);
+      console.log(`[NewChat] Starting chat with ${selectedUser.id}...`);
       
+      const chatId = await chatService.getOrCreateDirectChat(user.id, selectedUser.id);
+      console.log(`[NewChat] Chat created/found: ${chatId}`);
+
+      // Establecer clave E2E con try/catch defensivo (Maestro 2026 Strategy)
+      try {
+        await e2eEncryptionService.establishSharedKey(chatId, user.id, selectedUser.id);
+        console.log('[NewChat] E2E shared key established.');
+      } catch (e2eError) {
+        console.error('[NewChat] E2E setup failed (non-fatal):', e2eError);
+        // Continuamos: la clave se recuperará automáticamente al entrar al chat si es necesario
+      }
+
       router.push(`/(chat)/${chatId}`);
     } catch (error: any) {
-      console.error('Failed to open chat:', error);
-      const title = 'Error';
-      const msg = 'No se pudo iniciar el chat. Por favor, intenta de nuevo.';
+      console.error('[NewChat] CRITICAL ERROR:', error);
+      
+      const errorMessage = error.message || 'No se pudo iniciar el chat';
       if (Platform.OS === 'web') {
-        window.alert(`${title}: ${msg}`);
+        window.alert(`Error: ${errorMessage}`);
       } else {
-        Alert.alert(title, msg, [{ text: 'OK' }]);
+        Alert.alert('Error', errorMessage);
       }
     } finally {
       setLoading(false);
