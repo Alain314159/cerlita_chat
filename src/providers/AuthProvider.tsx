@@ -13,6 +13,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -27,7 +28,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initialize, 
     signOut: storeSignOut, 
     signIn: storeSignIn, 
-    signUp: storeSignUp 
+    signUp: storeSignUp,
+    resetPassword: storeResetPassword
   } = useAuthStore() as AuthStore;
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -113,7 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated, 
       signIn: storeSignIn, 
       signUp: storeSignUp, 
-      signOut 
+      signOut,
+      resetPassword: storeResetPassword
     }}>
       {children}
     </AuthContext.Provider>

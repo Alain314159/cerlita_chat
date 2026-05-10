@@ -1,8 +1,11 @@
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
+// @ts-ignore
 import { gcm } from '@noble/ciphers/aes';
+// @ts-ignore
 import { hkdf } from '@noble/hashes/hkdf';
-import { sha256 } from '@noble/hashes/sha256';
+// @ts-ignore
+import { sha256 } from '@noble/hashes/sha2';
 
 export class E2EEncryptionService {
   private keyCache = new Map<string, Uint8Array>();
@@ -145,8 +148,12 @@ export class E2EEncryptionService {
 
   private uint8ArrayToBase64(buffer: Uint8Array): string {
     let binary = '';
-    for (let i = 0; i < buffer.byteLength; i++) {
-      binary += String.fromCharCode(buffer[i]);
+    const len = buffer.byteLength;
+    for (let i = 0; i < len; i++) {
+      const byte = buffer[i];
+      if (byte !== undefined) {
+        binary += String.fromCharCode(byte);
+      }
     }
     return btoa(binary);
   }

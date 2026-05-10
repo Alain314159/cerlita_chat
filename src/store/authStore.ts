@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Platform } from 'react-native';
 import type { User, AuthState, AvatarOption } from '@/types';
 import { authService } from '@/services/supabase/auth.service';
 import { pushNotificationService } from '@/services/pushNotifications';
@@ -18,6 +19,7 @@ export interface AuthStore extends AuthState {
   updateAvatar: (photoURL: string) => Promise<void>;
   setAvatar: (avatar: AvatarOption) => void;
   setError: (error: string | null) => void;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -45,31 +47,38 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   // Sign in
-  signIn: async (email: string, password: string) => {
+  signIn: async (email, password) => {
     try {
       set({ loading: true, error: null });
-      const user = await SignInUseCase(authService, email, password);
+      const user = await SignInUseCase(
+        { signIn: authService.signIn },
+        email,
+        password
+      );
       set({ user, isAuthenticated: true, loading: false });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to sign in';
-      set({ loading: false, error: message });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
       throw error;
     }
   },
 
   // Sign up
-  signUp: async (email: string, password: string, displayName: string) => {
+  signUp: async (email, password, displayName) => {
     try {
       set({ loading: true, error: null });
-      const user = await SignUpUseCase(authService, email, password, displayName);
-      if (user) {
-        set({ user, isAuthenticated: true, loading: false });
-      } else {
-        set({ loading: false });
-      }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to sign up';
-      set({ loading: false, error: message });
+      const user = await SignUpUseCase(
+        { 
+          signUp: authService.signUp,
+          createProfile: authService.createProfile,
+          getUserProfile: authService.getUserProfile
+        },
+        email,
+        password,
+        displayName
+      );
+      set({ user, isAuthenticated: true, loading: false });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
       throw error;
     }
   },
@@ -78,14 +87,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   signOut: async () => {
     try {
       set({ loading: true });
-      await SignOutUseCase({
+      await SignOutUseCase({ 
         signOut: authService.signOut,
-        cleanupNotifications: pushNotificationService.cleanup
+        cleanupNotifications: () => {
+          if (Platform.OS !== 'web') {
+            pushNotificationService.cleanup();
+          }
+        }
       });
+      
       set({ user: null, isAuthenticated: false, loading: false });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to sign out';
-      set({ loading: false, error: message });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
       throw error;
     }
   },
@@ -97,13 +110,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       set({ loading: true });
       await authService.updateProfile(user.id, updates);
-      set({
-        user: { ...user, ...updates },
-        loading: false,
-      });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to update profile';
-      set({ loading: false, error: message });
+      set({ user: { ...user, ...updates }, loading: false });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
       throw error;
     }
   },
@@ -116,6 +125,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ user: { ...user, photoURL } });
     } catch (error) {
       console.error('Failed to update avatar:', error);
+    }
+  },
+
+  resetPassword: async (email: string) => {
+    try {
+      set({ loading: true, error: null });
+      await authService.resetPassword(email);
+      set({ loading: false });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
     }
   },
 }));
