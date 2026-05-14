@@ -52,7 +52,7 @@ export const messageService = {
     isEphemeral?: boolean;
     isViewOnce?: boolean;
   }): Promise<Message> {
-    const dbPayload = mapDomainMessageToDatabase(params as any);
+    const dbPayload = mapDomainMessageToDatabase(params);
 
     const { data, error } = await supabase.from('messages').insert(dbPayload).select().single();
 

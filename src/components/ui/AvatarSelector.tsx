@@ -13,6 +13,7 @@ import { IconButton, ActivityIndicator } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '@/config/theme';
 import { haptics } from '@/services/haptics';
+import { X, CheckCircle, ImagePlus, Camera } from 'lucide-react-native';
 
 // Avatares predefinidos del sistema
 const SYSTEM_AVATARS = [
@@ -156,7 +157,7 @@ export function AvatarSelector({
         {/* Header */}
         <View style={styles.header}>
           <IconButton
-            icon="close"
+            icon={({ size, color }) => <X size={size} color={color} />}
             size={24}
             onPress={onClose}
             accessibilityLabel="Cerrar"
@@ -188,7 +189,7 @@ export function AvatarSelector({
                     {isSelected && (
                       <View style={styles.selectedBadge}>
                         <IconButton
-                          icon="check-circle"
+                          icon={({ size, color }) => <CheckCircle size={size} color={color} />}
                           size={20}
                           iconColor={theme.colors.textInverse}
                           style={styles.badgeIcon}
@@ -233,7 +234,7 @@ export function AvatarSelector({
                         />
                         <View style={styles.selectedBadge}>
                           <IconButton
-                            icon="check-circle"
+                            icon={({ size, color }) => <CheckCircle size={size} color={color} />}
                             size={20}
                             iconColor={theme.colors.textInverse}
                             style={styles.badgeIcon}
@@ -243,7 +244,7 @@ export function AvatarSelector({
                     ) : (
                       <>
                         <IconButton
-                          icon="image-plus"
+                          icon={({ size, color }) => <ImagePlus size={size} color={color} />}
                           size={48}
                           iconColor={theme.colors.primary}
                         />
@@ -264,7 +265,7 @@ export function AvatarSelector({
                     testID="take-photo"
                   >
                     <IconButton
-                      icon="camera"
+                      icon={({ size, color }) => <Camera size={size} color={color} />}
                       size={48}
                       iconColor={theme.colors.primary}
                     />

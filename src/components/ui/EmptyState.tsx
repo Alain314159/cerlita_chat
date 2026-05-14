@@ -1,19 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
 import { theme } from '@/config/theme';
+import type { LucideIcon } from 'lucide-react-native';
 
 interface EmptyStateProps {
-  icon: string;
+  icon: LucideIcon;
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
   style?: ViewStyle;
 }
 
-export function EmptyState({ icon, title, subtitle, action, style }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, subtitle, action, style }: EmptyStateProps) {
   return (
     <View style={[styles.container, style]}>
-      <Text style={styles.icon}>{icon}</Text>
+      <Icon size={64} color={theme.colors.outline} style={styles.icon} />
       <Text style={styles.title}>{title}</Text>
       {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
       {action && <View style={styles.action}>{action}</View>}
@@ -29,7 +30,6 @@ const styles = StyleSheet.create({
     padding: theme.spacing.xl,
   },
   icon: {
-    fontSize: 64,
     marginBottom: theme.spacing.md,
   },
   title: {

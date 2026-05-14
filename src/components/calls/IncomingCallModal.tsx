@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { theme } from '@/config/theme';
 import type { Call } from '@/types';
+import { Video, Phone, PhoneOff } from 'lucide-react-native';
 
 interface IncomingCallModalProps {
   call: Call | null;
@@ -16,16 +17,28 @@ export const IncomingCallModal: React.FC<IncomingCallModalProps> = ({ call, onAn
     <Modal visible={!!call} transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <IconButton icon={call.type === 'video' ? 'video' : 'phone'} size={48} iconColor={theme.colors.primary} />
+          <IconButton 
+            icon={({ size, color }) => call.type === 'video' ? <Video size={size} color={color} /> : <Phone size={size} color={color} />} 
+            size={48} 
+            iconColor={theme.colors.primary} 
+          />
           <Text style={styles.title}>{call.type === 'video' ? 'Videollamada' : 'Llamada'} entrante</Text>
           <Text style={styles.subtitle}>Contacto</Text>
           <View style={styles.buttons}>
             <TouchableOpacity style={[styles.btn, styles.declineBtn]} onPress={onDecline}>
-              <IconButton icon="phone-hangup" size={28} iconColor="#fff" />
+              <IconButton 
+                icon={({ size, color }) => <PhoneOff size={size} color={color} />} 
+                size={28} 
+                iconColor="#fff" 
+              />
               <Text style={styles.btnText}>Rechazar</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.btn, styles.answerBtn]} onPress={onAnswer}>
-              <IconButton icon="phone" size={28} iconColor="#fff" />
+              <IconButton 
+                icon={({ size, color }) => <Phone size={size} color={color} />} 
+                size={28} 
+                iconColor="#fff" 
+              />
               <Text style={styles.btnText}>Contestar</Text>
             </TouchableOpacity>
           </View>

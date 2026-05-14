@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
+import React, { useCallback, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, ActivityIndicator } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { Image } from 'expo-image';
 import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
@@ -9,7 +9,8 @@ import { ReplyThread } from './ReplyThread';
 import { MessageReactions } from './MessageReactions';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Lock } from 'lucide-react-native';
+import { Lock, Check, CheckCheck, AlertCircle, EyeOff, Timer, Zap, Star } from 'lucide-react-native';
+import { mediaCacheService } from '@/services/media/mediaCache.service';
 
 interface MessageBubbleProps {
   message: Message;
@@ -24,28 +25,18 @@ interface MessageBubbleProps {
 
 const COMMON_REACTIONS = ['❤️', '👍', '😂', '😮', '😢', '🙏'];
 
-type MessageStatusType = 'read' | 'delivered' | 'sent' | 'failed';
-
-const STATUS_CONFIG: Record<string, { icon: string; colorKey: string }> = {
-  read: { icon: 'check-all', colorKey: 'primary' },
-  delivered: { icon: 'check-all', colorKey: 'outline' },
-  sent: { icon: 'check', colorKey: 'outline' },
-  failed: { icon: 'alert-circle', colorKey: 'error' },
-};
-
 function StatusIcon({ status, readAt }: { status: string; readAt?: Date | string | null }) {
   const theme = useTheme();
   const isRead = !!readAt;
   const isFailed = status === 'failed';
   
+  const IconComponent = isRead ? CheckCheck : isFailed ? AlertCircle : Check;
+  const color = isRead ? (theme.colors as any).primary : isFailed ? (theme.colors as any).error : (theme.colors as any).outline;
+  
   return (
-    <IconButton
-      icon={isRead ? 'check-all' : isFailed ? 'alert-circle' : 'check'}
-      iconColor={isRead ? (theme.colors as any).primary : isFailed ? (theme.colors as any).error : (theme.colors as any).outline}
-      size={14}
-      style={styles.statusIcon}
-      accessibilityLabel={isRead ? 'icon-check-all-read' : `icon-${isFailed ? 'alert-circle' : 'check'}`}
-    />
+    <View style={styles.statusIconWrapper}>
+      <IconComponent size={14} color={color} />
+    </View>
   );
 }
 
@@ -61,12 +52,32 @@ export const MessageBubble = React.memo(function MessageBubble({
 }: MessageBubbleProps) {
   const theme = useTheme();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [decryptedUri, setDecryptedUri] = useState<string | null>(null);
+  const [isDecrypting, setIsDecrypting] = useState(false);
+
+  useEffect(() => {
+    const decryptMedia = async () => {
+      if (message.type === 'image' && message.mediaURL && message.encryptedPayload?.iv) {
+        setIsDecrypting(true);
+        const uri = await mediaCacheService.getDecrypted(
+          message.id,
+          message.mediaURL,
+          message.chatId,
+          message.encryptedPayload.iv,
+          message.encryptedPayload.authTag
+        );
+        setDecryptedUri(uri);
+        setIsDecrypting(false);
+      }
+    };
+    decryptMedia();
+  }, [message.id, message.mediaURL, message.encryptedPayload]);
 
   const renderContent = () => {
     if (message.isViewOnce && message.readAt && !isMe) {
       return (
         <View style={styles.viewOnceInfo}>
-          <IconButton icon="eye-off-outline" size={20} iconColor={theme.colors.onSurfaceVariant} />
+          <EyeOff size={20} color={theme.colors.onSurfaceVariant} style={styles.contentIcon} />
           <Text style={[styles.italicText, { color: theme.colors.onSurfaceVariant }]}>Mensaje visto</Text>
         </View>
       );
@@ -80,15 +91,26 @@ export const MessageBubble = React.memo(function MessageBubble({
       );
     }
 
-    if (message.type === 'image' && message.mediaURL) {
-      return (
-        <Image 
-          source={{ uri: message.mediaURL }} 
-          style={styles.mediaImage}
-          contentFit="cover"
-          transition={200}
-        />
-      );
+    if (message.type === 'image') {
+      if (isDecrypting) {
+        return (
+          <View style={styles.decryptingPlaceholder}>
+            <ActivityIndicator size="small" color={isMe ? '#FFF' : theme.colors.primary} />
+            <Text style={[styles.decryptingText, { color: isMe ? '#FFF' : theme.colors.onSurfaceVariant }]}>Descifrando...</Text>
+          </View>
+        );
+      }
+
+      if (decryptedUri || message.mediaURL) {
+        return (
+          <Image 
+            source={{ uri: decryptedUri || message.mediaURL }} 
+            style={styles.mediaImage}
+            contentFit="cover"
+            transition={200}
+          />
+        );
+      }
     }
 
     return (
@@ -152,10 +174,10 @@ export const MessageBubble = React.memo(function MessageBubble({
         )}
         <View style={styles.meta}>
           {message.isEphemeral && (
-            <IconButton icon="timer-outline" size={12} iconColor="rgba(255,255,255,0.5)" style={styles.metaIcon} />
+            <Timer size={12} color="rgba(255,255,255,0.5)" style={styles.metaIcon} />
           )}
           {message.isViewOnce && (
-            <IconButton icon="lightning-bolt" size={12} iconColor="rgba(255,255,255,0.5)" style={styles.metaIcon} />
+            <Zap size={12} color="rgba(255,255,255,0.5)" style={styles.metaIcon} />
           )}
           <Text style={[styles.time, { color: isMe ? 'rgba(255,255,255,0.7)' : theme.colors.onSurfaceVariant }]}>
             {format(new Date(message.createdAt), 'HH:mm', { locale: es })}
@@ -165,7 +187,7 @@ export const MessageBubble = React.memo(function MessageBubble({
       </TouchableOpacity>
       {isStarred && (
         <View style={styles.starIndicator}>
-          <IconButton icon="star" size={16} iconColor="#FFD700" style={styles.starIcon} />
+          <Star size={16} color="#FFD700" fill="#FFD700" />
         </View>
       )}
 
@@ -215,14 +237,27 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 14, fontStyle: 'italic', fontWeight: '500' },
   italicText: { fontSize: 14, fontStyle: 'italic' },
   viewOnceInfo: { flexDirection: 'row', alignItems: 'center', opacity: 0.7 },
+  contentIcon: { marginRight: 8 },
   encryptionBadge: { position: 'absolute', right: -18, bottom: -2, opacity: 0.6 },
   editedLabel: { fontSize: 11, fontStyle: 'italic', opacity: 0.6 },
   meta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, justifyContent: 'flex-end' },
   time: { fontSize: 10 },
-  statusIcon: { margin: 0, padding: 0, width: 18, height: 18, marginLeft: 2 },
-  metaIcon: { margin: 0, padding: 0, width: 14, height: 14 },
+  statusIconWrapper: { marginLeft: 2 },
+  metaIcon: { marginRight: 4 },
   starIndicator: { position: 'absolute', top: -8, right: -8 },
-  starIcon: { margin: 0 },
+  decryptingPlaceholder: {
+    width: 200,
+    height: 150,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 12,
+    gap: 8,
+  },
+  decryptingText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.2)',
@@ -234,7 +269,7 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 24,
     gap: 8,
-    backgroundColor: '#FFFFFF', // Fallback
+    backgroundColor: '#FFFFFF',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

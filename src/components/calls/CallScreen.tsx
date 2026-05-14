@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useCall } from '@/hooks/useCall';
 import { theme } from '@/config/theme';
 import { IconButton } from 'react-native-paper';
+import { Mic, MicOff, Video, VideoOff, PhoneOff } from 'lucide-react-native';
 
 function formatCallDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -26,17 +27,29 @@ export const CallScreen: React.FC = () => {
       </View>
       <View style={styles.controls}>
         <TouchableOpacity style={styles.controlButton} onPress={toggleMute}>
-          <IconButton icon={isMuted ? 'microphone-off' : 'microphone'} size={28} iconColor="#fff" />
+          <IconButton 
+            icon={({ size, color }) => isMuted ? <MicOff size={size} color={color} /> : <Mic size={size} color={color} />} 
+            size={28} 
+            iconColor="#fff" 
+          />
           <Text style={styles.controlLabel}>{isMuted ? 'Activar' : 'Silenciar'}</Text>
         </TouchableOpacity>
         {currentCall.type === 'video' && (
           <TouchableOpacity style={styles.controlButton} onPress={toggleVideo}>
-            <IconButton icon={isVideoOff ? 'video-off' : 'video'} size={28} iconColor="#fff" />
+            <IconButton 
+              icon={({ size, color }) => isVideoOff ? <VideoOff size={size} color={color} /> : <Video size={size} color={color} />} 
+              size={28} 
+              iconColor="#fff" 
+            />
             <Text style={styles.controlLabel}>{isVideoOff ? 'Activar' : 'Camara'}</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={[styles.controlButton, styles.endCallButton]} onPress={endCall}>
-          <IconButton icon="phone-hangup" size={28} iconColor="#fff" />
+          <IconButton 
+            icon={({ size, color }) => <PhoneOff size={size} color={color} />} 
+            size={28} 
+            iconColor="#fff" 
+          />
           <Text style={styles.controlLabel}>Colgar</Text>
         </TouchableOpacity>
       </View>

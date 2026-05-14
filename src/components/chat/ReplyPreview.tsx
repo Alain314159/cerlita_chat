@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { theme } from '@/config/theme';
 import type { ReplyContext } from '@/types';
+import { X } from 'lucide-react-native';
 
 interface ReplyPreviewProps {
   context: ReplyContext;
@@ -20,7 +21,12 @@ export const ReplyPreview: React.FC<ReplyPreviewProps> = ({ context, onClose }) 
         {context.type === 'text' ? context.text : `\u{1F4CE} ${context.type}`}
       </Text>
     </View>
-    <IconButton icon="close" size={20} onPress={onClose} iconColor={theme.colors.textSecondary} />
+    <IconButton 
+      icon={({ size, color }) => <X size={size} color={color} />} 
+      size={20} 
+      onPress={onClose} 
+      iconColor={theme.colors.textSecondary} 
+    />
   </View>
 );
 

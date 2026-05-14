@@ -3,7 +3,7 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { TextInput, IconButton } from 'react-native-paper';
 import { theme } from '@/config/theme';
 import type { ReplyContext } from '@/types';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Paperclip, Send, Camera, Mic, Clock, Eye, EyeOff } from 'lucide-react-native';
 
 interface MessageInputProps {
   value: string;
@@ -42,7 +42,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     <View style={styles.container}>
       <View style={styles.inputRow}>
         <IconButton
-          icon="paperclip"
+          icon={({ size, color }) => <Paperclip size={size} color={color} />}
           onPress={onAttachmentPress}
           disabled={disabled || isLoading}
           iconColor={theme.colors.secondary}
@@ -70,8 +70,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               style={[styles.toggle, isEphemeral && styles.toggleActive]}
               onPress={() => setIsEphemeral(!isEphemeral)}
             >
-              <MaterialCommunityIcons 
-                name={isEphemeral ? "clock" : "clock-outline"} 
+              <Clock 
                 size={20} 
                 color={isEphemeral ? theme.colors.primary : theme.colors.secondary} 
               />
@@ -80,17 +79,17 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               style={[styles.toggle, isViewOnce && styles.toggleActive]}
               onPress={() => setIsViewOnce(!isViewOnce)}
             >
-              <MaterialCommunityIcons 
-                name={isViewOnce ? "eye-off" : "eye-outline"} 
-                size={20} 
-                color={isViewOnce ? theme.colors.primary : theme.colors.secondary} 
-              />
+              {isViewOnce ? (
+                <EyeOff size={20} color={theme.colors.primary} />
+              ) : (
+                <Eye size={20} color={theme.colors.secondary} />
+              )}
             </TouchableOpacity>
           </View>
         </View>
         {value.trim().length > 0 ? (
           <IconButton
-            icon="send"
+            icon={({ size, color }) => <Send size={size} color={color} />}
             onPress={handleSend}
             disabled={disabled || isLoading}
             iconColor={theme.colors.primary}
@@ -99,14 +98,14 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         ) : (
           <View style={styles.alternateButtons}>
             <IconButton 
-              icon="camera" 
+              icon={({ size, color }) => <Camera size={size} color={color} />}
               onPress={onCameraPress} 
               disabled={disabled || isLoading}
               iconColor={theme.colors.secondary}
               testID="camera-button"
             />
             <IconButton 
-              icon="microphone" 
+              icon={({ size, color }) => <Mic size={size} color={color} />}
               onPress={onVoicePress} 
               disabled={disabled || isLoading}
               iconColor={theme.colors.secondary}

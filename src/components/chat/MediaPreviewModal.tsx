@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, View, StyleSheet, Image, Dimensions, TouchableOpacity, Text } from 'react-native';
 import { IconButton, ActivityIndicator } from 'react-native-paper';
 import { theme } from '@/config/theme';
+import { X, Send } from 'lucide-react-native';
 
 interface MediaPreviewModalProps {
   visible: boolean;
@@ -24,9 +25,21 @@ export const MediaPreviewModal: React.FC<Omit<MediaPreviewModalProps, 'mediaType
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.header}>
-          <IconButton icon="close" size={24} iconColor="#fff" onPress={onClose} />
+          <IconButton 
+            icon={({ size, color }) => <X size={size} color={color} />} 
+            size={24} 
+            iconColor="#fff" 
+            onPress={onClose} 
+          />
           <Text style={styles.title}>Vista previa</Text>
-          {onSend && <IconButton icon="send" size={24} iconColor={theme.colors.primary} onPress={onSend} />}
+          {onSend && (
+            <IconButton 
+              icon={({ size, color }) => <Send size={size} color={color} />} 
+              size={24} 
+              iconColor={theme.colors.primary} 
+              onPress={onSend} 
+            />
+          )}
         </View>
         <View style={styles.mediaContainer}>
           {loading && (

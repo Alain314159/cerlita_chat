@@ -29,7 +29,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   return (
     <View style={styles.header}>
       <IconButton 
-        icon={() => <ArrowLeft size={24} color={theme.colors.textPrimary} />} 
+        icon={({ size, color }) => <ArrowLeft size={size} color={color} />} 
         onPress={() => router.back()} 
       />
       <View>
@@ -51,7 +51,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         )}
       </View>
       <IconButton 
-        icon={() => <MoreVertical size={24} color={theme.colors.textPrimary} />} 
+        icon={({ size, color }) => <MoreVertical size={size} color={color} />} 
         onPress={onOpenOptions} 
       />
     </View>

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { theme } from '@/config/theme';
+import { Trash2, Mic, Square } from 'lucide-react-native';
 
 interface VoiceRecorderProps {
   visible: boolean;
@@ -39,14 +40,24 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         )}
         <View style={styles.buttons}>
           <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
-            <IconButton icon="delete" size={28} iconColor={theme.colors.error} />
+            <IconButton 
+              icon={({ size, color }) => <Trash2 size={size} color={color} />} 
+              size={28} 
+              iconColor={theme.colors.error} 
+            />
             <Text style={styles.cancelText}>Cancelar</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.recordButton, isRecording && styles.stopButton]}
             onPress={isRecording ? onStop : onStart}
           >
-            <IconButton icon={isRecording ? 'stop' : 'microphone'} size={32} iconColor="#fff" />
+            <IconButton 
+              icon={({ size, color }) => (
+                isRecording ? <Square size={size} color={color} fill={color} /> : <Mic size={size} color={color} />
+              )} 
+              size={32} 
+              iconColor="#fff" 
+            />
           </TouchableOpacity>
           <View style={{ width: 80 }} />
         </View>

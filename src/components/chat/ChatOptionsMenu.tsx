@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Modal, TouchableOpacity, Text } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { theme } from '@/config/theme';
+import { Search, Star, VolumeX, Trash2 } from 'lucide-react-native';
 
 interface ChatOptionsMenuProps {
   visible: boolean;
@@ -20,25 +21,41 @@ export const ChatOptionsMenu: React.FC<ChatOptionsMenuProps> = ({
       <View style={styles.menu}>
         {onSearch && (
           <TouchableOpacity style={styles.option} onPress={onSearch}>
-            <IconButton icon="magnify" size={20} iconColor={theme.colors.textPrimary} />
+            <IconButton 
+              icon={({ size, color }) => <Search size={size} color={color} />} 
+              size={20} 
+              iconColor={theme.colors.textPrimary} 
+            />
             <Text style={styles.optionText}>Buscar mensajes</Text>
           </TouchableOpacity>
         )}
         {onStarred && (
           <TouchableOpacity style={styles.option} onPress={onStarred}>
-            <IconButton icon="star" size={20} iconColor={theme.colors.textPrimary} />
+            <IconButton 
+              icon={({ size, color }) => <Star size={size} color={color} />} 
+              size={20} 
+              iconColor={theme.colors.textPrimary} 
+            />
             <Text style={styles.optionText}>Mensajes favoritos</Text>
           </TouchableOpacity>
         )}
         {onMute && (
           <TouchableOpacity style={styles.option} onPress={onMute}>
-            <IconButton icon="volume-off" size={20} iconColor={theme.colors.textPrimary} />
+            <IconButton 
+              icon={({ size, color }) => <VolumeX size={size} color={color} />} 
+              size={20} 
+              iconColor={theme.colors.textPrimary} 
+            />
             <Text style={styles.optionText}>Silenciar</Text>
           </TouchableOpacity>
         )}
         {onClearChat && (
           <TouchableOpacity style={styles.option} onPress={onClearChat}>
-            <IconButton icon="delete-sweep" size={20} iconColor={theme.colors.error} />
+            <IconButton 
+              icon={({ size, color }) => <Trash2 size={size} color={color} />} 
+              size={20} 
+              iconColor={theme.colors.error} 
+            />
             <Text style={[styles.optionText, styles.danger]}>Limpiar chat</Text>
           </TouchableOpacity>
         )}

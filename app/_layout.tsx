@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, SplashScreen } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet, Platform, View } from 'react-native';
@@ -7,6 +7,9 @@ import { AuthProvider } from '@/providers/AuthProvider';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync();
 
 // Web-only optimizations (Maestro 2026: Performance & Clean Architecture)
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -54,6 +57,11 @@ function RootNavigation() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    // Hide splash screen as soon as navigation is ready
+    SplashScreen.hideAsync();
+  }, []);
+
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={styles.container}>

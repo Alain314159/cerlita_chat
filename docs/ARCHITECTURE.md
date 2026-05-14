@@ -11,11 +11,13 @@ La aplicación sigue un patrón de **Inversión de Dependencias** y **Clean Arch
 ### 2. Capa de Negocio (Services)
 - **AuthService:** Gestión agnóstica de sesiones.
 - **MessageService:** Orquestación de CRUD de mensajes y suscripciones Realtime.
-- **EncryptionService:** Cifrado E2E (AES-GCM) en el cliente. El contenido en la DB es ilegible para administradores.
+- **EncryptionService (Maestro 2026):** Cifrado E2E asíncrono para texto y binarios (AES-GCM 256).
+- **Zero-Knowledge Storage:** Las fotos y videos se cifran en el origen; Supabase Storage solo aloja ciphertext ilegible.
 
 ### 3. Capa de Estado y UI (Stores & Hooks)
 - **Zustand:** Maneja el estado global de la interfaz (UI State).
 - **TanStack Query:** Maneja el estado del servidor (Server State).
+- **Media Cache:** Capa dedicada para evitar descifrados redundantes de archivos pesados.
 - **Offline-First:** Sincronización automática con `AsyncStorage` y mutaciones optimistas.
 
 ## 🔒 Privacidad y Seguridad

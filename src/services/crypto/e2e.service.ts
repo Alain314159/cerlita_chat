@@ -1,10 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
-// @ts-ignore
 import { gcm } from '@noble/ciphers/aes';
-// @ts-ignore
 import { hkdf } from '@noble/hashes/hkdf';
-// @ts-ignore
 import { sha256 } from '@noble/hashes/sha2';
 
 export class E2EEncryptionService {
@@ -94,6 +91,23 @@ export class E2EEncryptionService {
     };
   }
 
+  /**
+   * Cifra datos binarios (Maestro 2026: Multimedia ZK).
+   */
+  async encryptBinary(data: Uint8Array, chatId: string): Promise<{ ciphertext: Uint8Array; iv: Uint8Array; authTag: Uint8Array }> {
+    const key = await this.getChatKey(chatId);
+    const iv = await Crypto.getRandomBytesAsync(12);
+
+    const aes = gcm(key, iv);
+    const encrypted = aes.encrypt(data);
+
+    const authTagLength = 16;
+    const ciphertext = encrypted.slice(0, -authTagLength);
+    const authTag = encrypted.slice(-authTagLength);
+
+    return { ciphertext, iv, authTag };
+  }
+
   // Descifrar mensaje
   async decrypt(
     ciphertext: string,
@@ -112,19 +126,32 @@ export class E2EEncryptionService {
       const ciphertextArray = this.base64ToUint8Array(ciphertext);
       const authTagArray = this.base64ToUint8Array(authTag);
       
-      // Combinar para @noble gcm
-      const combined = new Uint8Array(ciphertextArray.length + authTagArray.length);
-      combined.set(ciphertextArray);
-      combined.set(authTagArray, ciphertextArray.length);
-
-      const aes = gcm(key, ivArray);
-      const decrypted = aes.decrypt(combined);
-
+      const decrypted = await this.decryptBinary(ciphertextArray, chatId, ivArray, authTagArray);
       return { text: new TextDecoder().decode(decrypted) };
     } catch (err) {
       console.error('[E2E] Decryption failed:', err);
       return { text: '[Error de descifrado]' };
     }
+  }
+
+  /**
+   * Descifra datos binarios (Maestro 2026: Multimedia ZK).
+   */
+  async decryptBinary(
+    ciphertext: Uint8Array,
+    chatId: string,
+    iv: Uint8Array,
+    authTag: Uint8Array
+  ): Promise<Uint8Array> {
+    const key = await this.getChatKey(chatId);
+    
+    // Combinar para @noble gcm
+    const combined = new Uint8Array(ciphertext.length + authTag.length);
+    combined.set(ciphertext);
+    combined.set(authTag, ciphertext.length);
+
+    const aes = gcm(key, iv);
+    return aes.decrypt(combined);
   }
 
   // Eliminar clave de chat

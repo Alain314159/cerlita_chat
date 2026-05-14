@@ -12,7 +12,7 @@ import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { theme } from '@/config/theme';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -82,7 +82,7 @@ export default function LoginScreen() {
             autoCapitalize="none"
             autoComplete="email"
             style={styles.input}
-            left={<TextInput.Icon icon="email" color={theme.colors.secondary} />}
+            left={<TextInput.Icon icon={({ size, color }) => <Mail size={size} color={color} />} />}
           />
 
           <TextInput
@@ -93,11 +93,10 @@ export default function LoginScreen() {
             secureTextEntry={!showPassword}
             autoCapitalize="none"
             style={styles.input}
-            left={<TextInput.Icon icon="lock" color={theme.colors.secondary} />}
+            left={<TextInput.Icon icon={({ size, color }) => <Lock size={size} color={color} />} />}
             right={
               <TextInput.Icon
-                icon={showPassword ? 'eye-off' : 'eye'}
-                color={theme.colors.secondary}
+                icon={({ size, color }) => showPassword ? <EyeOff size={size} color={color} /> : <Eye size={size} color={color} />}
                 onPress={() => setShowPassword(!showPassword)}
               />
             }

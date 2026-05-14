@@ -4,6 +4,7 @@ import { Searchbar, IconButton, ActivityIndicator } from 'react-native-paper';
 import { theme } from '@/config/theme';
 import { useMessageSearch } from '@/hooks/useMessageSearch';
 import type { Message } from '@/types';
+import { ArrowLeft, X } from 'lucide-react-native';
 
 interface SearchMessagesModalProps {
   visible: boolean;
@@ -24,7 +25,11 @@ export const SearchMessagesModal: React.FC<SearchMessagesModalProps> = ({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <IconButton icon="arrow-left" size={24} onPress={onClose} />
+          <IconButton 
+            icon={({ size, color }) => <ArrowLeft size={size} color={color} />} 
+            size={24} 
+            onPress={onClose} 
+          />
           <Text style={styles.title}>Buscar mensajes</Text>
           <View style={{ width: 40 }} />
         </View>
@@ -34,7 +39,7 @@ export const SearchMessagesModal: React.FC<SearchMessagesModalProps> = ({
           value={query}
           style={styles.searchBar}
           iconColor={theme.colors.primary}
-          clearIcon="close"
+          clearIcon={({ size, color }) => <X size={size} color={color} />}
           onClearIconPress={clear}
         />
         {searching ? (

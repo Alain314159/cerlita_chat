@@ -164,14 +164,18 @@ export default function ChatConversationScreen() {
       setIsUploading(true);
       const fileName = `${chatId}/${Date.now()}_${name}`;
       
-      // Convert URI to Blob for upload
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      // 🔐 MAESTRO 2026: Cifrado en Origen (Zero-Knowledge)
+      console.log('[uploadMedia] Encrypting media before upload...');
+      const { encryptedBase64, iv, authTag } = await mediaService.encryptMedia(uri, chatId as string);
+      
+      // Convert encrypted base64 to Blob
+      const binaryData = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+      const blob = new Blob([binaryData], { type: 'application/octet-stream' });
 
       const { data, error } = await supabase.storage
         .from('chat-media')
         .upload(fileName, blob, {
-          contentType: type,
+          contentType: 'application/octet-stream', // Ocultar tipo real en storage
           cacheControl: '3600',
           upsert: false
         });
@@ -187,7 +191,13 @@ export default function ChatConversationScreen() {
         senderId: user!.id,
         chatId: chatId as string,
         mediaURL: publicUrl,
-        type: type.startsWith('image/') ? 'image' : (type.startsWith('video/') ? 'video' : 'file')
+        type: type.startsWith('image/') ? 'image' : (type.startsWith('video/') ? 'video' : 'file'),
+        encryptedPayload: {
+          ciphertext: '', // El archivo es el ciphertext
+          iv,
+          authTag,
+          keyVersion: 'v1'
+        }
       } as any);
 
     } catch (error: any) {
@@ -326,7 +336,8 @@ export default function ChatConversationScreen() {
           if (!item) return null;
           return renderMessage({ item, index });
         }}
-        estimatedItemSize={70}
+        estimatedItemSize={90} // Optimizado para mensajes con texto y meta
+        getItemType={(item) => item.type} // Ayuda a FlashList con el reciclaje de celdas
         contentContainerStyle={styles.listContent}
         inverted // Messages typically list from bottom to top
         onEndReached={() => {
