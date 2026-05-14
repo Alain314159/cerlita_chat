@@ -4,11 +4,12 @@ import { mapDatabaseChatToDomain } from './mappers/chat.mapper';
 import type { Chat } from '@/types';
 
 export const chatService = {
-  // Get all chats for a user (Maestro 2026: Relational Join for Reliability)
+  // Get all chats for a user (Maestro 2026: Normalized Junction Query)
   async getUserChats(userId: string): Promise<Chat[]> {
     const { data, error } = await supabase
       .from('chat_participants')
       .select(`
+        chat_id,
         chat:chats(
           *,
           participants:chat_participants(
@@ -21,13 +22,12 @@ export const chatService = {
 
     if (error) throw new Error(error.message);
     
-    // Mapear y ordenar en memoria (Maestro 2026: Reliable Sorting for Joined Tables)
     return (data || [])
       .filter(row => row.chat)
       .map(row => mapDatabaseChatToDomain(row.chat, userId))
       .sort((a, b) => {
-        const dateA = new Date(a.updatedAt || 0).getTime();
-        const dateB = new Date(b.updatedAt || 0).getTime();
+        const dateA = new Date(a.lastMessageAt || a.updatedAt || 0).getTime();
+        const dateB = new Date(b.lastMessageAt || b.updatedAt || 0).getTime();
         return dateB - dateA;
       });
   },
@@ -36,7 +36,7 @@ export const chatService = {
   async getChatById(chatId: string, userId?: string): Promise<Chat | null> {
     const { data, error } = await supabase
       .from('chats')
-      .select('*, participants:chat_participants(user_id, users(*))')
+      .select('*, participants:chat_participants(user_id, user:users(*))')
       .eq('id', chatId)
       .single();
 
@@ -44,11 +44,11 @@ export const chatService = {
     return mapDatabaseChatToDomain(data, userId);
   },
 
-  // Get or create a direct chat between two users
-  async getOrCreateDirectChat(user1Id: string, user2Id: string): Promise<string> {
+  // Get or create a direct chat (Maestro 2026: Single Parameter RPC)
+  async getOrCreateDirectChat(userId1: string, userId2: string): Promise<string> {
+    // Solo pasamos el ID del destinatario, el RPC usa auth.uid() para el remitente
     const { data, error } = await supabase.rpc('get_or_create_direct_chat', {
-      user1_id: user1Id,
-      user2_id: user2Id,
+      target_user_id: userId2,
     });
 
     if (error) throw new Error(error.message);
