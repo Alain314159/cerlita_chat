@@ -18,6 +18,9 @@ export const InitializeAuthUseCase = async (
     const profile = await deps.getUserProfile(session.user.id);
     await deps.updatePresence(true, session.user.id);
     onUserChanged(profile);
+  } else {
+    // 🔧 FIX: Avisar al store que no hay usuario para desbloquear el SplashScreen
+    onUserChanged(null);
   }
 
   // 2. Listen for future changes

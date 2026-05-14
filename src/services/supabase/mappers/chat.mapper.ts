@@ -7,10 +7,10 @@ export const mapDatabaseChatToDomain = (dbChat: any, currentUserId?: string): Ch
   if (dbChat.participants && Array.isArray(dbChat.participants)) {
     // Buscar al otro participante que no es el usuario actual
     const otherParticipant = dbChat.participants.find((p: any) => 
-      p.users && (!currentUserId || p.user_id !== currentUserId)
+      (p.user || p.users) && (!currentUserId || p.user_id !== currentUserId)
     );
-    if (otherParticipant && otherParticipant.users) {
-      recipient = mapDatabaseUserToDomain(otherParticipant.users);
+    if (otherParticipant) {
+      recipient = mapDatabaseUserToDomain(otherParticipant.user || otherParticipant.users);
     }
   }
 
