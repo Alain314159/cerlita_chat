@@ -34,7 +34,14 @@ export function useMessages(chatId: string) {
   const [sending, setSending] = useState(false);
 
   // Send message
-  const handleSendMessage = useCallback(async (text: string, options?: any) => {
+  const handleSendMessage = useCallback(async (text: string, options?: {
+    messageType?: Message['type'];
+    mediaUrl?: string;
+    thumbnailUrl?: string;
+    replyToId?: string;
+    isEphemeral?: boolean;
+    isViewOnce?: boolean;
+  }) => {
     if (!user || !chatId) return;
     try {
       setSending(true);

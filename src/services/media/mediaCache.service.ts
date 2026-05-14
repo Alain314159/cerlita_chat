@@ -1,15 +1,15 @@
 import * as FileSystem from 'expo-file-system';
-import { e2eEncryptionService } from './crypto/e2e.service';
+import { e2eEncryptionService } from '../crypto/e2e.service';
 
 const CACHE_DIR = `${FileSystem.cacheDirectory}decrypted_media/`;
 
-export const mediaCacheService = {
-  async ensureCacheDir() {
+export class MediaCacheService {
+  private async ensureCacheDir() {
     const dirInfo = await FileSystem.getInfoAsync(CACHE_DIR);
     if (!dirInfo.exists) {
       await FileSystem.makeDirectoryAsync(CACHE_DIR, { intermediates: true });
     }
-  },
+  }
 
   async getDecrypted(messageId: string, mediaURL: string, chatId: string, iv: string, authTag: string): Promise<string | null> {
     try {
@@ -44,15 +44,17 @@ export const mediaCacheService = {
       console.error('[MediaCache] Error:', err);
       return null;
     }
-  },
+  }
 
   private base64ToUint8Array(base64: string): Uint8Array {
     const binary = atob(base64);
     return Uint8Array.from(binary, char => char.charCodeAt(0));
-  },
+  }
 
   private uint8ArrayToBase64(buffer: Uint8Array): string {
     const chars = Array.from(buffer, byte => String.fromCharCode(byte)).join('');
     return btoa(chars);
   }
-};
+}
+
+export const mediaCacheService = new MediaCacheService();

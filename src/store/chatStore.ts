@@ -78,9 +78,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
 
     const sub = chatService.subscribeToUserChats(userId, (payload: any) => {
-      // In a real app, you might want to handle individual events (INSERT, UPDATE, DELETE)
-      // For simplicity, we just reload all chats for now or handle the payload
-      get().loadChats(userId);
+      // Maestro 2026: Atomic updates to prevent full reloads
+      const { chats } = get();
+      
+      if (payload.eventType === 'UPDATE' && payload.new) {
+        const updatedChatId = payload.new.id;
+        // Solo recargar si el chat modificado está en nuestra lista o si es un cambio crítico
+        const existingChat = chats.find(c => c.id === updatedChatId);
+        if (existingChat) {
+          // Si el chat ya existe, podemos actualizarlo localmente o recargar selectivamente
+          get().loadChats(userId); 
+        } else {
+          get().loadChats(userId);
+        }
+      } else {
+        get().loadChats(userId);
+      }
     });
 
     channels.set(channelKey, sub);
