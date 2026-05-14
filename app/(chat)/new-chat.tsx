@@ -87,10 +87,12 @@ export default function NewChatScreen() {
         console.log('[NewChat] E2E shared key established.');
       } catch (e2eError) {
         console.error('[NewChat] E2E setup failed (non-fatal):', e2eError);
-        // Continuamos: la clave se recuperará automáticamente al entrar al chat si es necesario
       }
 
-      router.push(`/(chat)/${chatId}`);
+      // 🔧 FIX: Asegurar que la navegación ocurra incluso si el ID tiene un formato inesperado
+      if (chatId) {
+        router.replace(`/(chat)/${chatId}`);
+      }
     } catch (error: any) {
       console.error('[NewChat] CRITICAL ERROR:', error);
       
